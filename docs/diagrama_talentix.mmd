@@ -1,0 +1,446 @@
+```mermaid
+
+classDiagram
+    direction LR
+
+    class Usuario {
+        +UUID id
+        +String nome
+        +String email
+        +String senhaHash
+        +String telefone
+        +String fotoUrl
+        +Boolean ativo
+        +DateTime criadoEm
+        +DateTime atualizadoEm
+        +login()
+        +logout()
+        +atualizarPerfil()
+        +alterarSenha()
+    }
+
+    class Candidato {
+        +UUID usuarioId
+        +String tituloProfissional
+        +String resumo
+        +String cidade
+        +String estado
+        +String linkedinUrl
+        +String githubUrl
+        +String portfolioUrl
+        +Integer experienciaAnos
+        +Integer pretensaoSalarial
+        +Boolean disponivel
+        +buscarVagas()
+        +candidatarSe()
+        +salvarVaga()
+        +atualizarCurriculo()
+    }
+
+    class Empresa {
+        +UUID usuarioId
+        +String razaoSocial
+        +String nomeFantasia
+        +String cnpj
+        +String descricao
+        +String setor
+        +String porte
+        +String logoUrl
+        +String siteUrl
+        +String endereco
+        +Boolean verificada
+        +cadastrarVaga()
+        +editarVaga()
+        +avaliarCandidato()
+    }
+
+    class Recrutador {
+        +UUID empresaId
+        +String cargo
+        +criarVaga()
+        +gerenciarCandidaturas()
+        +agendarEntrevista()
+    }
+
+    class Vaga {
+        +UUID id
+        +UUID empresaId
+        +String titulo
+        +String descricao
+        +String modalidade
+        +String nivel
+        +String tipoContrato
+        +Decimal salarioMin
+        +Decimal salarioMax
+        +String localizacao
+        +Boolean salarioConfidencial
+        +StatusVaga status
+        +DateTime publicadaEm
+        +DateTime encerradaEm
+        +publicar()
+        +editar()
+        +encerrar()
+    }
+
+    class Candidatura {
+        +UUID id
+        +UUID candidatoId
+        +UUID vagaId
+        +String curriculoUrl
+        +String cartaApresentacao
+        +StatusCandidatura status
+        +Integer compatibilidade
+        +DateTime criadaEm
+        +DateTime atualizadaEm
+        +enviar()
+        +cancelar()
+        +avancarEtapa()
+        +recusar()
+    }
+
+    class EtapaProcesso {
+        +UUID id
+        +UUID candidaturaId
+        +String nome
+        +Integer ordem
+        +StatusEtapa status
+        +DateTime inicioEm
+        +DateTime fimEm
+        +concluir()
+        +reabrir()
+    }
+
+    class Entrevista {
+        +UUID id
+        +UUID candidaturaId
+        +UUID recrutadorId
+        +DateTime dataHora
+        +String tipo
+        +String localOuLink
+        +String observacoes
+        +StatusEntrevista status
+        +agendar()
+        +reagendar()
+        +cancelar()
+    }
+
+    class Curriculo {
+        +UUID id
+        +UUID candidatoId
+        +String titulo
+        +String arquivoUrl
+        +Boolean principal
+        +DateTime atualizadoEm
+        +criar()
+        +atualizar()
+        +baixar()
+    }
+
+    class Experiencia {
+        +UUID id
+        +UUID candidatoId
+        +String empresa
+        +String cargo
+        +String descricao
+        +Date dataInicio
+        +Date dataFim
+        +Boolean atual
+    }
+
+    class Formacao {
+        +UUID id
+        +UUID candidatoId
+        +String instituicao
+        +String curso
+        +String nivel
+        +Date dataInicio
+        +Date dataConclusao
+        +String status
+    }
+
+    class Habilidade {
+        +UUID id
+        +String nome
+        +String categoria
+    }
+
+    class CandidatoHabilidade {
+        +UUID candidatoId
+        +UUID habilidadeId
+        +Integer nivel
+        +Integer anosExperiencia
+    }
+
+    class VagaHabilidade {
+        +UUID vagaId
+        +UUID habilidadeId
+        +Boolean obrigatoria
+        +Integer nivelMinimo
+        +Integer peso
+    }
+
+    class Idioma {
+        +UUID id
+        +String nome
+    }
+
+    class CandidatoIdioma {
+        +UUID candidatoId
+        +UUID idiomaId
+        +String nivel
+    }
+
+    class FavoritoVaga {
+        +UUID id
+        +UUID candidatoId
+        +UUID vagaId
+        +DateTime criadoEm
+    }
+
+    class AnaliseIA {
+        +UUID id
+        +UUID candidatoId
+        +UUID vagaId
+        +UUID candidaturaId
+        +Integer scoreCompatibilidade
+        +String pontosFortes
+        +String lacunas
+        +String justificativa
+        +String modeloIA
+        +DateTime analisadaEm
+        +analisarCompatibilidade()
+        +gerarRecomendacoes()
+    }
+
+    class RecomendacaoVaga {
+        +UUID id
+        +UUID candidatoId
+        +UUID vagaId
+        +Integer score
+        +String motivo
+        +Boolean visualizada
+        +DateTime criadaEm
+    }
+
+    class Curso {
+        +UUID id
+        +String titulo
+        +String descricao
+        +String plataforma
+        +String url
+        +String nivel
+        +String categoria
+        +Integer cargaHoraria
+        +Boolean ativo
+    }
+
+    class RecomendacaoCurso {
+        +UUID id
+        +UUID candidatoId
+        +UUID cursoId
+        +String motivo
+        +Integer prioridade
+        +DateTime criadaEm
+        +Boolean concluida
+    }
+
+    class Notificacao {
+        +UUID id
+        +UUID usuarioId
+        +String titulo
+        +String mensagem
+        +String tipo
+        +Boolean lida
+        +DateTime criadaEm
+        +marcarComoLida()
+    }
+
+    class Mensagem {
+        +UUID id
+        +UUID remetenteId
+        +UUID destinatarioId
+        +UUID candidaturaId
+        +String conteudo
+        +Boolean lida
+        +DateTime enviadaEm
+        +enviar()
+        +marcarComoLida()
+    }
+
+    class Avaliacao {
+        +UUID id
+        +UUID avaliadorId
+        +UUID candidatoId
+        +UUID empresaId
+        +UUID candidaturaId
+        +Integer nota
+        +String comentario
+        +DateTime criadaEm
+    }
+
+    class Denuncia {
+        +UUID id
+        +UUID denuncianteId
+        +UUID usuarioAlvoId
+        +UUID vagaId
+        +String motivo
+        +String descricao
+        +StatusDenuncia status
+        +DateTime criadaEm
+        +resolver()
+    }
+
+    class Administrador {
+        +UUID usuarioId
+        +String nivelAcesso
+        +gerenciarUsuarios()
+        +gerenciarVagas()
+        +moderarDenuncias()
+        +visualizarMetricas()
+    }
+
+    class Assinatura {
+        +UUID id
+        +UUID empresaId
+        +String plano
+        +Decimal valor
+        +Date inicio
+        +Date fim
+        +StatusAssinatura status
+        +renovar()
+        +cancelar()
+    }
+
+    class Pagamento {
+        +UUID id
+        +UUID assinaturaId
+        +Decimal valor
+        +String metodo
+        +String transacaoId
+        +StatusPagamento status
+        +DateTime pagoEm
+        +processar()
+        +estornar()
+    }
+
+    class Dashboard {
+        +obterMetricasCandidato()
+        +obterMetricasEmpresa()
+        +obterMetricasAdmin()
+    }
+
+    Usuario <|-- Candidato
+    Usuario <|-- Empresa
+    Usuario <|-- Administrador
+    Empresa "1" --> "0..*" Recrutador : possui
+    Empresa "1" --> "0..*" Vaga : publica
+    Empresa "1" --> "0..1" Assinatura : possui
+    Assinatura "1" --> "0..*" Pagamento : gera
+
+    Candidato "1" --> "0..*" Curriculo : possui
+    Candidato "1" --> "0..*" Experiencia : possui
+    Candidato "1" --> "0..*" Formacao : possui
+    Candidato "1" --> "0..*" CandidatoHabilidade : possui
+    Habilidade "1" --> "0..*" CandidatoHabilidade : classifica
+    Candidato "1" --> "0..*" CandidatoIdioma : possui
+    Idioma "1" --> "0..*" CandidatoIdioma : classifica
+
+    Vaga "1" --> "0..*" VagaHabilidade : exige
+    Habilidade "1" --> "0..*" VagaHabilidade : requisito
+
+    Candidato "1" --> "0..*" Candidatura : realiza
+    Vaga "1" --> "0..*" Candidatura : recebe
+    Candidatura "1" --> "1..*" EtapaProcesso : possui
+    Candidatura "1" --> "0..*" Entrevista : possui
+    Recrutador "1" --> "0..*" Entrevista : conduz
+
+    Candidato "1" --> "0..*" FavoritoVaga : salva
+    Vaga "1" --> "0..*" FavoritoVaga : favoritada
+
+    Candidato "1" --> "0..*" AnaliseIA : analisado
+    Vaga "1" --> "0..*" AnaliseIA : analisada
+    Candidatura "0..1" --> "0..*" AnaliseIA : possui
+    Candidato "1" --> "0..*" RecomendacaoVaga : recebe
+    Vaga "1" --> "0..*" RecomendacaoVaga : recomendada
+
+    Candidato "1" --> "0..*" RecomendacaoCurso : recebe
+    Curso "1" --> "0..*" RecomendacaoCurso : recomendado
+
+    Usuario "1" --> "0..*" Notificacao : recebe
+    Usuario "1" --> "0..*" Mensagem : envia
+    Usuario "1" --> "0..*" Mensagem : recebe
+    Candidatura "0..1" --> "0..*" Mensagem : contextualiza
+
+    Empresa "1" --> "0..*" Avaliacao : recebe
+    Candidato "1" --> "0..*" Avaliacao : recebe
+    Candidatura "1" --> "0..*" Avaliacao : origina
+
+    Usuario "1" --> "0..*" Denuncia : registra
+    Usuario "1" --> "0..*" Denuncia : alvo
+    Vaga "0..1" --> "0..*" Denuncia : denunciada
+    Administrador "1" --> "0..*" Denuncia : resolve
+
+    Dashboard ..> Candidato : consulta
+    Dashboard ..> Empresa : consulta
+    Dashboard ..> Administrador : consulta
+
+    class StatusVaga {
+        <<enumeration>>
+        RASCUNHO
+        PUBLICADA
+        PAUSADA
+        ENCERRADA
+    }
+
+    class StatusCandidatura {
+        <<enumeration>>
+        ENVIADA
+        EM_ANALISE
+        TRIAGEM
+        ENTREVISTA
+        APROVADA
+        RECUSADA
+        CANCELADA
+    }
+
+    class StatusEtapa {
+        <<enumeration>>
+        PENDENTE
+        EM_ANDAMENTO
+        CONCLUIDA
+        CANCELADA
+    }
+
+    class StatusEntrevista {
+        <<enumeration>>
+        AGENDADA
+        REALIZADA
+        REAGENDADA
+        CANCELADA
+    }
+
+    class StatusDenuncia {
+        <<enumeration>>
+        ABERTA
+        EM_ANALISE
+        RESOLVIDA
+        REJEITADA
+    }
+
+    class StatusAssinatura {
+        <<enumeration>>
+        ATIVA
+        INADIMPLENTE
+        CANCELADA
+        EXPIRADA
+    }
+
+    class StatusPagamento {
+        <<enumeration>>
+        PENDENTE
+        APROVADO
+        RECUSADO
+        ESTORNADO
+    }
+
+```
