@@ -168,3 +168,28 @@ def email_boas_vindas(destinatario: str, nome: str) -> bool:
     <p>Estamos felizes em ter você na plataforma.</p>
     """
     return enviar_email(destinatario, assunto, corpo)
+
+
+def email_recuperar_senha(destinatario: str, nome: str, link_reset: str) -> bool:
+    assunto = "Redefinição de senha — Talentix"
+    corpo = f"""
+    <p>Olá, {nome}!</p>
+    <p>Recebemos um pedido para redefinir a senha da sua conta no Talentix.</p>
+    <p>
+      <a href="{link_reset}" style="display:inline-block;padding:10px 18px;background:#12242E;color:#fff;text-decoration:none;border-radius:8px;">
+        Redefinir minha senha
+      </a>
+    </p>
+    <p>Este link expira em 30 minutos. Se você não pediu essa redefinição, pode ignorar este e-mail com segurança — sua senha continua a mesma.</p>
+    """
+    return enviar_email(destinatario, assunto, corpo)
+
+
+def email_senha_redefinida(destinatario: str, nome: str) -> bool:
+    assunto = "Sua senha foi alterada — Talentix"
+    corpo = f"""
+    <p>Olá, {nome}!</p>
+    <p>Sua senha no Talentix foi alterada com sucesso.</p>
+    <p>Se você não fez essa alteração, entre em contato com o suporte imediatamente.</p>
+    """
+    return enviar_email(destinatario, assunto, corpo)
