@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Entrar ou criar conta — Talentix</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+<link rel="stylesheet" href="/css/login.css">
+
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+
+<div class="layout">
+
+  <!-- ================= PAINEL EDITORIAL ================= -->
+  <aside class="intro">
+    <div class="intro__brand"><span class="intro__brand-mark"></span> TALENTIX</div>
+    <div class="intro__body">
+      <h1 class="intro__headline" id="introHeadline">Encontre a vaga certa, sem enviar currículo no escuro.</h1>
+      <p class="intro__sub" id="introSub">A Talentix cruza seu perfil com vagas reais e mostra exatamente onde você se encaixa — e onde ainda precisa evoluir.</p>
+    </div>
+    <div class="intro__stats">
+      <div>
+        <div class="intro__stat-num">+1k</div>
+        <div class="intro__stat-label">candidatos ativos</div>
+      </div>
+      <div>
+        <div class="intro__stat-num">90%</div>
+        <div class="intro__stat-label">vagas com retorno</div>
+      </div>
+      <div>
+        <div class="intro__stat-num">5min</div>
+        <div class="intro__stat-label">para se candidatar</div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ================= PAINEL DE FORMULÁRIO ================= -->
+  <main class="formside">
+    <div class="formcard">
+
+      <div class="tabs" id="modeSwitch">
+        <input type="radio" name="mode" id="modeLogin" checked>
+        <label for="modeLogin">Entrar</label>
+        <input type="radio" name="mode" id="modeCadastro">
+        <label for="modeCadastro">Criar conta</label>
+      </div>
+
+      <!-- ===================== LOGIN ===================== -->
+      <section class="panel active" id="painelLogin">
+        <div class="formcard__top">
+          <div>
+            <h2 class="formcard__title">Bem-vindo de volta</h2>
+            <p class="formcard__hint">Entre com o e-mail e a senha da sua conta.</p>
+          </div>
+        </div>
+
+        <div class="form-alert" id="loginAlert">
+          <span>⚠</span>
+          <span id="loginAlertText">E-mail ou senha incorretos. Verifique seus dados e tente novamente.</span>
+        </div>
+
+        <form id="formLogin" novalidate>
+          <div class="field">
+            <label for="loginEmail">E-mail</label>
+            <div class="field-wrap">
+              <input type="email" id="loginEmail" name="email" placeholder="seuemail@exemplo.com" autocomplete="off" required>
+            </div>
+            <div class="field-error" id="erroLoginEmail"><span>⚠</span><span>Informe um e-mail válido.</span></div>
+          </div>
+
+          <div class="field">
+            <label for="loginSenha">Senha</label>
+            <div class="field-wrap">
+              <input type="password" id="loginSenha" name="senha" placeholder="Sua senha" autocomplete="off" required>
+              <button type="button" class="toggle-visibility input-toggle" data-toggle-for="loginSenha" aria-label="Mostrar senha">👁</button>
+            </div>
+            <div class="field-error" id="erroLoginSenha"><span>⚠</span><span>Informe sua senha.</span></div>
+          </div>
+
+          <div class="row-between">
+            <label class="checkbox-line">
+              <input type="checkbox" id="lembrarMe" name="lembrarMe">
+              Manter conectado
+            </label>
+            <a href="#" class="link-muted" id="abrirRecuperarSenha">Esqueceu a senha?</a>
+          </div>
+
+          <button type="submit" class="btn btn-primary" id="btnLoginSubmit">Entrar</button>
+        </form>
+
+        <p class="footnote">
+          Ainda não tem conta? <a href="#" class="link-muted" id="irParaCadastro">Cadastre-se</a>
+        </p>
+      </section>
+
+      <!-- ===================== CADASTRO ===================== -->
+      <section class="panel" id="painelCadastro">
+        <div class="formcard__top">
+          <div>
+            <h2 class="formcard__title">Criar sua conta</h2>
+            <p class="formcard__hint">Leva menos de dois minutos.</p>
+          </div>
+        </div>
+
+        <div class="role-picker" id="cadastroRolePicker">
+          <input type="radio" name="cadastroRole" id="cadRoleCandidato" checked>
+          <label for="cadRoleCandidato">
+            <span class="role-title">Candidato</span>
+            <span class="role-sub">Buscando vaga</span>
+          </label>
+
+          <input type="radio" name="cadastroRole" id="cadRoleEmpresa">
+          <label for="cadRoleEmpresa">
+            <span class="role-title">Empresa</span>
+            <span class="role-sub">Vou contratar</span>
+          </label>
+
+          <input type="radio" name="cadastroRole" id="cadRoleRecrutador">
+          <label for="cadRoleRecrutador">
+            <span class="role-title">RH / Recrutador</span>
+            <span class="role-sub">Faço parte de uma empresa</span>
+          </label>
+        </div>
+
+        <div class="form-alert" id="cadastroAlert">
+          <span>⚠</span>
+          <span id="cadastroAlertText">Verifique os campos destacados abaixo.</span>
+        </div>
+
+        <!-- Aviso específico para o fluxo de Recrutador -->
+        <div class="form-alert" id="recrutadorAvisoAlert" style="background:#FFF6E4;border-color:rgba(230,164,23,0.4);color:#8A5A05;">
+          <span>ℹ</span>
+          <span>Contas de RH são adicionadas por uma empresa já cadastrada, de dentro do painel dela. Crie sua conta de usuário aqui e peça para a empresa te adicionar como recrutador — ou, se você administra a empresa, cadastre-a na aba "Empresa".</span>
+        </div>
+
+        <form id="formCadastro" novalidate>
+          <div class="field">
+            <label for="cadNome" id="labelCadNome">Nome completo</label>
+            <input type="text" id="cadNome" name="nome" placeholder="Como você quer ser chamado(a)" autocomplete="name" required minlength="3">
+            <div class="field-error" id="erroCadNome"><span>⚠</span><span>Informe pelo menos 3 caracteres.</span></div>
+          </div>
+
+          <div class="field" id="grupoCnpj" style="display:none;">
+            <label for="cadCnpj">CNPJ</label>
+            <input type="text" id="cadCnpj" name="cnpj" placeholder="00.000.000/0000-00" inputmode="numeric" maxlength="18">
+            <div class="field-error" id="erroCadCnpj"><span>⚠</span><span>Informe um CNPJ válido (14 dígitos).</span></div>
+          </div>
+
+          <div class="field">
+            <label for="cadEmail">E-mail</label>
+            <input type="email" id="cadEmail" name="email" placeholder="seuemail@exemplo.com" autocomplete="email" required>
+            <div class="field-error" id="erroCadEmail"><span>⚠</span><span>Informe um e-mail válido.</span></div>
+          </div>
+
+          <div class="field">
+            <label for="cadTelefone">Telefone <span style="font-weight:400;color:var(--text-muted);">(opcional)</span></label>
+            <input type="tel" id="cadTelefone" name="telefone" placeholder="(00) 00000-0000" inputmode="numeric" maxlength="15">
+          </div>
+
+          <div class="field">
+            <label for="cadSenha">Senha</label>
+            <div class="field-wrap">
+              <input type="password" id="cadSenha" name="senha" placeholder="Crie uma senha" autocomplete="new-password" required minlength="6">
+              <button type="button" class="toggle-visibility input-toggle" data-toggle-for="cadSenha" aria-label="Mostrar senha">👁</button>
+            </div>
+            <div class="pw-strength" id="pwStrength">
+              <span class="pw-strength__bar"></span><span class="pw-strength__bar"></span>
+              <span class="pw-strength__bar"></span><span class="pw-strength__bar"></span>
+            </div>
+            <div class="field-hint" id="pwHint">Mínimo de 6 caracteres.</div>
+            <div class="field-error" id="erroCadSenha"><span>⚠</span><span>A senha precisa ter no mínimo 6 caracteres.</span></div>
+          </div>
+
+          <div class="field">
+            <label for="cadConfirmarSenha">Confirmar senha</label>
+            <input type="password" id="cadConfirmarSenha" name="confirmarSenha" placeholder="Repita a senha" autocomplete="new-password" required>
+            <div class="field-error" id="erroCadConfirmarSenha"><span>⚠</span><span>As senhas não coincidem.</span></div>
+          </div>
+
+          <div class="row-between" style="margin-bottom:8px;">
+            <label class="checkbox-line">
+              <input type="checkbox" id="aceitarTermos" name="aceitarTermos" required>
+              <span>Li e aceito os <a href="#" class="link-muted">termos de uso</a></span>
+            </label>
+          </div>
+          <div class="field-error" id="erroTermos" style="margin-bottom:16px;"><span>⚠</span><span>É preciso aceitar os termos para continuar.</span></div>
+
+          <button type="submit" class="btn btn-primary" id="btnCadastroSubmit">
+            <span id="labelCadastroSubmit">Criar conta de candidato</span>
+          </button>
+        </form>
+
+        <p class="footnote">
+          Já tem conta? <a href="#" class="link-muted" id="irParaLogin">Entrar</a>
+        </p>
+      </section>
+
+    </div>
+  </main>
+</div>
+
+<!-- ================= MODAL: RECUPERAR SENHA ================= -->
+<div class="modal-overlay" id="modalRecuperar">
+  <div class="modal">
+    <button type="button" class="modal__close" id="fecharModal" aria-label="Fechar">✕</button>
+
+    <form id="formRecuperar">
+      <h3>Recuperar senha</h3>
+      <p>Informe o e-mail da sua conta. Se ele existir, enviaremos um link para redefinir sua senha.</p>
+
+      <div class="field">
+        <label for="recuperarEmail">E-mail</label>
+        <input type="email" id="recuperarEmail" name="email" placeholder="seuemail@exemplo.com" required>
+        <div class="field-error" id="erroRecuperarEmail"><span>⚠</span><span>Informe um e-mail válido.</span></div>
+      </div>
+
+      <div class="modal__actions">
+        <button type="button" class="btn btn-ghost" id="cancelarRecuperar">Cancelar</button>
+        <button type="submit" class="btn btn-primary" id="btnRecuperarSubmit">Enviar link</button>
+      </div>
+    </form>
+
+    <div class="modal__success" id="modalSucesso">
+      <div class="modal__success-icon">✓</div>
+      <h3 style="text-align:center;">Verifique seu e-mail</h3>
+      <p style="text-align:center;">Se existir uma conta com esse e-mail, você vai receber um link de redefinição em instantes.</p>
+      <button type="button" class="btn btn-primary" id="fecharModalSucesso">Entendi</button>
+    </div>
+  </div>
+</div>
+
+<!-- ================= MODAL: DEFINIR NOVA SENHA (via link do e-mail) ================= -->
+<div class="modal-overlay" id="modalNovaSenha">
+  <div class="modal">
+    <button type="button" class="modal__close" id="fecharModalNovaSenha" aria-label="Fechar">✕</button>
+
+    <form id="formNovaSenha">
+      <h3>Defina sua nova senha</h3>
+      <p>Escolha uma nova senha para acessar sua conta.</p>
+
+      <div class="field">
+        <label for="novaSenhaInput">Nova senha</label>
+        <div class="field-wrap">
+          <input type="password" id="novaSenhaInput" name="novaSenha" placeholder="Crie uma nova senha" autocomplete="new-password" required minlength="6">
+          <button type="button" class="toggle-visibility input-toggle" data-toggle-for="novaSenhaInput" aria-label="Mostrar senha">👁</button>
+        </div>
+        <div class="pw-strength" id="pwStrengthNova">
+          <span class="pw-strength__bar"></span><span class="pw-strength__bar"></span>
+          <span class="pw-strength__bar"></span><span class="pw-strength__bar"></span>
+        </div>
+        <div class="field-hint" id="pwHintNova">Mínimo de 6 caracteres.</div>
+        <div class="field-error" id="erroNovaSenha"><span>⚠</span><span>A senha precisa ter no mínimo 6 caracteres.</span></div>
+      </div>
+
+      <div class="field">
+        <label for="confirmarNovaSenhaInput">Confirmar nova senha</label>
+        <input type="password" id="confirmarNovaSenhaInput" name="confirmarNovaSenha" placeholder="Repita a nova senha" autocomplete="new-password" required>
+        <div class="field-error" id="erroConfirmarNovaSenha"><span>⚠</span><span>As senhas não coincidem.</span></div>
+      </div>
+
+      <div class="form-alert" id="novaSenhaAlert">
+        <span>⚠</span>
+        <span id="novaSenhaAlertText">Não foi possível redefinir sua senha.</span>
+      </div>
+
+      <div class="modal__actions">
+        <button type="submit" class="btn btn-primary" id="btnNovaSenhaSubmit" style="width:100%;">Salvar nova senha</button>
+      </div>
+    </form>
+
+    <div class="modal__success" id="modalNovaSenhaSucesso">
+      <div class="modal__success-icon">✓</div>
+      <h3 style="text-align:center;">Senha redefinida!</h3>
+      <p style="text-align:center;">Sua senha foi alterada com sucesso. Você já pode entrar com a nova senha.</p>
+      <button type="button" class="btn btn-primary" id="fecharNovaSenhaSucesso">Ir para o login</button>
+    </div>
+  </div>
+</div>
+
+<script src="/js/config.js"></script>
+<script src="/js/login.js"></script>
+</body>
+</html>
