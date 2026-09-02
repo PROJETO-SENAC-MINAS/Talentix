@@ -5,6 +5,10 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
+
+    # URL do frontend, usada para montar o link de redefinição de senha no e-mail
+    FRONTEND_RESET_URL: str = "http://127.0.0.1:5500/login.html"
+
     # Banco de dados
     DB_HOST: str = "localhost"
     DB_PORT: int = 3306
