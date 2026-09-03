@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Talentix — Recrutamento inteligente com IA</title>
+<meta name="description" content="A Talentix cruza seu perfil com vagas reais usando IA e mostra exatamente onde você se encaixa.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+
+<!-- ================= HEADER ================= -->
+<header class="header">
+  <div class="container header__bar">
+    <a href="index.html" class="brand">
+      <span class="brand__mark"></span>
+      <span class="brand__name">TALENTIX</span>
+    </a>
+
+    <nav class="nav">
+      <ul class="nav__links">
+        <li><a href="#personas">Para você</a></li>
+        <li><a href="#como-funciona">Como funciona</a></li>
+        <li><a href="#depoimentos">Depoimentos</a></li>
+      </ul>
+      <div class="nav__actions">
+        <a href="login.html" class="btn btn-ghost">Entrar</a>
+        <a href="login.html?modo=cadastro" class="btn btn-primary">Criar conta</a>
+      </div>
+      <button class="nav__toggle" id="navToggle" aria-label="Abrir menu" aria-expanded="false">
+        <span></span><span></span><span></span>
+      </button>
+    </nav>
+  </div>
+</header>
+
+<!-- ================= HERO ================= -->
+<section class="hero">
+  <div class="container hero__grid">
+    <div class="hero__content">
+      <span class="eyebrow"><span class="eyebrow__dot"></span> Recrutamento com inteligência artificial</span>
+      <h1>Encontre a vaga certa, <em>sem enviar currículo no escuro.</em></h1>
+      <p class="hero__sub">
+        A Talentix cruza seu perfil com vagas reais e mostra exatamente onde você se encaixa —
+        e onde ainda precisa evoluir. Empresas recebem candidatos já ranqueados por compatibilidade.
+      </p>
+      <div class="hero__actions">
+        <a href="login.html?perfil=candidato&modo=cadastro" class="btn btn-accent btn-lg">Sou candidato</a>
+        <a href="login.html?perfil=empresa&modo=cadastro" class="btn btn-ghost btn-on-navy btn-lg">Sou empresa</a>
+      </div>
+      <div class="hero__stats">
+        <div><div class="stat__num">+1k</div><div class="stat__label">candidatos ativos</div></div>
+        <div><div class="stat__num">90%</div><div class="stat__label">vagas com retorno</div></div>
+        <div><div class="stat__num">5min</div><div class="stat__label">para se candidatar</div></div>
+      </div>
+    </div>
+
+    <div class="hero__visual">
+      <div class="match-card">
+        <div class="match-card__top">
+          <div class="match-card__avatar"></div>
+          <div>
+            <div class="match-card__name">Analista de Dados Pleno</div>
+            <div class="match-card__role">TechNova · Belo Horizonte, MG</div>
+          </div>
+        </div>
+        <div class="match-score">
+          <span class="match-score__num">92%</span>
+          <span class="match-score__label">de compatibilidade</span>
+        </div>
+        <div class="match-bar"><div class="match-bar__fill"></div></div>
+        <div class="match-tags">
+          <span class="match-tag">SQL avançado</span>
+          <span class="match-tag">Python</span>
+          <span class="match-tag">Power BI</span>
+        </div>
+        <div class="match-card__float"><span class="pulse"></span> Análise da IA concluída</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= PERSONAS ================= -->
+<section class="section" id="personas">
+  <div class="container">
+    <div class="section__head">
+      <span class="section__eyebrow">Feito para os dois lados do processo</span>
+      <h2>Uma plataforma, dois caminhos</h2>
+      <p>Candidatos encontram vagas compatíveis. Empresas encontram talentos qualificados. A IA cuida do match.</p>
+    </div>
+
+    <div class="personas">
+      <article class="persona-card persona-card--candidato">
+        <div class="persona-card__icon">🎯</div>
+        <h3>Para candidatos</h3>
+        <p>Monte seu perfil uma vez e deixe a IA indicar vagas com alta compatibilidade real.</p>
+        <ul class="persona-card__list">
+          <li>Currículo, experiências e habilidades em um só lugar</li>
+          <li>Recomendações de vaga por compatibilidade calculada</li>
+          <li>Acompanhamento das etapas de cada candidatura</li>
+          <li>Sugestões de cursos para fechar lacunas de habilidade</li>
+        </ul>
+        <a href="login.html?perfil=candidato&modo=cadastro" class="btn btn-accent btn-block">Criar perfil de candidato</a>
+      </article>
+
+      <article class="persona-card persona-card--empresa">
+        <div class="persona-card__icon">🏢</div>
+        <h3>Para empresas</h3>
+        <p>Publique vagas, receba candidaturas já ranqueadas por compatibilidade e conduza entrevistas na plataforma.</p>
+        <ul class="persona-card__list">
+          <li>Painel de vagas com status em tempo real</li>
+          <li>Candidatos ordenados por score de IA</li>
+          <li>Etapas de processo seletivo organizadas</li>
+          <li>Agenda de entrevistas integrada</li>
+        </ul>
+        <a href="login.html?perfil=empresa&modo=cadastro" class="btn btn-ghost btn-block">Cadastrar minha empresa</a>
+      </article>
+    </div>
+  </div>
+</section>
+
+<!-- ================= COMO FUNCIONA ================= -->
+<section class="section section--panel" id="como-funciona">
+  <div class="container">
+    <div class="section__head">
+      <span class="section__eyebrow">Do cadastro à contratação</span>
+      <h2>Como funciona</h2>
+      <p>Um fluxo simples, do primeiro cadastro até a entrevista final.</p>
+    </div>
+
+    <div class="flow">
+      <div class="flow-step">
+        <div class="flow-step__num">01</div>
+        <h4>Crie seu perfil</h4>
+        <p>Candidato monta currículo e habilidades; empresa cadastra dados e publica vagas.</p>
+      </div>
+      <div class="flow-step">
+        <div class="flow-step__num">02</div>
+        <h4>A IA analisa</h4>
+        <p>Comparamos habilidades, experiência e requisitos para gerar um score de compatibilidade.</p>
+      </div>
+      <div class="flow-step">
+        <div class="flow-step__num">03</div>
+        <h4>Candidatura e etapas</h4>
+        <p>O processo avança por etapas — triagem, entrevistas — com status visível para os dois lados.</p>
+      </div>
+      <div class="flow-step">
+        <div class="flow-step__num">04</div>
+        <h4>Entrevista e decisão</h4>
+        <p>Agendamento de entrevistas e retorno direto pela plataforma, sem perder o histórico.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= DEPOIMENTOS ================= -->
+<section class="section" id="depoimentos">
+  <div class="container">
+    <div class="section__head">
+      <span class="section__eyebrow">Quem já usa</span>
+      <h2>Resultado de quem confiou na Talentix</h2>
+    </div>
+
+    <div class="testimonials">
+      <article class="testimonial">
+        <div class="testimonial__stars">★★★★★</div>
+        <p>"Recebi indicações de vaga muito mais alinhadas com meu perfil do que em qualquer outra plataforma que já usei."</p>
+        <div class="testimonial__author">
+          <div class="testimonial__avatar"></div>
+          <div><div class="testimonial__name">Marina Torres</div><div class="testimonial__role">Analista de Dados</div></div>
+        </div>
+      </article>
+      <article class="testimonial">
+        <div class="testimonial__stars">★★★★★</div>
+        <p>"Reduzimos o tempo de triagem pela metade. A IA já entrega os candidatos mais aderentes primeiro."</p>
+        <div class="testimonial__author">
+          <div class="testimonial__avatar"></div>
+          <div><div class="testimonial__name">Rafael Mendes</div><div class="testimonial__role">Recrutador, TechNova</div></div>
+        </div>
+      </article>
+      <article class="testimonial">
+        <div class="testimonial__stars">★★★★★</div>
+        <p>"Consegui entender exatamente quais habilidades me faltavam e quais cursos fazer para chegar lá."</p>
+        <div class="testimonial__author">
+          <div class="testimonial__avatar"></div>
+          <div><div class="testimonial__name">Bruno Alves</div><div class="testimonial__role">Desenvolvedor Jr.</div></div>
+        </div>
+      </article>
+    </div>
+  </div>
+</section>
+
+<!-- ================= CTA FINAL ================= -->
+<section class="section" style="padding-top:0;">
+  <div class="container">
+    <div class="cta-band">
+      <h2>Pronto para começar?</h2>
+      <p>Leva menos de 5 minutos para criar seu perfil e receber suas primeiras recomendações.</p>
+      <div class="cta-band__actions">
+        <a href="login.html?perfil=candidato&modo=cadastro" class="btn btn-accent btn-lg">Criar conta gratuita</a>
+        <a href="login.html" class="btn btn-ghost btn-on-navy btn-lg">Já tenho conta</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= FOOTER ================= -->
+<footer class="footer">
+  <div class="container">
+    <div class="footer__grid">
+      <div class="footer__brand">
+        <a href="index.html" class="brand">
+          <span class="brand__mark"></span>
+          <span class="brand__name">TALENTIX</span>
+        </a>
+        <p>Plataforma de recrutamento inteligente que conecta candidatos e empresas usando IA.</p>
+      </div>
+      <div class="footer__col">
+        <h5>Produto</h5>
+        <ul>
+          <li><a href="#como-funciona">Como funciona</a></li>
+          <li><a href="login.html?perfil=empresa">Para empresas</a></li>
+          <li><a href="login.html?perfil=candidato">Para candidatos</a></li>
+        </ul>
+      </div>
+      <div class="footer__col">
+        <h5>Empresa</h5>
+        <ul>
+          <li><a href="#">Sobre nós</a></li>
+          <li><a href="contato.html">Contato</a></li>
+        </ul>
+      </div>
+      <div class="footer__col">
+        <h5>Legal</h5>
+        <ul>
+          <li><a href="termos.html">Termos de uso</a></li>
+        <li><a href="privacidade.html">Privacidade</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer__bottom">
+      <span>© 2026 Talentix. Projeto integrador — SENAC Minas.</span>
+      <div class="footer__social">
+        <a href="#" aria-label="Instagram">ig</a>
+        <a href="https://github.com/PROJETO-SENAC-MINAS/Talentix" aria-label="GitHub">gh</a>
+      </div>
+    </div>
+  </div>
+</footer>
+
+<script src="/js/script.js"></script>
+</body>
+</html>
