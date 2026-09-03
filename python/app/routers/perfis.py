@@ -41,6 +41,16 @@ async def listar_candidatos(cidade: str | None = None, disponivel: bool | None =
     return await fetch_all(query, tuple(params))
 
 
+@router.get("/candidatos/me", tags=["Candidatos"])
+async def obter_meu_perfil_candidato(sessao: dict = Depends(usuario_atual)):
+    candidato = await fetch_one(
+        "SELECT * FROM Candidatos WHERE ID_Usuarios=%s AND Ativo=1", (sessao["id_usuario"],)
+    )
+    if not candidato:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Perfil de candidato não encontrado para este usuário.")
+    return candidato
+
+
 @router.get("/candidatos/{id_candidato}", tags=["Candidatos"])
 async def obter_candidato(id_candidato: str):
     candidato = await fetch_one("SELECT * FROM Candidatos WHERE ID_Candidatos=%s AND Ativo=1", (id_candidato,))
