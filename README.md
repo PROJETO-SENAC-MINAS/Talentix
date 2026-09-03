@@ -13,6 +13,3 @@ uvicorn app.main:app --reload
 
 # Instalar as dependências
 pip install -r requirements.txt
-
-
-claude, eu ativei o envio do email e esta tudo funcionando corretamente, so nao tem como mudar a senha ainda pois nao temos a pagina de redefinir-senha. Vamos terminar essa 5. login.js — front já está pronto, só ajustar o payload de redefinição que estavamos fazendo ontem (esta anexado como resposta)

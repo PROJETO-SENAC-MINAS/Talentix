@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Meu painel — Talentix</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/dashboard-candidato.css">
+</head>
+<body>
+
+<div class="app">
+
+  <!-- ===================== SIDEBAR ===================== -->
+  <aside class="sidebar">
+    <div class="sidebar__brand"><span class="brand-mark"></span> Talentix</div>
+
+    <nav class="sidebar__nav" id="sidebarNav">
+      <button class="nav-item active" data-tab="perfil">
+        <span class="nav-icon">◐</span> Perfil
+      </button>
+      <button class="nav-item" data-tab="curriculo">
+        <span class="nav-icon">▤</span> Currículo
+      </button>
+      <button class="nav-item" data-tab="formacao">
+        <span class="nav-icon">◆</span> Formação e certificados
+      </button>
+      <button class="nav-item" data-tab="vagas">
+        <span class="nav-icon">▶</span> Vagas
+      </button>
+      <button class="nav-item" data-tab="candidaturas">
+        <span class="nav-icon">✓</span> Minhas candidaturas
+      </button>
+    </nav>
+
+    <div class="sidebar__footer">
+      <div class="user-chip" id="userChip">
+        <div class="user-chip__avatar" id="userAvatar">–</div>
+        <div>
+          <div class="user-chip__name" id="userName">Carregando…</div>
+          <div class="user-chip__role">Candidato</div>
+        </div>
+      </div>
+      <button class="btn-logout" id="btnLogout">Sair</button>
+    </div>
+  </aside>
+
+  <!-- ===================== CONTEÚDO ===================== -->
+  <main class="content">
+
+    <div class="toast" id="toast"></div>
+
+    <!-- ---------- PERFIL ---------- -->
+    <section class="tab-panel active" id="tab-perfil">
+      <header class="content__header">
+        <div>
+          <h1>Seu perfil</h1>
+          <p class="content__sub">Essas informações aparecem para as empresas quando você se candidata.</p>
+        </div>
+      </header>
+
+      <div class="card">
+        <form id="formPerfil">
+          <div class="grid-2">
+            <div class="field">
+              <label for="pTituloProfissional">Título profissional</label>
+              <input type="text" id="pTituloProfissional" placeholder="Ex: Desenvolvedor(a) Backend Júnior">
+            </div>
+            <div class="field">
+              <label for="pExperienciaAnos">Anos de experiência</label>
+              <input type="number" id="pExperienciaAnos" min="0" max="60">
+            </div>
+          </div>
+
+          <div class="field">
+            <label for="pResumo">Resumo</label>
+            <textarea id="pResumo" rows="4" placeholder="Conte brevemente sua trajetória e o que você busca."></textarea>
+          </div>
+
+          <div class="grid-2">
+            <div class="field">
+              <label for="pCidade">Cidade</label>
+              <input type="text" id="pCidade" placeholder="Ex: Contagem">
+            </div>
+            <div class="field">
+              <label for="pEstado">Estado</label>
+              <input type="text" id="pEstado" maxlength="2" placeholder="Ex: MG" style="text-transform:uppercase;">
+            </div>
+          </div>
+
+          <div class="field">
+            <label for="pPretensaoSalarial">Pretensão salarial (R$)</label>
+            <input type="number" id="pPretensaoSalarial" min="0" step="0.01" placeholder="Opcional">
+          </div>
+
+          <div class="grid-3">
+            <div class="field">
+              <label for="pLinkedin">LinkedIn</label>
+              <input type="url" id="pLinkedin" placeholder="https://linkedin.com/in/...">
+            </div>
+            <div class="field">
+              <label for="pGithub">GitHub</label>
+              <input type="url" id="pGithub" placeholder="https://github.com/...">
+            </div>
+            <div class="field">
+              <label for="pPortfolio">Portfólio</label>
+              <input type="url" id="pPortfolio" placeholder="https://...">
+            </div>
+          </div>
+
+          <label class="checkbox-line">
+            <input type="checkbox" id="pDisponivel">
+            Estou disponível para novas oportunidades agora
+          </label>
+
+          <div class="form-actions">
+            <button type="submit" class="btn btn-primary" id="btnSalvarPerfil">Salvar alterações</button>
+          </div>
+        </form>
+      </div>
+
+      <div class="card">
+        <h3>Habilidades</h3>
+        <p class="content__sub" style="margin-top:-6px;">Adicione as tecnologias e competências que você domina.</p>
+
+        <form id="formHabilidade" class="inline-form">
+          <input type="text" id="hNome" placeholder="Ex: Python, Comunicação, Excel..." required>
+          <select id="hNivel">
+            <option value="">Nível (opcional)</option>
+            <option value="1">Básico</option>
+            <option value="2">Intermediário</option>
+            <option value="3">Avançado</option>
+            <option value="4">Especialista</option>
+          </select>
+          <button type="submit" class="btn btn-secondary">Adicionar</button>
+        </form>
+
+        <ul class="chip-list" id="listaHabilidades"></ul>
+      </div>
+    </section>
+
+    <!-- ---------- CURRÍCULO (arquivo) ---------- -->
+    <section class="tab-panel" id="tab-curriculo">
+      <header class="content__header">
+        <div>
+          <h1>Currículo</h1>
+          <p class="content__sub">Envie o arquivo do seu currículo. Você pode manter mais de um e marcar o principal.</p>
+        </div>
+      </header>
+
+      <div class="card">
+        <form id="formCurriculo" class="inline-form-stack">
+          <div class="field">
+            <label for="cvTitulo">Nome do arquivo</label>
+            <input type="text" id="cvTitulo" placeholder="Ex: Currículo 2026 — Atualizado" required>
+          </div>
+          <div class="field">
+            <label for="cvArquivo">Arquivo (PDF, DOC ou DOCX)</label>
+            <input type="file" id="cvArquivo" accept=".pdf,.doc,.docx" required>
+          </div>
+          <label class="checkbox-line">
+            <input type="checkbox" id="cvPrincipal">
+            Marcar como currículo principal
+          </label>
+          <button type="submit" class="btn btn-primary" id="btnEnviarCurriculo" style="align-self:flex-start;">Enviar currículo</button>
+        </form>
+      </div>
+
+      <div class="card">
+        <h3>Currículos enviados</h3>
+        <div class="list" id="listaCurriculos">
+          <p class="empty-state">Nenhum currículo enviado ainda.</p>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>Experiências profissionais</h3>
+
+        <form id="formExperiencia" class="inline-form-stack">
+          <div class="grid-2">
+            <div class="field">
+              <label for="expEmpresa">Empresa</label>
+              <input type="text" id="expEmpresa" required>
+            </div>
+            <div class="field">
+              <label for="expCargo">Cargo</label>
+              <input type="text" id="expCargo" required>
+            </div>
+          </div>
+          <div class="field">
+            <label for="expDescricao">Descrição <span class="muted">(opcional)</span></label>
+            <textarea id="expDescricao" rows="2"></textarea>
+          </div>
+          <div class="grid-2">
+            <div class="field">
+              <label for="expInicio">Início</label>
+              <input type="date" id="expInicio" required>
+            </div>
+            <div class="field">
+              <label for="expFim">Fim</label>
+              <input type="date" id="expFim">
+            </div>
+          </div>
+          <label class="checkbox-line">
+            <input type="checkbox" id="expAtual">
+            Trabalho aqui atualmente
+          </label>
+          <button type="submit" class="btn btn-secondary" style="align-self:flex-start;">Adicionar experiência</button>
+        </form>
+
+        <div class="list" id="listaExperiencias" style="margin-top:18px;">
+          <p class="empty-state">Nenhuma experiência cadastrada ainda.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ---------- FORMAÇÃO E CERTIFICADOS ---------- -->
+    <section class="tab-panel" id="tab-formacao">
+      <header class="content__header">
+        <div>
+          <h1>Formação e certificados</h1>
+          <p class="content__sub">Escolas, cursos e certificados que você já concluiu ou está cursando.</p>
+        </div>
+      </header>
+
+      <div class="card">
+        <form id="formFormacao" class="inline-form-stack">
+          <div class="field">
+            <label for="fTipo">Tipo</label>
+            <select id="fTipo">
+              <option value="formacao">Formação acadêmica (escola, faculdade, curso)</option>
+              <option value="certificado">Certificado</option>
+            </select>
+          </div>
+
+          <div class="grid-2">
+            <div class="field">
+              <label for="fInstituicao">Instituição</label>
+              <input type="text" id="fInstituicao" placeholder="Ex: UFMG, Alura, Coursera..." required>
+            </div>
+            <div class="field">
+              <label for="fCurso">Curso / Certificação</label>
+              <input type="text" id="fCurso" placeholder="Ex: Ciência da Computação, AWS Cloud Practitioner..." required>
+            </div>
+          </div>
+
+          <div class="field" id="grupoNivelFormacao">
+            <label for="fNivel">Nível</label>
+            <select id="fNivel">
+              <option value="">Selecione</option>
+              <option value="Ensino Médio">Ensino Médio</option>
+              <option value="Técnico">Técnico</option>
+              <option value="Graduação">Graduação</option>
+              <option value="Pós-graduação">Pós-graduação</option>
+              <option value="Mestrado">Mestrado</option>
+              <option value="Doutorado">Doutorado</option>
+              <option value="Curso livre">Curso livre</option>
+            </select>
+          </div>
+
+          <div class="grid-2">
+            <div class="field">
+              <label for="fInicio">Início <span class="muted">(opcional)</span></label>
+              <input type="date" id="fInicio">
+            </div>
+            <div class="field" id="grupoConclusao">
+              <label for="fConclusao">Conclusão <span class="muted">(opcional)</span></label>
+              <input type="date" id="fConclusao">
+            </div>
+          </div>
+
+          <div class="field" id="grupoStatusFormacao">
+            <label for="fStatus">Status <span class="muted">(opcional)</span></label>
+            <select id="fStatus">
+              <option value="">Selecione</option>
+              <option value="Concluído">Concluído</option>
+              <option value="Cursando">Cursando</option>
+              <option value="Trancado">Trancado</option>
+            </select>
+          </div>
+
+          <button type="submit" class="btn btn-primary" id="btnAdicionarFormacao" style="align-self:flex-start;">Adicionar</button>
+        </form>
+      </div>
+
+      <div class="card">
+        <h3>Formação acadêmica</h3>
+        <div class="list" id="listaFormacoes">
+          <p class="empty-state">Nenhuma formação cadastrada ainda.</p>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>Certificados</h3>
+        <div class="list" id="listaCertificados">
+          <p class="empty-state">Nenhum certificado cadastrado ainda.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ---------- VAGAS ---------- -->
+    <section class="tab-panel" id="tab-vagas">
+      <header class="content__header">
+        <div>
+          <h1>Vagas disponíveis</h1>
+          <p class="content__sub">Encontre oportunidades publicadas pelas empresas e candidate-se diretamente.</p>
+        </div>
+      </header>
+
+      <div class="card">
+        <form id="formFiltroVagas" class="filter-bar">
+          <input type="text" id="fvTitulo" placeholder="Cargo, palavra-chave...">
+          <input type="text" id="fvLocalizacao" placeholder="Localização">
+          <select id="fvModalidade">
+            <option value="">Modalidade</option>
+            <option value="Remoto">Remoto</option>
+            <option value="Híbrido">Híbrido</option>
+            <option value="Presencial">Presencial</option>
+          </select>
+          <select id="fvNivel">
+            <option value="">Nível</option>
+            <option value="Estágio">Estágio</option>
+            <option value="Júnior">Júnior</option>
+            <option value="Pleno">Pleno</option>
+            <option value="Sênior">Sênior</option>
+          </select>
+          <button type="submit" class="btn btn-secondary">Buscar</button>
+        </form>
+      </div>
+
+      <div class="list" id="listaVagas">
+        <p class="empty-state">Buscando vagas…</p>
+      </div>
+    </section>
+
+    <!-- ---------- MINHAS CANDIDATURAS ---------- -->
+    <section class="tab-panel" id="tab-candidaturas">
+      <header class="content__header">
+        <div>
+          <h1>Minhas candidaturas</h1>
+          <p class="content__sub">Acompanhe o status de todas as vagas às quais você já se candidatou.</p>
+        </div>
+      </header>
+
+      <div class="list" id="listaCandidaturas">
+        <p class="empty-state">Carregando suas candidaturas…</p>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<!-- ===================== MODAL: DETALHE DA VAGA / CANDIDATURA ===================== -->
+<div class="modal-overlay" id="modalVaga">
+  <div class="modal modal--wide">
+    <button type="button" class="modal__close" id="fecharModalVaga" aria-label="Fechar">✕</button>
+    <div id="modalVagaConteudo"></div>
+  </div>
+</div>
+
+<script src="/js/config.js"></script>
+<script src="/js/dashboard-candidato.js"></script>
+</body>
+</html>
