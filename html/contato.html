@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Contato — Talentix</title>
+<meta name="description" content="Fale com a equipe Talentix. Suporte para candidatos, empresas e parcerias.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/institucional.css">
+</head>
+<body>
+
+<header class="header">
+  <div class="container header__bar">
+    <a href="index.html" class="brand">
+      <span class="brand__mark"></span>
+      <span class="brand__name">TALENTIX</span>
+    </a>
+    <nav class="nav">
+      <ul class="nav__links">
+        <li><a href="index.html#personas">Para você</a></li>
+        <li><a href="index.html#como-funciona">Como funciona</a></li>
+        <li><a href="contato.html">Contato</a></li>
+      </ul>
+      <div class="nav__actions">
+        <a href="login.html" class="btn btn-ghost">Entrar</a>
+        <a href="login.html?modo=cadastro" class="btn btn-primary">Criar conta</a>
+      </div>
+      <button class="nav__toggle" id="navToggle" aria-label="Abrir menu" aria-expanded="false">
+        <span></span><span></span><span></span>
+      </button>
+    </nav>
+  </div>
+</header>
+
+<section class="page-hero">
+  <div class="container page-hero__inner">
+    <span class="eyebrow"><span class="eyebrow__dot"></span> Fale com a gente</span>
+    <h1>Estamos aqui para ajudar</h1>
+    <p>Dúvidas sobre sua conta, uma vaga publicada ou uma parceria? Escolha o assunto e mande sua mensagem — respondemos em até 1 dia útil.</p>
+  </div>
+</section>
+
+<section class="legal">
+  <div class="container">
+    <div class="contact-grid">
+
+      <div class="contact-card">
+        <h2>Envie sua mensagem</h2>
+        <p class="contact-card__hint">Preencha o formulário abaixo. Campos com * são obrigatórios.</p>
+
+        <div class="contact-success" id="contatoSucesso">
+          <span>✓</span>
+          <span>Mensagem enviada! Nossa equipe vai te responder em breve pelo e-mail informado.</span>
+        </div>
+
+        <form id="formContato" novalidate>
+          <div class="contact-field">
+            <label for="contatoNome">Nome *</label>
+            <input type="text" id="contatoNome" name="nome" placeholder="Seu nome completo" required minlength="3">
+            <div class="field-error" id="erroContatoNome"><span>⚠</span><span>Informe pelo menos 3 caracteres.</span></div>
+          </div>
+
+          <div class="contact-field">
+            <label for="contatoEmail">E-mail *</label>
+            <input type="email" id="contatoEmail" name="email" placeholder="seuemail@exemplo.com" required>
+            <div class="field-error" id="erroContatoEmail"><span>⚠</span><span>Informe um e-mail válido.</span></div>
+          </div>
+
+          <div class="contact-field">
+            <label for="contatoAssunto">Assunto *</label>
+            <select id="contatoAssunto" name="assunto" required>
+              <option value="" selected disabled>Selecione um assunto</option>
+              <option value="candidato">Sou candidato — dúvida sobre minha conta</option>
+              <option value="empresa">Sou empresa — dúvida sobre vagas ou plano</option>
+              <option value="parceria">Proposta de parceria</option>
+              <option value="imprensa">Imprensa</option>
+              <option value="outro">Outro assunto</option>
+            </select>
+            <div class="field-error" id="erroContatoAssunto"><span>⚠</span><span>Selecione um assunto.</span></div>
+          </div>
+
+          <div class="contact-field">
+            <label for="contatoMensagem">Mensagem *</label>
+            <textarea id="contatoMensagem" name="mensagem" placeholder="Conte com detalhes o que você precisa..." required minlength="10"></textarea>
+            <div class="field-error" id="erroContatoMensagem"><span>⚠</span><span>Escreva uma mensagem com pelo menos 10 caracteres.</span></div>
+          </div>
+
+          <button type="submit" class="btn btn-accent" id="btnContatoSubmit" style="width:100%;">Enviar mensagem</button>
+        </form>
+      </div>
+
+      <div class="contact-info">
+        <div class="info-card">
+          <h3>Canais diretos</h3>
+          <div class="info-row">
+            <div class="info-row__icon">✉</div>
+            <div><strong>suporte@talentix.com.br</strong><span>Resposta em até 1 dia útil</span></div>
+          </div>
+          <div class="info-row">
+            <div class="info-row__icon">📞</div>
+            <div><strong>(31) 3333-4444</strong><span>Seg. a sex., 9h às 18h</span></div>
+          </div>
+          <div class="info-row">
+            <div class="info-row__icon">📍</div>
+            <div><strong>Belo Horizonte, MG</strong><span>Projeto integrador — SENAC Minas</span></div>
+          </div>
+        </div>
+
+        <div class="faq-card">
+          <details class="faq-item" open>
+            <summary>Como funciona o cadastro?</summary>
+            <p>Candidatos e empresas se cadastram gratuitamente na página de login. Basta escolher o tipo de perfil e preencher os dados básicos.</p>
+          </details>
+          <details class="faq-item">
+            <summary>Esqueci minha senha, e agora?</summary>
+            <p>Na tela de login, clique em "Esqueceu a senha?" e informe seu e-mail cadastrado. Você receberá um link para redefinir sua senha.</p>
+          </details>
+          <details class="faq-item">
+            <summary>Empresas pagam para usar a Talentix?</summary>
+            <p>O cadastro é gratuito. Alguns recursos avançados de recrutamento fazem parte de planos pagos — fale com nosso time comercial pelo formulário ao lado.</p>
+          </details>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<footer class="footer">
+  <div class="container">
+    <div class="footer__grid">
+      <div class="footer__brand">
+        <a href="index.html" class="brand">
+          <span class="brand__mark"></span>
+          <span class="brand__name">TALENTIX</span>
+        </a>
+        <p>Plataforma de recrutamento inteligente que conecta candidatos e empresas usando IA.</p>
+      </div>
+      <div class="footer__col">
+        <h5>Produto</h5>
+        <ul>
+          <li><a href="index.html#como-funciona">Como funciona</a></li>
+          <li><a href="login.html?perfil=empresa">Para empresas</a></li>
+          <li><a href="login.html?perfil=candidato">Para candidatos</a></li>
+        </ul>
+      </div>
+      <div class="footer__col">
+        <h5>Empresa</h5>
+        <ul>
+          <li><a href="contato.html">Contato</a></li>
+        </ul>
+      </div>
+      <div class="footer__col">
+        <h5>Legal</h5>
+        <ul>
+          <li><a href="termos.html">Termos de uso</a></li>
+          <li><a href="privacidade.html">Privacidade</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer__bottom">
+      <span>© 2026 Talentix. Projeto integrador — SENAC Minas.</span>
+      <div class="footer__social">
+        <a href="#" aria-label="LinkedIn">in</a>
+        <a href="#" aria-label="Instagram">ig</a>
+        <a href="#" aria-label="GitHub">gh</a>
+      </div>
+    </div>
+  </div>
+</footer>
+
+<script src="/js/institucional.js"></script>
+</body>
+</html>
