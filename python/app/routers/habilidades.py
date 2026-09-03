@@ -20,7 +20,9 @@ class HabilidadeCreate(BaseModel):
 
 
 @router.post("/habilidades", status_code=201, tags=["Habilidades"])
-async def criar_habilidade(dados: HabilidadeCreate, sessao: dict = Depends(exigir_tipo("administrador"))):
+async def criar_habilidade(
+    dados: HabilidadeCreate, sessao: dict = Depends(exigir_tipo("candidato", "empresa", "administrador"))
+):
     existente = await fetch_one("SELECT * FROM Habilidades WHERE Nome=%s", (dados.nome,))
     if existente:
         return existente

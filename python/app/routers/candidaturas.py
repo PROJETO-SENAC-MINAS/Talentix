@@ -92,22 +92,29 @@ async def listar_candidaturas(
     id_candidato: str | None = None,
     sessao: dict = Depends(usuario_atual),
 ):
-    query = "SELECT * FROM Candidaturas WHERE Ativo=1"
+    query = """
+        SELECT c.*, v.Titulo AS TituloVaga, v.Localizacao AS LocalizacaoVaga,
+               v.Modalidade AS ModalidadeVaga, e.NomeFantasia AS NomeEmpresa
+        FROM Candidaturas c
+        JOIN Vagas v ON v.ID_Vagas = c.ID_Vagas
+        JOIN Empresas e ON e.ID_Empresas = v.ID_Empresas
+        WHERE c.Ativo=1
+    """
     params: list = []
 
     if sessao["tipo_usuario"] == "candidato":
         meu_id = await _obter_id_candidato_da_sessao(sessao)
-        query += " AND ID_Candidatos=%s"
+        query += " AND c.ID_Candidatos=%s"
         params.append(meu_id)
     elif id_candidato:
-        query += " AND ID_Candidatos=%s"
+        query += " AND c.ID_Candidatos=%s"
         params.append(id_candidato)
 
     if id_vaga:
-        query += " AND ID_Vagas=%s"
+        query += " AND c.ID_Vagas=%s"
         params.append(id_vaga)
 
-    query += " ORDER BY CriadaEm DESC"
+    query += " ORDER BY c.CriadaEm DESC"
     return await fetch_all(query, tuple(params))
 
 

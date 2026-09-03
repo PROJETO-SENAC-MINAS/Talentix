@@ -46,7 +46,14 @@ async def salvar_arquivo(arquivo: UploadFile, categoria: str) -> dict:
     nome_arquivo = f"{sha256_hash}{extensao}"
 
     diretorio = Path(settings.UPLOAD_DIR) / categoria
-    diretorio.mkdir(parents=True, exist_ok=True)
+    try:
+        diretorio.mkdir(parents=True, exist_ok=True)
+    except FileExistsError:
+        # No Windows, mkdir com exist_ok=True pode falhar mesmo quando o
+        # diretório já existe (reparse points/junctions criados pelo WAMP).
+        # Se o caminho já existe e é um diretório de fato, seguimos normalmente.
+        if not diretorio.is_dir():
+            raise
     caminho_completo = diretorio / nome_arquivo
 
     with open(caminho_completo, "wb") as f:
