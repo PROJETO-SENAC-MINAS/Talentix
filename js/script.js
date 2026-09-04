@@ -36,3 +36,33 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     }
   });
+
+  // ================= COOKIES =================
+
+const cookieBanner = document.getElementById('cookieBanner');
+const cookieAccept = document.getElementById('cookieAccept');
+const cookieReject = document.getElementById('cookieReject');
+
+const cookieChoice = localStorage.getItem('talentixCookies');
+
+if (!cookieChoice && cookieBanner) {
+  setTimeout(() => {
+    cookieBanner.classList.add('cookie-banner--visible');
+  }, 500);
+}
+
+cookieAccept?.addEventListener('click', () => {
+
+  localStorage.setItem('talentixCookies', 'accepted');
+
+  cookieBanner?.classList.remove('cookie-banner--visible');
+
+});
+
+cookieReject?.addEventListener('click', () => {
+
+  localStorage.setItem('talentixCookies', 'rejected');
+
+  cookieBanner?.classList.remove('cookie-banner--visible');
+
+});
