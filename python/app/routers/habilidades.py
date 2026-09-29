@@ -8,6 +8,7 @@ from pydantic import BaseModel
 from app.db.database import fetch_one, fetch_all, execute
 from app.core.security import novo_uuid
 from app.core.deps import usuario_atual, exigir_tipo
+from app.core.access import checar_leitura_candidato
 
 router = APIRouter(tags=["Habilidades e Idiomas"])
 
@@ -85,7 +86,8 @@ async def adicionar_habilidade_candidato(
 
 
 @router.get("/candidatos/{id_candidato}/habilidades", tags=["Habilidades"])
-async def listar_habilidades_candidato(id_candidato: str):
+async def listar_habilidades_candidato(id_candidato: str, sessao: dict = Depends(usuario_atual)):
+    await checar_leitura_candidato(id_candidato, sessao)
     return await fetch_all(
         """SELECT ch.*, h.Nome AS NomeHabilidade, h.Categoria
            FROM Candidato_Habilidades ch
@@ -101,7 +103,8 @@ async def remover_habilidade_candidato(
 ):
     await _checar_dono_candidato(id_candidato, sessao)
     await execute(
-        "DELETE FROM Candidato_Habilidades WHERE ID_Candidato_Habilidades=%s", (id_candidato_habilidade,)
+        "DELETE FROM Candidato_Habilidades WHERE ID_Candidato_Habilidades=%s AND ID_Candidatos=%s",
+        (id_candidato_habilidade, id_candidato),
     )
     return {"mensagem": "Habilidade removida do perfil."}
 
@@ -149,7 +152,8 @@ async def adicionar_idioma_candidato(
 
 
 @router.get("/candidatos/{id_candidato}/idiomas", tags=["Idiomas"])
-async def listar_idiomas_candidato(id_candidato: str):
+async def listar_idiomas_candidato(id_candidato: str, sessao: dict = Depends(usuario_atual)):
+    await checar_leitura_candidato(id_candidato, sessao)
     return await fetch_all(
         """SELECT ci.*, i.Nome AS NomeIdioma
            FROM Candidato_Idiomas ci
@@ -162,5 +166,8 @@ async def listar_idiomas_candidato(id_candidato: str):
 @router.delete("/candidatos/{id_candidato}/idiomas/{id_candidato_idioma}", tags=["Idiomas"])
 async def remover_idioma_candidato(id_candidato: str, id_candidato_idioma: str, sessao: dict = Depends(usuario_atual)):
     await _checar_dono_candidato(id_candidato, sessao)
-    await execute("DELETE FROM Candidato_Idiomas WHERE ID_Candidato_Idiomas=%s", (id_candidato_idioma,))
+    await execute(
+        "DELETE FROM Candidato_Idiomas WHERE ID_Candidato_Idiomas=%s AND ID_Candidatos=%s",
+        (id_candidato_idioma, id_candidato),
+    )
     return {"mensagem": "Idioma removido do perfil."}

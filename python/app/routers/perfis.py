@@ -8,6 +8,7 @@ from pydantic import BaseModel
 from app.db.database import fetch_one, fetch_all, execute
 from app.core.security import novo_uuid
 from app.core.deps import usuario_atual, exigir_tipo
+from app.core.access import checar_leitura_candidato
 
 router = APIRouter(tags=["Perfis"])
 
@@ -28,16 +29,29 @@ class CandidatoUpdate(BaseModel):
 
 
 @router.get("/candidatos", tags=["Candidatos"])
-async def listar_candidatos(cidade: str | None = None, disponivel: bool | None = None):
-    query = "SELECT * FROM Candidatos WHERE Ativo=1"
+async def listar_candidatos(
+    cidade: str | None = None,
+    disponivel: bool | None = None,
+    sessao: dict = Depends(exigir_tipo("candidato", "empresa", "administrador")),
+):
+    query = "SELECT c.* FROM Candidatos c WHERE c.Ativo=1"
     params: list = []
+    if sessao["tipo_usuario"] == "candidato":
+        query += " AND c.ID_Usuarios=%s"
+        params.append(sessao["id_usuario"])
+    elif sessao["tipo_usuario"] == "empresa":
+        query += """ AND EXISTS (SELECT 1 FROM Candidaturas ca
+            JOIN Vagas v ON v.ID_Vagas=ca.ID_Vagas
+            JOIN Empresas e ON e.ID_Empresas=v.ID_Empresas AND e.Ativo=1
+            WHERE ca.ID_Candidatos=c.ID_Candidatos AND ca.Ativo=1 AND e.ID_Usuarios=%s)"""
+        params.append(sessao["id_usuario"])
     if cidade:
-        query += " AND Cidade=%s"
+        query += " AND c.Cidade=%s"
         params.append(cidade)
     if disponivel is not None:
-        query += " AND Disponivel=%s"
+        query += " AND c.Disponivel=%s"
         params.append(disponivel)
-    query += " ORDER BY CriadoEm DESC"
+    query += " ORDER BY c.CriadoEm DESC"
     return await fetch_all(query, tuple(params))
 
 
@@ -52,11 +66,8 @@ async def obter_meu_perfil_candidato(sessao: dict = Depends(usuario_atual)):
 
 
 @router.get("/candidatos/{id_candidato}", tags=["Candidatos"])
-async def obter_candidato(id_candidato: str):
-    candidato = await fetch_one("SELECT * FROM Candidatos WHERE ID_Candidatos=%s AND Ativo=1", (id_candidato,))
-    if not candidato:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Candidato não encontrado.")
-    return candidato
+async def obter_candidato(id_candidato: str, sessao: dict = Depends(usuario_atual)):
+    return await checar_leitura_candidato(id_candidato, sessao)
 
 
 @router.put("/candidatos/{id_candidato}", tags=["Candidatos"])
@@ -196,7 +207,8 @@ async def adicionar_recrutador(
 
 
 @router.get("/empresas/{id_empresa}/recrutadores", tags=["Recrutadores"])
-async def listar_recrutadores(id_empresa: str):
+async def listar_recrutadores(id_empresa: str, sessao: dict = Depends(usuario_atual)):
+    await _checar_dono_empresa_recrutador(id_empresa, sessao)
     return await fetch_all(
         "SELECT * FROM Recrutadores WHERE ID_Empresas=%s AND Ativo=1", (id_empresa,)
     )
@@ -204,10 +216,22 @@ async def listar_recrutadores(id_empresa: str):
 
 @router.delete("/recrutadores/{id_recrutador}", tags=["Recrutadores"])
 async def remover_recrutador(id_recrutador: str, sessao: dict = Depends(exigir_tipo("empresa", "administrador"))):
+    recrutador = await fetch_one("SELECT * FROM Recrutadores WHERE ID_Recrutadores=%s", (id_recrutador,))
+    if not recrutador:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Recrutador não encontrado.")
+    await _checar_dono_empresa_recrutador(recrutador["ID_Empresas"], sessao)
     await execute(
         "UPDATE Recrutadores SET Ativo=0, DeletadoEm=NOW() WHERE ID_Recrutadores=%s", (id_recrutador,)
     )
     return {"mensagem": "Recrutador removido (soft delete)."}
+
+
+async def _checar_dono_empresa_recrutador(id_empresa: str, sessao: dict) -> None:
+    if sessao["tipo_usuario"] == "administrador":
+        return
+    empresa = await fetch_one("SELECT * FROM Empresas WHERE ID_Empresas=%s AND Ativo=1", (id_empresa,))
+    if sessao["tipo_usuario"] != "empresa" or not empresa or empresa["ID_Usuarios"] != sessao["id_usuario"]:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Sem permissão sobre esta empresa.")
 
 
 # ==================== ADMINISTRADORES ====================

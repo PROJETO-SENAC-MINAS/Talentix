@@ -4,9 +4,10 @@ e checagem de tipo de usuário (Candidato / Empresa / Administrador).
 """
 from fastapi import Request, HTTPException, status, Depends
 from app.core.session import ler_sessao
+from app.db.database import fetch_one
 
 
-def usuario_atual(request: Request) -> dict:
+async def usuario_atual(request: Request) -> dict:
     """
     Exige que exista uma sessão válida (cookie). Retorna o payload da sessão:
     {"id_usuario": "...", "tipo_usuario": "candidato|empresa|administrador"}
@@ -17,6 +18,11 @@ def usuario_atual(request: Request) -> dict:
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Não autenticado. Faça login novamente.",
         )
+    usuario = await fetch_one(
+        "SELECT ID_Usuarios FROM Usuarios WHERE ID_Usuarios=%s AND Ativo=1", (sessao["id_usuario"],)
+    )
+    if not usuario:
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Sessão inválida. Faça login novamente.")
     return sessao
 
 
@@ -37,6 +43,12 @@ def exigir_tipo(*tipos_permitidos: str):
     return checador
 
 
-def usuario_opcional(request: Request) -> dict | None:
+async def usuario_opcional(request: Request) -> dict | None:
     """Retorna a sessão se existir, ou None (para endpoints públicos com comportamento extra se logado)."""
-    return ler_sessao(request)
+    sessao = ler_sessao(request)
+    if not sessao:
+        return None
+    usuario = await fetch_one(
+        "SELECT ID_Usuarios FROM Usuarios WHERE ID_Usuarios=%s AND Ativo=1", (sessao["id_usuario"],)
+    )
+    return sessao if usuario else None

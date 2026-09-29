@@ -20,12 +20,17 @@ def criar_cookie_sessao(response: Response, id_usuario: str, tipo_usuario: str) 
         max_age=settings.SESSION_MAX_AGE_SECONDS,
         httponly=True,
         samesite="lax",
-        # secure=True,  # habilite em produção (HTTPS)
+        secure=settings.SESSION_COOKIE_SECURE,
     )
 
 
 def destruir_cookie_sessao(response: Response) -> None:
-    response.delete_cookie(key=settings.SESSION_COOKIE_NAME)
+    response.delete_cookie(
+        key=settings.SESSION_COOKIE_NAME,
+        httponly=True,
+        samesite="lax",
+        secure=settings.SESSION_COOKIE_SECURE,
+    )
 
 
 def ler_sessao(request: Request) -> dict | None:

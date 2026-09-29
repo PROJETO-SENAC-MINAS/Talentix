@@ -5,13 +5,15 @@ conforme o padrão adotado no banco (campo Url + TamanhoBytes + TipoMime + Hash)
 """
 import hashlib
 import os
+import re
 from pathlib import Path
 from fastapi import UploadFile, HTTPException, status
 from app.core.config import settings
 
 EXTENSOES_PERMITIDAS = {
     "fotos": {".jpg", ".jpeg", ".png", ".webp"},
-    "logos": {".jpg", ".jpeg", ".png", ".webp", ".svg"},
+    # SVG pode conter scripts quando servido no mesmo domínio da API.
+    "logos": {".jpg", ".jpeg", ".png", ".webp"},
     "curriculos": {".pdf", ".doc", ".docx"},
 }
 
@@ -32,10 +34,10 @@ async def salvar_arquivo(arquivo: UploadFile, categoria: str) -> dict:
             f"Permitidas: {', '.join(EXTENSOES_PERMITIDAS[categoria])}",
         )
 
-    conteudo = await arquivo.read()
+    max_bytes = settings.MAX_UPLOAD_SIZE_MB * 1024 * 1024
+    conteudo = await arquivo.read(max_bytes + 1)
     tamanho_bytes = len(conteudo)
 
-    max_bytes = settings.MAX_UPLOAD_SIZE_MB * 1024 * 1024
     if tamanho_bytes > max_bytes:
         raise HTTPException(
             status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
@@ -59,7 +61,7 @@ async def salvar_arquivo(arquivo: UploadFile, categoria: str) -> dict:
     with open(caminho_completo, "wb") as f:
         f.write(conteudo)
 
-    url_relativa = f"/{settings.UPLOAD_DIR}/{categoria}/{nome_arquivo}"
+    url_relativa = f"/uploads/{categoria}/{nome_arquivo}"
 
     return {
         "url": url_relativa,
@@ -73,6 +75,12 @@ def remover_arquivo(url_relativa: str) -> None:
     """Remove um arquivo físico dado a URL relativa salva no banco (best-effort)."""
     if not url_relativa:
         return
-    caminho = Path(url_relativa.lstrip("/"))
+    partes = Path(url_relativa).parts
+    if len(partes) != 4 or partes[:2] != ("/", "uploads") or partes[2] not in EXTENSOES_PERMITIDAS:
+        return
+    if not re.fullmatch(r"[a-f0-9]{64}\.[a-z]+", partes[3]):
+        return
+    # Formato /uploads/<categoria>/<arquivo>; Path inclui a raiz como primeira parte.
+    caminho = Path(settings.UPLOAD_DIR) / partes[2] / partes[3]
     if caminho.exists() and caminho.is_file():
         os.remove(caminho)

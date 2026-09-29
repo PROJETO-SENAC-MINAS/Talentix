@@ -199,5 +199,8 @@ async def adicionar_habilidade_vaga(id_vaga: str, dados: VagaHabilidadeCreate, s
 @router.delete("/{id_vaga}/habilidades/{id_vaga_habilidade}")
 async def remover_habilidade_vaga(id_vaga: str, id_vaga_habilidade: str, sessao: dict = Depends(usuario_atual)):
     await _checar_dono_vaga(id_vaga, sessao)
-    await execute("DELETE FROM Vaga_Habilidades WHERE ID_Vaga_Habilidades=%s", (id_vaga_habilidade,))
+    await execute(
+        "DELETE FROM Vaga_Habilidades WHERE ID_Vaga_Habilidades=%s AND ID_Vagas=%s",
+        (id_vaga_habilidade, id_vaga),
+    )
     return {"mensagem": "Requisito de habilidade removido."}

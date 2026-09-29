@@ -3,6 +3,7 @@ Talentix API — ponto de entrada da aplicação FastAPI.
 Registra todos os routers, o middleware de CORS, e o ciclo de vida do pool MySQL.
 """
 from contextlib import asynccontextmanager
+from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -52,8 +53,15 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Arquivos enviados (fotos, logos, currículos) servidos estaticamente
-app.mount(f"/{settings.UPLOAD_DIR}", StaticFiles(directory=settings.UPLOAD_DIR), name="uploads")
+# Apenas fotos e logos são públicos. Currículos passam pelo router autenticado.
+for categoria in ("fotos", "logos", "curriculos"):
+    (Path(settings.UPLOAD_DIR) / categoria).mkdir(parents=True, exist_ok=True)
+for categoria in ("fotos", "logos"):
+    app.mount(
+        f"/uploads/{categoria}",
+        StaticFiles(directory=Path(settings.UPLOAD_DIR) / categoria),
+        name=f"uploads-{categoria}",
+    )
 
 # Registro de routers
 app.include_router(auth.router)

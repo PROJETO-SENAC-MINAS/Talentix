@@ -2,12 +2,13 @@
 CRUD de Assinaturas (planos das empresas) e Pagamentos.
 """
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from datetime import date
 
 from app.db.database import fetch_one, fetch_all, execute
 from app.core.security import novo_uuid
 from app.core.deps import usuario_atual, exigir_tipo
+from app.core.service_auth import exigir_gateway_pagamento
 from app.core.notificar import notificar_usuario
 from app.core.email_service import email_pagamento_processado
 
@@ -33,13 +34,13 @@ async def _checar_dono_empresa(id_empresa: str, sessao: dict) -> None:
 class AssinaturaCreate(BaseModel):
     id_empresa: str
     plano: str
-    valor: float
+    valor: float = Field(gt=0)
     inicio: date
     fim: date | None = None
 
 
 @router.post("/assinaturas", status_code=201)
-async def criar_assinatura(dados: AssinaturaCreate, sessao: dict = Depends(usuario_atual)):
+async def criar_assinatura(dados: AssinaturaCreate, sessao: dict = Depends(exigir_tipo("administrador"))):
     await _checar_dono_empresa(dados.id_empresa, sessao)
     id_assinatura = novo_uuid()
     await execute(
@@ -62,7 +63,7 @@ async def obter_assinatura_empresa(id_empresa: str, sessao: dict = Depends(usuar
 
 
 @router.patch("/assinaturas/{id_assinatura}/renovar")
-async def renovar_assinatura(id_assinatura: str, nova_data_fim: date, sessao: dict = Depends(usuario_atual)):
+async def renovar_assinatura(id_assinatura: str, nova_data_fim: date, sessao: dict = Depends(exigir_tipo("administrador"))):
     assinatura = await fetch_one("SELECT * FROM Assinaturas WHERE ID_Assinaturas=%s", (id_assinatura,))
     if not assinatura:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Assinatura não encontrada.")
@@ -123,9 +124,12 @@ async def listar_pagamentos(id_assinatura: str, sessao: dict = Depends(usuario_a
     )
 
 
-@router.patch("/pagamentos/{id_pagamento}/processar")
+@router.patch("/pagamentos/{id_pagamento}/processar", dependencies=[Depends(exigir_gateway_pagamento)])
 async def processar_pagamento(id_pagamento: str, aprovado: bool):
     """Endpoint chamado pelo gateway de pagamento (webhook) para confirmar o resultado."""
+    pagamento = await fetch_one("SELECT * FROM Pagamentos WHERE ID_Pagamentos=%s", (id_pagamento,))
+    if not pagamento:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Pagamento não encontrado.")
     novo_status = _PAGAMENTO_APROVADO if aprovado else 3  # 3 = RECUSADO
     await execute(
         "UPDATE Pagamentos SET ID_Status_Pagamento=%s, PagoEm=NOW() WHERE ID_Pagamentos=%s",

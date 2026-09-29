@@ -17,6 +17,8 @@ env/
 # =========================
 
 .env
+.env.*
+!.env.example
 
 # =========================
 # Uploads
@@ -25,6 +27,10 @@ env/
 uploads/fotos/*
 uploads/logos/*
 uploads/curriculos/*
+!uploads/fotos/.gitkeep
+!uploads/logos/.gitkeep
+!uploads/curriculos/.gitkeep
+uploads/curriculos~*
 
 # =========================
 # Logs e arquivos temporários
@@ -32,6 +38,7 @@ uploads/curriculos/*
 
 *.log
 *.tmp
+.pytest_cache/
 
 # =========================
 # VS Code

@@ -2,6 +2,7 @@
 Configurações centrais da aplicação, carregadas do arquivo .env
 """
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import Field, field_validator
 
 
 class Settings(BaseSettings):
@@ -17,9 +18,16 @@ class Settings(BaseSettings):
     DB_NAME: str = "talentix"
 
     # Sessão
-    SECRET_KEY: str = "change-me"
+    # Sem chave padrão: uma instalação deve gerar sua própria chave aleatória.
+    # 64 caracteres também impedem reutilizar a chave exposta no repositório.
+    SECRET_KEY: str = Field(min_length=64, repr=False)
     SESSION_COOKIE_NAME: str = "talentix_session"
     SESSION_MAX_AGE_SECONDS: int = 86400
+    SESSION_COOKIE_SECURE: bool = True
+
+    # Credenciais separadas para integrações servidor-servidor. Vazio desativa a rota.
+    IA_WORKER_TOKEN: str = Field(default="", repr=False)
+    PAYMENT_WEBHOOK_TOKEN: str = Field(default="", repr=False)
 
     # Upload
     UPLOAD_DIR: str = "uploads"
@@ -35,6 +43,17 @@ class Settings(BaseSettings):
     SMTP_USER: str = ""
     SMTP_PASSWORD: str = ""
     SMTP_FROM_EMAIL: str = "no-reply@talentix.com"
+
+    @field_validator("SECRET_KEY", "IA_WORKER_TOKEN", "PAYMENT_WEBHOOK_TOKEN")
+    @classmethod
+    def validar_chave(cls, valor: str, info) -> str:
+        if not valor and info.field_name != "SECRET_KEY":
+            return valor
+        if len(valor) < 64 or not valor.isascii() or any(c.isspace() for c in valor):
+            raise ValueError("Gere uma chave exclusiva com secrets.token_hex(32).")
+        if any(marcador in valor.lower() for marcador in ("change-me", "changeme", "substitua", "your-secret")):
+            raise ValueError("Chaves de exemplo não podem ser usadas.")
+        return valor
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
 

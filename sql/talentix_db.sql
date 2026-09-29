@@ -10,7 +10,7 @@
 --   - Nomenclatura de PK/FK: ID_<NomeDaTabela>
 -- ============================================================================
 
-CREATE DATABASE IF NOT EXISTS talentix_db
+CREATE DATABASE IF NOT EXISTS talentix
   CHARACTER SET utf8mb4
   COLLATE utf8mb4_unicode_ci;
 

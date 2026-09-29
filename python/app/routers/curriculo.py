@@ -8,6 +8,7 @@ from datetime import date
 from app.db.database import fetch_one, fetch_all, execute
 from app.core.security import novo_uuid
 from app.core.deps import usuario_atual
+from app.core.access import checar_leitura_candidato
 from app.core.upload import salvar_arquivo, remover_arquivo
 
 router = APIRouter(tags=["Currículo"])
@@ -49,7 +50,9 @@ async def enviar_curriculo(
 
 
 @router.get("/candidatos/{id_candidato}/curriculos", tags=["Currículos"])
-async def listar_curriculos(id_candidato: str):
+async def listar_curriculos(id_candidato: str, sessao: dict = Depends(usuario_atual)):
+    # A empresa recebe o currículo anexado à candidatura, não todo o acervo do candidato.
+    await _checar_dono_candidato(id_candidato, sessao)
     return await fetch_all(
         "SELECT * FROM Curriculos WHERE ID_Candidatos=%s AND Ativo=1 ORDER BY Principal DESC, AtualizadoEm DESC",
         (id_candidato,),
@@ -93,7 +96,8 @@ async def criar_experiencia(id_candidato: str, dados: ExperienciaCreate, sessao:
 
 
 @router.get("/candidatos/{id_candidato}/experiencias", tags=["Experiências"])
-async def listar_experiencias(id_candidato: str):
+async def listar_experiencias(id_candidato: str, sessao: dict = Depends(usuario_atual)):
+    await checar_leitura_candidato(id_candidato, sessao)
     return await fetch_all(
         "SELECT * FROM Experiencias WHERE ID_Candidatos=%s ORDER BY DataInicio DESC", (id_candidato,)
     )
@@ -149,7 +153,8 @@ async def criar_formacao(id_candidato: str, dados: FormacaoCreate, sessao: dict 
 
 
 @router.get("/candidatos/{id_candidato}/formacoes", tags=["Formações"])
-async def listar_formacoes(id_candidato: str):
+async def listar_formacoes(id_candidato: str, sessao: dict = Depends(usuario_atual)):
+    await checar_leitura_candidato(id_candidato, sessao)
     return await fetch_all(
         "SELECT * FROM Formacoes WHERE ID_Candidatos=%s ORDER BY DataInicio DESC", (id_candidato,)
     )

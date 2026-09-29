@@ -7,6 +7,7 @@ from pydantic import BaseModel
 from app.db.database import fetch_one, fetch_all, execute
 from app.core.security import novo_uuid
 from app.core.deps import usuario_atual, exigir_tipo
+from app.core.access import checar_dono_candidato
 from app.core.notificar import notificar_usuario
 from app.core.email_service import email_recomendacao_curso
 
@@ -118,6 +119,7 @@ async def criar_recomendacao_curso(dados: RecomendacaoCursoCreate, sessao: dict 
 
 @router.get("/candidatos/{id_candidato}/recomendacoes-curso")
 async def listar_recomendacoes_curso(id_candidato: str, sessao: dict = Depends(usuario_atual)):
+    await checar_dono_candidato(id_candidato, sessao)
     return await fetch_all(
         """SELECT rc.*, c.Titulo, c.Plataforma, c.Url
            FROM Recomendacoes_Curso rc
@@ -129,6 +131,12 @@ async def listar_recomendacoes_curso(id_candidato: str, sessao: dict = Depends(u
 
 @router.patch("/recomendacoes-curso/{id_recomendacao}/concluir")
 async def concluir_recomendacao_curso(id_recomendacao: str, sessao: dict = Depends(usuario_atual)):
+    recomendacao = await fetch_one(
+        "SELECT * FROM Recomendacoes_Curso WHERE ID_Recomendacoes_Curso=%s", (id_recomendacao,)
+    )
+    if not recomendacao:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Recomendação não encontrada.")
+    await checar_dono_candidato(recomendacao["ID_Candidatos"], sessao)
     await execute(
         "UPDATE Recomendacoes_Curso SET Concluida=1 WHERE ID_Recomendacoes_Curso=%s", (id_recomendacao,)
     )

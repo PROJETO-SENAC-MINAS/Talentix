@@ -1,0 +1,43 @@
+name: Security checks
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  regression:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: |
+            python/requirements.txt
+            python/requirements-dev.txt
+      - name: Reject tracked secrets, uploads and Python caches
+        run: |
+          python - <<'PY'
+          from pathlib import PurePosixPath
+          import subprocess
+          files = subprocess.check_output(['git', 'ls-files', '-z']).decode().split('\0')
+          rejected = []
+          for file in filter(None, files):
+              path = PurePosixPath(file)
+              secret = path.name == '.env' or (path.name.startswith('.env.') and path.name != '.env.example')
+              cache = '__pycache__' in path.parts or path.suffix in ('.pyc', '.pyo')
+              upload = file.startswith('python/uploads/') and path.name != '.gitkeep'
+              if secret or cache or upload:
+                  rejected.append(file)
+          if rejected:
+              raise SystemExit('Arquivos privados/gerados versionados: ' + ', '.join(rejected))
+          PY
+      - name: Install test dependencies
+        run: python -m pip install -r python/requirements-dev.txt
+      - name: Run security regression tests
+        working-directory: python
+        run: python -m pytest tests -q

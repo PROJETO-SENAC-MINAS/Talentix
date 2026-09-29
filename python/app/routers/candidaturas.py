@@ -45,6 +45,14 @@ async def criar_candidatura(dados: CandidaturaCreate, sessao: dict = Depends(exi
     if not vaga:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Vaga não encontrada.")
 
+    if dados.curriculo_url:
+        curriculo = await fetch_one(
+            "SELECT ID_Curriculos FROM Curriculos WHERE ArquivoUrl=%s AND ID_Candidatos=%s AND Ativo=1",
+            (dados.curriculo_url, id_candidato),
+        )
+        if not curriculo:
+            raise HTTPException(status.HTTP_403_FORBIDDEN, "O currículo deve pertencer ao candidato.")
+
     existente = await fetch_one(
         "SELECT * FROM Candidaturas WHERE ID_Candidatos=%s AND ID_Vagas=%s",
         (id_candidato, dados.id_vaga),
@@ -90,7 +98,7 @@ async def criar_candidatura(dados: CandidaturaCreate, sessao: dict = Depends(exi
 async def listar_candidaturas(
     id_vaga: str | None = None,
     id_candidato: str | None = None,
-    sessao: dict = Depends(usuario_atual),
+    sessao: dict = Depends(exigir_tipo("candidato", "empresa", "administrador")),
 ):
     query = """
         SELECT c.*, v.Titulo AS TituloVaga, v.Localizacao AS LocalizacaoVaga,
@@ -106,7 +114,11 @@ async def listar_candidaturas(
         meu_id = await _obter_id_candidato_da_sessao(sessao)
         query += " AND c.ID_Candidatos=%s"
         params.append(meu_id)
-    elif id_candidato:
+    elif sessao["tipo_usuario"] == "empresa":
+        query += " AND e.ID_Usuarios=%s AND e.Ativo=1"
+        params.append(sessao["id_usuario"])
+
+    if id_candidato and sessao["tipo_usuario"] != "candidato":
         query += " AND c.ID_Candidatos=%s"
         params.append(id_candidato)
 
@@ -236,6 +248,13 @@ async def concluir_etapa(id_etapa: str, sessao: dict = Depends(exigir_tipo("empr
 
 @router.patch("/etapas/{id_etapa}/reabrir", tags=["Etapas do Processo"])
 async def reabrir_etapa(id_etapa: str, sessao: dict = Depends(exigir_tipo("empresa", "administrador"))):
+    etapa = await fetch_one("SELECT * FROM Etapas_Processo WHERE ID_Etapas_Processo=%s", (id_etapa,))
+    if not etapa:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Etapa não encontrada.")
+    candidatura = await fetch_one("SELECT * FROM Candidaturas WHERE ID_Candidaturas=%s", (etapa["ID_Candidaturas"],))
+    if not candidatura:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Candidatura não encontrada.")
+    await _checar_acesso_candidatura(candidatura, sessao)
     await execute(
         "UPDATE Etapas_Processo SET ID_Status_Etapa=2, FimEm=NULL WHERE ID_Etapas_Processo=%s", (id_etapa,)
     )
@@ -320,6 +339,7 @@ async def _obter_contexto_entrevista(id_entrevista: str) -> tuple[dict, dict, di
 async def reagendar_entrevista(
     id_entrevista: str, nova_data_hora: datetime, sessao: dict = Depends(exigir_tipo("empresa", "administrador"))
 ):
+    await _checar_acesso_entrevista(id_entrevista, sessao)
     await execute(
         "UPDATE Entrevistas SET DataHora=%s, ID_Status_Entrevista=3 WHERE ID_Entrevistas=%s",
         (nova_data_hora, id_entrevista),
@@ -346,6 +366,7 @@ async def reagendar_entrevista(
 
 @router.patch("/entrevistas/{id_entrevista}/cancelar", tags=["Entrevistas"])
 async def cancelar_entrevista(id_entrevista: str, sessao: dict = Depends(exigir_tipo("empresa", "administrador"))):
+    await _checar_acesso_entrevista(id_entrevista, sessao)
     contexto = await _obter_contexto_entrevista(id_entrevista)
 
     await execute("UPDATE Entrevistas SET ID_Status_Entrevista=4 WHERE ID_Entrevistas=%s", (id_entrevista,))
@@ -367,5 +388,18 @@ async def cancelar_entrevista(id_entrevista: str, sessao: dict = Depends(exigir_
 
 @router.patch("/entrevistas/{id_entrevista}/realizar", tags=["Entrevistas"])
 async def marcar_entrevista_realizada(id_entrevista: str, sessao: dict = Depends(exigir_tipo("empresa", "administrador"))):
+    await _checar_acesso_entrevista(id_entrevista, sessao)
     await execute("UPDATE Entrevistas SET ID_Status_Entrevista=2 WHERE ID_Entrevistas=%s", (id_entrevista,))
     return {"mensagem": "Entrevista marcada como realizada."}
+
+
+async def _checar_acesso_entrevista(id_entrevista: str, sessao: dict) -> None:
+    entrevista = await fetch_one("SELECT * FROM Entrevistas WHERE ID_Entrevistas=%s", (id_entrevista,))
+    if not entrevista:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Entrevista não encontrada.")
+    candidatura = await fetch_one(
+        "SELECT * FROM Candidaturas WHERE ID_Candidaturas=%s", (entrevista["ID_Candidaturas"],)
+    )
+    if not candidatura:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Candidatura não encontrada.")
+    await _checar_acesso_candidatura(candidatura, sessao)
