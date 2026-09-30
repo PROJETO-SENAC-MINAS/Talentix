@@ -11,10 +11,20 @@ from hashlib import sha256
 _serializer = URLSafeTimedSerializer(settings.SECRET_KEY, salt="talentix-session")
 
 
-def criar_cookie_sessao(response: Response, id_usuario: str, tipo_usuario: str, senha_hash: str = "") -> None:
-    """Cria o cookie de sessão assinado após login bem-sucedido."""
-    payload = {"id_usuario": id_usuario, "tipo_usuario": tipo_usuario,
-               "auth_tag": sha256(senha_hash.encode()).hexdigest()}
+def criar_cookie_sessao(
+    response: Response,
+    id_usuario: str,
+    tipo_usuario: str,
+    senha_hash: str = "",
+    modo_usuario: bool = False,
+) -> None:
+    """Cria o cookie assinado e preserva o modo de visualização escolhido pelo administrador."""
+    payload = {
+        "id_usuario": id_usuario,
+        "tipo_usuario": tipo_usuario,
+        "modo_usuario": bool(modo_usuario),
+        "auth_tag": sha256(senha_hash.encode()).hexdigest(),
+    }
     token = _serializer.dumps(payload)
     response.set_cookie(
         key=settings.SESSION_COOKIE_NAME,
