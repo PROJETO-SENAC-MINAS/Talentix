@@ -6,6 +6,14 @@ document.addEventListener('DOMContentLoaded', async () => {
   const labels = {1:'Rascunho',2:'Publicada',3:'Pausada',4:'Encerrada',5:'Cancelada'};
   const interviewLabels = {1:'Agendada',2:'Realizada',3:'Reagendada',4:'Cancelada',5:'Não compareceu'};
   bindLogout(); bindCommunication();
+
+  async function voltarAdministracao() {
+    await api('/auth/alternar-modo', {
+      method:'POST',
+      body:JSON.stringify({modo_usuario:false}),
+    });
+    window.location.assign('dashboard-admin.html');
+  }
   bindTabs(async tab => {
     if (tab === 'vagas') await loadJobs();
     if (tab === 'candidaturas') await loadApplications();
@@ -105,6 +113,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (user.tipo_usuario !== role) { window.location.assign(user.tipo_usuario === 'recrutador' ? 'dashboard-recrutador.html' : user.tipo_usuario === 'empresa' ? 'dashboard-empresa.html' : 'login.html'); return; }
     company = await api('/empresas/me'); status = await api('/dominios/status-candidatura');
     $('#userName').textContent = user.Nome; $('#userAvatar').textContent = user.Nome.charAt(0); $('#tituloEmpresa').textContent = company.NomeFantasia || company.RazaoSocial;
+    const btnModoAdmin = $('#btnModoAdmin');
+    const adminEmModoUsuario = user.tipo_principal === 'administrador' && user.modo_usuario;
+    if (btnModoAdmin) {
+      btnModoAdmin.hidden = !adminEmModoUsuario;
+      btnModoAdmin.onclick = adminEmModoUsuario
+        ? () => voltarAdministracao().catch(error => toast(error.message, true))
+        : null;
+    }
     for (const [input,key] of [['empresaNome','NomeFantasia'],['empresaDescricao','Descricao'],['empresaSetor','Setor'],['empresaSite','SiteUrl'],['empresaEndereco','Endereco']]) $(`#${input}`).value = company[key] || '';
     $('#recrUsuario').value = user.ID_Usuarios;
     if (user.tipo_usuario === 'recrutador') { document.querySelectorAll('[data-responsavel]').forEach(el=>el.hidden=true); $('#formEmpresa').querySelectorAll('input,textarea').forEach(el=>el.readOnly=true); }
