@@ -59,6 +59,10 @@ class RedefinirSenhaRequest(BaseModel):
     nova_senha: Password
 
 
+class AlternarModoRequest(BaseModel):
+    modo_usuario: bool
+
+
 # ---------- Helpers internos ----------
 
 async def _descobrir_tipo_usuario(id_usuario: str) -> str:
@@ -152,6 +156,35 @@ async def login(dados: LoginRequest, response: Response):
     return {"id_usuario": usuario["ID_Usuarios"], "tipo_usuario": tipo_usuario}
 
 
+@router.post("/alternar-modo")
+async def alternar_modo(
+    dados: AlternarModoRequest,
+    response: Response,
+    sessao: dict = Depends(usuario_atual),
+):
+    if sessao.get("tipo_principal") != "administrador":
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Apenas administradores podem alternar o modo de acesso.")
+
+    usuario = await fetch_one(
+        "SELECT ID_Usuarios, SenhaHash FROM Usuarios WHERE ID_Usuarios=%s AND Ativo=1",
+        (sessao["id_usuario"],),
+    )
+    if not usuario:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Usuário não encontrado.")
+
+    criar_cookie_sessao(
+        response,
+        sessao["id_usuario"],
+        "administrador",
+        usuario["SenhaHash"],
+        modo_usuario=dados.modo_usuario,
+    )
+    return {
+        "modo_usuario": dados.modo_usuario,
+        "tipo_usuario": "usuario" if dados.modo_usuario else "administrador",
+    }
+
+
 @router.post("/logout")
 async def logout(response: Response):
     destruir_cookie_sessao(response)
@@ -166,7 +199,12 @@ async def me(sessao: dict = Depends(usuario_atual)):
     )
     if not usuario:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Usuário não encontrado.")
-    return {**usuario, "tipo_usuario": sessao["tipo_usuario"]}
+    return {
+        **usuario,
+        "tipo_usuario": sessao["tipo_usuario"],
+        "tipo_principal": sessao.get("tipo_principal", sessao["tipo_usuario"]),
+        "modo_usuario": bool(sessao.get("modo_usuario")),
+    }
 
 
 # ---------- Recuperação de senha ----------
