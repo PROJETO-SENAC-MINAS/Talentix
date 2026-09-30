@@ -98,7 +98,7 @@ input,select,textarea{font-family:inherit;}
 .btn-logout:hover{background:rgba(241,237,227,0.08);}
 
 /* ---------- Conteúdo ---------- */
-.content{padding:40px 44px 64px;max-width:960px;position:relative;}
+.content{padding:40px 44px 64px;max-width:none;width:100%;position:relative;}
 .content__header{margin-bottom:26px;}
 .content__header h1{
   font-family:var(--font-display);
