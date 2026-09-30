@@ -12,6 +12,13 @@ document.addEventListener('DOMContentLoaded', async () => {
   const badgeAtivo = ativo => '<span class="badge ' + (ativo ? '' : 'badge-muted') + '">' + (ativo ? 'Ativo' : 'Inativo') + '</span>';
 
   bindLogout();
+  $('#btnModoUsuario')?.addEventListener('click', run(async () => {
+    await api('/auth/alternar-modo', {
+      method: 'POST',
+      body: JSON.stringify({modo_usuario: true}),
+    });
+    window.location.assign('dashboard.html');
+  }));
 
   async function metricas() {
     const data = await api('/dashboard/admin');
@@ -147,7 +154,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   try{
     const user=await api('/auth/me');
-    if(user.tipo_usuario!=='administrador'){location.assign('login.html');return;}
+    if(user.tipo_usuario!=='administrador' || user.tipo_principal!=='administrador'){location.assign('login.html');return;}
     $('#userName').textContent=user.Nome;$('#userAvatar').textContent=user.Nome.charAt(0).toUpperCase();
     await Promise.all([metricas(),carregarUsuarios()]);
   }catch(error){toast(error.message,true);}
