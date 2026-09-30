@@ -92,6 +92,14 @@ document.addEventListener('DOMContentLoaded', () => {
     window.location.href = 'login.html';
   });
 
+  async function voltarAdministracao() {
+    await api('/auth/alternar-modo', {
+      method: 'POST',
+      body: JSON.stringify({modo_usuario: false}),
+    });
+    window.location.href = 'dashboard-admin.html';
+  }
+
   /* ============================================================
      Inicialização: sessão -> candidato -> dados do perfil
      ============================================================ */
@@ -112,6 +120,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
     $('#userName').textContent = sessao.Nome || 'Meu perfil';
     $('#userAvatar').textContent = (sessao.Nome || '?').trim().charAt(0).toUpperCase();
+
+    const btnModoAdmin = $('#btnModoAdmin');
+    const adminEmModoUsuario = sessao.tipo_principal === 'administrador' && sessao.modo_usuario;
+    if (btnModoAdmin) {
+      btnModoAdmin.hidden = !adminEmModoUsuario;
+      btnModoAdmin.onclick = adminEmModoUsuario
+        ? () => voltarAdministracao().catch((erro) => mostrarToast(erro.message, 'error'))
+        : null;
+    }
 
     await carregarStatusCandidatura();
     await carregarCandidato();
