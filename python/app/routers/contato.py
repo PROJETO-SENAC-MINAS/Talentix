@@ -9,6 +9,21 @@ from app.db.database import execute, fetch_all, fetch_one
 router = APIRouter(prefix="/contato", tags=["Contato"])
 
 
+async def garantir_schema_contato() -> None:
+    """Garante a tabela de contatos em instalações locais ainda sem a migration 001."""
+    await execute(
+        """CREATE TABLE IF NOT EXISTS Contatos (
+               ID_Contatos CHAR(36) NOT NULL PRIMARY KEY,
+               Nome VARCHAR(150) NOT NULL,
+               Email VARCHAR(150) NOT NULL,
+               Assunto VARCHAR(100) NOT NULL,
+               Mensagem TEXT NOT NULL,
+               Lido BOOLEAN NOT NULL DEFAULT FALSE,
+               CriadoEm DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+           ) ENGINE=InnoDB CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"""
+    )
+
+
 class ContatoCreate(BaseModel):
     nome: str = Field(min_length=3, max_length=150)
     email: EmailStr = Field(max_length=150)
