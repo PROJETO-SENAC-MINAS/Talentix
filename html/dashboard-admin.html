@@ -1,8 +1,56 @@
 <!DOCTYPE html>
-<html lang="pt-BR"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Administração — Talentix</title><link rel="stylesheet" href="../css/painel.css"></head>
-<body data-painel="administrador"><div class="app"><aside class="sidebar"><a href="index.html" class="sidebar__brand">Talentix</a><nav class="sidebar__nav" aria-label="Painel"><button type="button" class="nav-item active" data-tab="metricas">Visão geral</button><button type="button" class="nav-item " data-tab="empresas">Empresas</button><button type="button" class="nav-item " data-tab="denuncias">Denúncias</button><button type="button" class="nav-item " data-tab="catalogo">Catálogo</button><button type="button" class="nav-item " data-tab="contatos">Contato</button><button type="button" class="nav-item " data-tab="notificacoes">Notificações</button><button type="button" class="nav-item " data-tab="mensagens">Mensagens</button></nav><div class="sidebar__footer"><div class="user-chip"><div class="user-chip__avatar" id="userAvatar">–</div><div><div class="user-chip__name" id="userName">Carregando…</div><div class="user-chip__role">Administração</div></div></div><button class="btn-logout" id="btnLogout" type="button">Sair</button></div></aside><main class="content"><div class="toast" id="toast" role="status" aria-live="polite"></div><section class="tab-panel active" id="tab-metricas"><header class="content__header"><h1>Visão geral</h1></header><div class="metric-grid" id="metricasAdmin"></div></section>
-<section class="tab-panel" id="tab-empresas"><header class="content__header"><h1>Empresas</h1></header><div class="list" id="empresasAdmin"></div></section>
-<section class="tab-panel" id="tab-denuncias"><header class="content__header"><h1>Denúncias</h1></header><div class="list" id="denunciasAdmin"></div></section>
-<section class="tab-panel" id="tab-catalogo"><header class="content__header"><h1>Catálogo de cursos e idiomas</h1></header><div class="card"><form id="formCursoAdmin"><input type="hidden" id="cursoId"><div class="field"><label for="cursoTitulo">Título do curso</label><input id="cursoTitulo" required maxlength="200"></div><div class="field"><label for="cursoDescricao">Descrição do curso</label><textarea id="cursoDescricao" rows="3"></textarea></div><div class="grid-2"><div class="field"><label for="cursoPlataforma">Plataforma</label><input id="cursoPlataforma" maxlength="100"></div><div class="field"><label for="cursoCategoria">Categoria</label><input id="cursoCategoria" maxlength="100"></div></div><div class="field"><label for="cursoUrl">Link do curso</label><input id="cursoUrl" type="url" maxlength="500"></div><button class="btn btn-primary" type="submit">Salvar curso</button><button class="btn btn-secondary" id="limparCurso" type="button">Novo curso</button></form></div><div class="list" id="cursosAdmin"></div><div class="card"><form id="formIdiomaAdmin"><div class="field"><label for="idiomaNome">Novo idioma</label><input id="idiomaNome" required maxlength="100"></div><button class="btn btn-primary" type="submit">Adicionar idioma</button></form><div id="idiomasAdmin"></div></div></section>
-<section class="tab-panel" id="tab-contatos"><header class="content__header"><h1>Mensagens de contato</h1></header><div class="list" id="contatosAdmin"></div></section><section class="tab-panel" id="tab-notificacoes"><header class="content__header"><h1>Notificações</h1></header><div class="list" id="listaNotificacoes"></div></section>
-<section class="tab-panel" id="tab-mensagens"><header class="content__header"><h1>Mensagens</h1></header><div class="list" id="listaMensagens"></div></section></main></div><dialog id="modalMensagem"><div class="dialog-header"><h2>Conversa</h2><button type="button" id="fecharMensagem" aria-label="Fechar conversa">×</button></div><div id="conversa"></div><form id="formMensagem"><input type="hidden" id="msgDestinatario"><input type="hidden" id="msgContexto"><div class="field"><label for="msgConteudo">Sua mensagem</label><textarea id="msgConteudo" required minlength="1" maxlength="10000" rows="4"></textarea></div><button class="btn btn-primary" type="submit">Enviar mensagem</button></form></dialog><script src="../js/config.js"></script><script src="../js/painel-comum.js"></script><script src="../js/dashboard-admin.js"></script></body></html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Administração — Talentix</title><link rel="stylesheet" href="../css/painel.css">
+</head>
+<body data-painel="administrador">
+<div class="app">
+<aside class="sidebar">
+<a href="index.html" class="sidebar__brand">Talentix</a>
+<nav class="sidebar__nav" aria-label="Painel administrativo">
+<button type="button" class="nav-item active" data-tab="metricas">Visão geral</button>
+<button type="button" class="nav-item" data-tab="empresas">Empresas</button>
+<button type="button" class="nav-item" data-tab="denuncias">Denúncias</button>
+<button type="button" class="nav-item" data-tab="catalogo">Catálogo</button>
+<button type="button" class="nav-item" data-tab="contatos">Contato</button>
+<button type="button" class="nav-item" data-tab="notificacoes">Notificações</button>
+<button type="button" class="nav-item" data-tab="mensagens">Mensagens</button>
+</nav>
+<div class="sidebar__footer"><div class="user-chip"><div class="user-chip__avatar" id="userAvatar">–</div><div><div class="user-chip__name" id="userName">Carregando…</div><div class="user-chip__role">Administração</div></div></div><button class="btn-logout" id="btnLogout" type="button">Sair</button></div>
+</aside>
+<main class="content"><div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<section class="tab-panel active" id="tab-metricas">
+<header class="content__header"><div><h1>Visão geral</h1><p>Acompanhe a plataforma e gerencie usuários cadastrados.</p></div></header>
+<div class="metric-grid" id="metricasAdmin"></div>
+<section class="card admin-card">
+<div class="section-title-row"><div><h2>Usuários</h2><p>Senhas e hashes nunca são exibidos.</p></div><input class="table-search" id="buscaUsuarios" type="search" placeholder="Buscar nome, e-mail ou perfil"></div>
+<div class="scroll-table"><table class="admin-table"><thead><tr><th>Usuário</th><th>Contato</th><th>Perfil</th><th>Status</th><th>Criado em</th><th>Ações</th></tr></thead><tbody id="usuariosAdmin"></tbody></table></div>
+</section></section>
+
+<section class="tab-panel" id="tab-empresas">
+<header class="content__header"><div><h1>Empresas</h1><p>Dados empresariais, responsável, equipe cadastrada e verificação.</p></div></header>
+<section class="card admin-card"><div class="section-title-row"><h2>Empresas cadastradas</h2><input class="table-search" id="buscaEmpresas" type="search" placeholder="Buscar empresa, CNPJ ou responsável"></div>
+<div class="scroll-table"><table class="admin-table"><thead><tr><th>Empresa</th><th>CNPJ</th><th>Descrição</th><th>Equipe</th><th>Endereço</th><th>Responsável</th><th>Status</th><th>Ações</th></tr></thead><tbody id="empresasAdmin"></tbody></table></div></section>
+</section>
+
+<section class="tab-panel" id="tab-denuncias"><header class="content__header"><div><h1>Denúncias</h1><p>Denúncias registradas pelos usuários para moderação.</p></div></header><section class="card admin-card"><div class="scroll-table"><table class="admin-table"><thead><tr><th>Motivo</th><th>Denunciante</th><th>Alvo</th><th>Vaga</th><th>Status</th><th>Data</th><th>Ações</th></tr></thead><tbody id="denunciasAdmin"></tbody></table></div></section></section>
+
+<section class="tab-panel" id="tab-catalogo"><header class="content__header"><h1>Catálogo de cursos e idiomas</h1></header>
+<div class="card"><form id="formCursoAdmin"><input type="hidden" id="cursoId"><div class="field"><label for="cursoTitulo">Título do curso</label><input id="cursoTitulo" required maxlength="200"></div><div class="field"><label for="cursoDescricao">Descrição</label><textarea id="cursoDescricao" rows="3"></textarea></div><div class="grid-2"><div class="field"><label for="cursoPlataforma">Plataforma</label><input id="cursoPlataforma" maxlength="100"></div><div class="field"><label for="cursoCategoria">Categoria</label><input id="cursoCategoria" maxlength="100"></div></div><div class="field"><label for="cursoUrl">Link</label><input id="cursoUrl" type="url" maxlength="500"></div><button class="btn btn-primary" type="submit">Salvar curso</button> <button class="btn btn-secondary" id="limparCurso" type="button">Novo curso</button></form></div><div class="list" id="cursosAdmin"></div>
+<div class="card"><form id="formIdiomaAdmin"><div class="field"><label for="idiomaNome">Novo idioma</label><input id="idiomaNome" required maxlength="100"></div><button class="btn btn-primary" type="submit">Adicionar idioma</button></form><div id="idiomasAdmin"></div></div></section>
+
+<section class="tab-panel" id="tab-contatos"><header class="content__header"><div><h1>Contato</h1><p>Solicitações enviadas pelo formulário público.</p></div></header><section class="card admin-card"><div class="scroll-table"><table class="admin-table"><thead><tr><th>Remetente</th><th>Assunto</th><th>Mensagem</th><th>Data</th><th>Status</th><th>Ação</th></tr></thead><tbody id="contatosAdmin"></tbody></table></div></section></section>
+
+<section class="tab-panel" id="tab-notificacoes"><header class="content__header"><div><h1>Notificações</h1><p>Auditoria das notificações geradas para usuários.</p></div></header><section class="card admin-card"><div class="scroll-table"><table class="admin-table"><thead><tr><th>Usuário</th><th>Título</th><th>Mensagem</th><th>Tipo</th><th>Status</th><th>Data</th></tr></thead><tbody id="notificacoesAdmin"></tbody></table></div></section></section>
+
+<section class="tab-panel" id="tab-mensagens"><header class="content__header"><div><h1>Mensagens</h1><p>Auditoria das mensagens registradas na plataforma.</p></div></header><section class="card admin-card"><div class="scroll-table"><table class="admin-table"><thead><tr><th>Remetente</th><th>Destinatário</th><th>Mensagem</th><th>Contexto</th><th>Status</th><th>Data</th></tr></thead><tbody id="mensagensAdmin"></tbody></table></div></section></section>
+</main></div>
+
+<dialog id="modalUsuario"><div class="dialog-header"><h2>Editar usuário</h2><button type="button" data-close="modalUsuario">×</button></div><form id="formUsuarioAdmin"><input type="hidden" id="usuarioId"><div class="field"><label for="usuarioNome">Nome</label><input id="usuarioNome" required maxlength="150"></div><div class="field"><label for="usuarioEmail">E-mail</label><input id="usuarioEmail" type="email" required maxlength="150"></div><div class="field"><label for="usuarioTelefone">Telefone</label><input id="usuarioTelefone" maxlength="20"></div><div class="dialog-actions"><button class="btn btn-secondary" type="button" data-close="modalUsuario">Cancelar</button><button class="btn btn-primary" type="submit">Salvar alterações</button></div></form></dialog>
+
+<dialog id="modalEmpresa"><div class="dialog-header"><h2>Editar empresa</h2><button type="button" data-close="modalEmpresa">×</button></div><form id="formEmpresaAdmin"><input type="hidden" id="empresaId"><div class="grid-2"><div class="field"><label for="empresaRazao">Razão social</label><input id="empresaRazao" required maxlength="200"></div><div class="field"><label for="empresaFantasia">Nome fantasia</label><input id="empresaFantasia" maxlength="200"></div></div><div class="grid-2"><div class="field"><label for="empresaCnpj">CNPJ</label><input id="empresaCnpj" required maxlength="18"></div><div class="field"><label for="empresaSetor">Setor</label><input id="empresaSetor" maxlength="100"></div></div><div class="grid-2"><div class="field"><label for="empresaPorte">Porte</label><input id="empresaPorte" maxlength="50"></div><div class="field"><label for="empresaSite">Site</label><input id="empresaSite" type="url" maxlength="300"></div></div><div class="field"><label for="empresaEndereco">Endereço</label><input id="empresaEndereco" maxlength="300"></div><div class="field"><label for="empresaDescricao">Descrição</label><textarea id="empresaDescricao" rows="4" maxlength="5000"></textarea></div><label class="checkbox-row"><input id="empresaVerificada" type="checkbox"> Empresa verificada</label><div class="dialog-actions"><button class="btn btn-secondary" type="button" data-close="modalEmpresa">Cancelar</button><button class="btn btn-primary" type="submit">Salvar alterações</button></div></form></dialog>
+
+<script src="../js/config.js"></script><script src="../js/painel-comum.js"></script><script src="../js/dashboard-admin.js"></script>
+</body></html>
