@@ -2,13 +2,16 @@
 CRUD de perfis: Candidatos, Empresas, Administradores, Recrutadores.
 (Usuarios em si não tem rota de criação direta — isso acontece via /auth/cadastro/*)
 """
-from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel
+from app.core.routes import AtomicRouter as APIRouter
+
+from fastapi import Depends, HTTPException, status
+from pydantic import BaseModel, Field, field_validator
 
 from app.db.database import fetch_one, fetch_all, execute
 from app.core.security import novo_uuid
 from app.core.deps import usuario_atual, exigir_tipo
-from app.core.access import checar_leitura_candidato
+from app.core.access import checar_leitura_candidato, checar_dono_candidato, checar_empresa, empresa_da_sessao
+from app.core.validation import Money, normalize_state
 
 router = APIRouter(tags=["Perfis"])
 
@@ -16,35 +19,38 @@ router = APIRouter(tags=["Perfis"])
 # ==================== CANDIDATOS ====================
 
 class CandidatoUpdate(BaseModel):
-    titulo_profissional: str | None = None
+    titulo_profissional: str | None = Field(default=None, max_length=150)
     resumo: str | None = None
-    cidade: str | None = None
-    estado: str | None = None
-    linkedin_url: str | None = None
-    github_url: str | None = None
-    portfolio_url: str | None = None
-    experiencia_anos: int | None = None
-    pretensao_salarial: float | None = None
+    cidade: str | None = Field(default=None, max_length=100)
+    estado: str | None = Field(default=None, max_length=2)
+    linkedin_url: str | None = Field(default=None, max_length=300)
+    github_url: str | None = Field(default=None, max_length=300)
+    portfolio_url: str | None = Field(default=None, max_length=300)
+    experiencia_anos: int | None = Field(default=None, ge=0, le=80)
+    pretensao_salarial: Money | None = None
     disponivel: bool | None = None
+
+    _uf = field_validator("estado", mode="before")(normalize_state)
 
 
 @router.get("/candidatos", tags=["Candidatos"])
 async def listar_candidatos(
     cidade: str | None = None,
     disponivel: bool | None = None,
-    sessao: dict = Depends(exigir_tipo("candidato", "empresa", "administrador")),
+    sessao: dict = Depends(exigir_tipo("candidato", "empresa", "recrutador", "administrador")),
 ):
     query = "SELECT c.* FROM Candidatos c WHERE c.Ativo=1"
     params: list = []
     if sessao["tipo_usuario"] == "candidato":
         query += " AND c.ID_Usuarios=%s"
         params.append(sessao["id_usuario"])
-    elif sessao["tipo_usuario"] == "empresa":
+    elif sessao["tipo_usuario"] in {"empresa", "recrutador"}:
+        empresa = await empresa_da_sessao(sessao)
         query += """ AND EXISTS (SELECT 1 FROM Candidaturas ca
             JOIN Vagas v ON v.ID_Vagas=ca.ID_Vagas
             JOIN Empresas e ON e.ID_Empresas=v.ID_Empresas AND e.Ativo=1
-            WHERE ca.ID_Candidatos=c.ID_Candidatos AND ca.Ativo=1 AND e.ID_Usuarios=%s)"""
-        params.append(sessao["id_usuario"])
+            WHERE ca.ID_Candidatos=c.ID_Candidatos AND ca.Ativo=1 AND e.ID_Empresas=%s)"""
+        params.append(empresa["ID_Empresas"])
     if cidade:
         query += " AND c.Cidade=%s"
         params.append(cidade)
@@ -74,7 +80,7 @@ async def obter_candidato(id_candidato: str, sessao: dict = Depends(usuario_atua
 async def atualizar_candidato(
     id_candidato: str, dados: CandidatoUpdate, sessao: dict = Depends(usuario_atual)
 ):
-    candidato = await fetch_one("SELECT * FROM Candidatos WHERE ID_Candidatos=%s", (id_candidato,))
+    candidato = await checar_dono_candidato(id_candidato, sessao)
     if not candidato:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Candidato não encontrado.")
     if candidato["ID_Usuarios"] != sessao["id_usuario"] and sessao["tipo_usuario"] != "administrador":
@@ -113,12 +119,12 @@ async def desativar_candidato(id_candidato: str, sessao: dict = Depends(usuario_
 # ==================== EMPRESAS ====================
 
 class EmpresaUpdate(BaseModel):
-    nome_fantasia: str | None = None
+    nome_fantasia: str | None = Field(default=None, max_length=200)
     descricao: str | None = None
-    setor: str | None = None
-    porte: str | None = None
-    site_url: str | None = None
-    endereco: str | None = None
+    setor: str | None = Field(default=None, max_length=100)
+    porte: str | None = Field(default=None, max_length=50)
+    site_url: str | None = Field(default=None, max_length=300)
+    endereco: str | None = Field(default=None, max_length=300)
 
 
 @router.get("/empresas", tags=["Empresas"])
@@ -130,6 +136,11 @@ async def listar_empresas(setor: str | None = None):
         params.append(setor)
     query += " ORDER BY CriadoEm DESC"
     return await fetch_all(query, tuple(params))
+
+
+@router.get("/empresas/me", tags=["Empresas"])
+async def minha_empresa(sessao: dict = Depends(exigir_tipo("empresa", "recrutador"))):
+    return await empresa_da_sessao(sessao)
 
 
 @router.get("/empresas/{id_empresa}", tags=["Empresas"])
@@ -165,6 +176,7 @@ async def atualizar_empresa(id_empresa: str, dados: EmpresaUpdate, sessao: dict 
 
 @router.patch("/empresas/{id_empresa}/verificar", tags=["Empresas"])
 async def verificar_empresa(id_empresa: str, sessao: dict = Depends(exigir_tipo("administrador"))):
+    await checar_empresa(id_empresa, sessao)
     await execute("UPDATE Empresas SET Verificada=1 WHERE ID_Empresas=%s", (id_empresa,))
     return {"mensagem": "Empresa verificada."}
 
@@ -183,8 +195,8 @@ async def desativar_empresa(id_empresa: str, sessao: dict = Depends(usuario_atua
 # ==================== RECRUTADORES ====================
 
 class RecrutadorCreate(BaseModel):
-    id_usuario_recrutador: str  # usuário já cadastrado que vai virar recrutador
-    cargo: str | None = None
+    id_usuario_recrutador: str = Field(min_length=1, max_length=36)
+    cargo: str | None = Field(default=None, max_length=100)
 
 
 @router.post("/empresas/{id_empresa}/recrutadores", status_code=201, tags=["Recrutadores"])
@@ -197,6 +209,15 @@ async def adicionar_recrutador(
     if sessao["tipo_usuario"] == "empresa" and empresa["ID_Usuarios"] != sessao["id_usuario"]:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Sem permissão sobre esta empresa.")
 
+    if not await fetch_one("SELECT ID_Usuarios FROM Usuarios WHERE ID_Usuarios=%s AND Ativo=1", (dados.id_usuario_recrutador,)):
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Usuário do recrutador não encontrado.")
+    existente = await fetch_one("SELECT * FROM Recrutadores WHERE ID_Usuarios=%s", (dados.id_usuario_recrutador,))
+    if existente:
+        if existente["Ativo"] or existente["ID_Empresas"] != id_empresa:
+            raise HTTPException(status.HTTP_409_CONFLICT, "Usuário já possui vínculo de recrutamento.")
+        await execute("UPDATE Recrutadores SET Ativo=1, DeletadoEm=NULL, Cargo=%s WHERE ID_Recrutadores=%s",
+                      (dados.cargo, existente["ID_Recrutadores"]))
+        return await fetch_one("SELECT * FROM Recrutadores WHERE ID_Recrutadores=%s", (existente["ID_Recrutadores"],))
     id_recrutador = novo_uuid()
     await execute(
         """INSERT INTO Recrutadores (ID_Recrutadores, ID_Empresas, ID_Usuarios, Cargo)
@@ -227,11 +248,7 @@ async def remover_recrutador(id_recrutador: str, sessao: dict = Depends(exigir_t
 
 
 async def _checar_dono_empresa_recrutador(id_empresa: str, sessao: dict) -> None:
-    if sessao["tipo_usuario"] == "administrador":
-        return
-    empresa = await fetch_one("SELECT * FROM Empresas WHERE ID_Empresas=%s AND Ativo=1", (id_empresa,))
-    if sessao["tipo_usuario"] != "empresa" or not empresa or empresa["ID_Usuarios"] != sessao["id_usuario"]:
-        raise HTTPException(status.HTTP_403_FORBIDDEN, "Sem permissão sobre esta empresa.")
+    await checar_empresa(id_empresa, sessao)
 
 
 # ==================== ADMINISTRADORES ====================

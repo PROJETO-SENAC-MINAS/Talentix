@@ -1,3 +1,4 @@
+-- Fixture: esquema anterior à migração 001; somente tabelas e status fictícios.
 -- ============================================================================
 -- TALENTIX — SCRIPT DE CRIAÇÃO DO BANCO DE DADOS (MySQL 8)
 -- Padrões adotados:
@@ -484,8 +485,6 @@ CREATE TABLE Analises_IA (
     ID_Vagas                       CHAR(36) NOT NULL,
     ID_Candidaturas                CHAR(36) NULL,
     ID_Status_Processamento_IA     TINYINT UNSIGNED NOT NULL,
-    ProcessamentoIniciadoEm DATETIME NULL,
-    ErroProcessamento TEXT NULL,
     ScoreCompatibilidade            TINYINT UNSIGNED NULL,
     PontosFortes                    TEXT NULL,
     Lacunas                          TEXT NULL,
@@ -513,8 +512,6 @@ CREATE TABLE Recomendacoes_Vaga (
     ID_Candidatos                  CHAR(36) NOT NULL,
     ID_Vagas                       CHAR(36) NOT NULL,
     ID_Status_Processamento_IA     TINYINT UNSIGNED NOT NULL,
-    ProcessamentoIniciadoEm DATETIME NULL,
-    ErroProcessamento TEXT NULL,
     Score                           TINYINT UNSIGNED NULL,
     Motivo                          TEXT NULL,
     Visualizada                     BOOLEAN NOT NULL DEFAULT FALSE,
@@ -622,7 +619,6 @@ CREATE TABLE Avaliacoes (
     Comentario            TEXT NULL,
     CriadaEm              DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (ID_Avaliacoes),
-    UNIQUE KEY UQ_Avaliacoes_Avaliador_Candidatura (ID_Avaliador, ID_Candidaturas),
     KEY IX_Avaliacoes_ID_Avaliador (ID_Avaliador),
     KEY IX_Avaliacoes_ID_Candidatos (ID_Candidatos),
     KEY IX_Avaliacoes_ID_Empresas (ID_Empresas),
@@ -681,9 +677,7 @@ CREATE TABLE Assinaturas (
     Fim                      DATE NULL,
     CriadaEm                 DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     AtualizadaEm              DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    EmpresaAtiva CHAR(36) GENERATED ALWAYS AS (CASE WHEN ID_Status_Assinatura=1 THEN ID_Empresas ELSE NULL END) VIRTUAL,
     PRIMARY KEY (ID_Assinaturas),
-    UNIQUE KEY UQ_Assinaturas_EmpresaAtiva (EmpresaAtiva),
     KEY IX_Assinaturas_ID_Empresas (ID_Empresas),
     KEY IX_Assinaturas_ID_Status_Assinatura (ID_Status_Assinatura),
     CONSTRAINT FK_Assinaturas_ID_Empresas FOREIGN KEY (ID_Empresas)
@@ -702,7 +696,6 @@ CREATE TABLE Pagamentos (
     PagoEm                   DATETIME NULL,
     CriadoEm                 DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (ID_Pagamentos),
-    UNIQUE KEY UQ_Pagamentos_TransacaoId (TransacaoId),
     KEY IX_Pagamentos_ID_Assinaturas (ID_Assinaturas),
     KEY IX_Pagamentos_ID_Status_Pagamento (ID_Status_Pagamento),
     CONSTRAINT FK_Pagamentos_ID_Assinaturas FOREIGN KEY (ID_Assinaturas)
@@ -711,14 +704,5 @@ CREATE TABLE Pagamentos (
         REFERENCES Status_Pagamento (ID_Status_Pagamento)
 ) ENGINE=InnoDB CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
-CREATE TABLE Contatos (
-    ID_Contatos CHAR(36) NOT NULL PRIMARY KEY,
-    Nome VARCHAR(150) NOT NULL,
-    Email VARCHAR(150) NOT NULL,
-    Assunto VARCHAR(100) NOT NULL,
-    Mensagem TEXT NOT NULL,
-    Lido BOOLEAN NOT NULL DEFAULT FALSE,
-    CriadoEm DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
-) ENGINE=InnoDB CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-
 SET FOREIGN_KEY_CHECKS = 1;
+

@@ -1,11 +1,13 @@
 """
 Serviço de envio de e-mails via SMTP genérico (Gmail, Outlook, etc.).
-Envio síncrono simples: chama smtplib diretamente na requisição.
+Envio via smtplib em thread, após o commit das operações.
 Falhas de e-mail NUNCA devem quebrar o fluxo principal da API — por isso
 todas as chamadas são envolvidas em try/except e apenas logadas.
 """
 import logging
 import smtplib
+import ssl
+from html import escape as escape_html
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
@@ -35,7 +37,7 @@ def enviar_email(destinatario: str, assunto: str, corpo_html: str) -> bool:
     try:
         msg = _montar_mensagem(destinatario, assunto, corpo_html)
         with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT, timeout=10) as servidor:
-            servidor.starttls()
+            servidor.starttls(context=ssl.create_default_context())
             servidor.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
             servidor.sendmail(settings.SMTP_FROM_EMAIL, [destinatario], msg.as_string())
         logger.info(f"E-mail enviado para {destinatario} | Assunto: {assunto}")
@@ -52,8 +54,8 @@ def enviar_email(destinatario: str, assunto: str, corpo_html: str) -> bool:
 def email_nova_candidatura(destinatario: str, nome_empresa: str, titulo_vaga: str, nome_candidato: str) -> bool:
     assunto = f"Nova candidatura recebida: {titulo_vaga}"
     corpo = f"""
-    <p>Olá, {nome_empresa}!</p>
-    <p><strong>{nome_candidato}</strong> se candidatou à vaga <strong>{titulo_vaga}</strong>.</p>
+    <p>Olá, {escape_html(nome_empresa)}!</p>
+    <p><strong>{escape_html(nome_candidato)}</strong> se candidatou à vaga <strong>{escape_html(titulo_vaga)}</strong>.</p>
     <p>Acesse o painel do Talentix para revisar o perfil do candidato.</p>
     """
     return enviar_email(destinatario, assunto, corpo)
@@ -62,8 +64,8 @@ def email_nova_candidatura(destinatario: str, nome_empresa: str, titulo_vaga: st
 def email_status_candidatura_atualizado(destinatario: str, nome_candidato: str, titulo_vaga: str, novo_status: str) -> bool:
     assunto = f"Atualização da sua candidatura: {titulo_vaga}"
     corpo = f"""
-    <p>Olá, {nome_candidato}!</p>
-    <p>Sua candidatura para <strong>{titulo_vaga}</strong> mudou de status para: <strong>{novo_status}</strong>.</p>
+    <p>Olá, {escape_html(nome_candidato)}!</p>
+    <p>Sua candidatura para <strong>{escape_html(titulo_vaga)}</strong> mudou de status para: <strong>{escape_html(novo_status)}</strong>.</p>
     <p>Acesse o Talentix para mais detalhes.</p>
     """
     return enviar_email(destinatario, assunto, corpo)
@@ -71,11 +73,11 @@ def email_status_candidatura_atualizado(destinatario: str, nome_candidato: str, 
 
 def email_entrevista_agendada(destinatario: str, nome_candidato: str, titulo_vaga: str, data_hora_formatada: str, local_ou_link: str | None) -> bool:
     assunto = f"Entrevista agendada: {titulo_vaga}"
-    local_html = f"<p>Local/Link: {local_ou_link}</p>" if local_ou_link else ""
+    local_html = f"<p>Local/Link: {escape_html(local_ou_link)}</p>" if local_ou_link else ""
     corpo = f"""
-    <p>Olá, {nome_candidato}!</p>
-    <p>Uma entrevista foi agendada para a vaga <strong>{titulo_vaga}</strong>.</p>
-    <p>Data e horário: <strong>{data_hora_formatada}</strong></p>
+    <p>Olá, {escape_html(nome_candidato)}!</p>
+    <p>Uma entrevista foi agendada para a vaga <strong>{escape_html(titulo_vaga)}</strong>.</p>
+    <p>Data e horário: <strong>{escape_html(data_hora_formatada)}</strong></p>
     {local_html}
     """
     return enviar_email(destinatario, assunto, corpo)
@@ -84,9 +86,9 @@ def email_entrevista_agendada(destinatario: str, nome_candidato: str, titulo_vag
 def email_entrevista_reagendada(destinatario: str, nome_candidato: str, titulo_vaga: str, nova_data_hora_formatada: str) -> bool:
     assunto = f"Entrevista reagendada: {titulo_vaga}"
     corpo = f"""
-    <p>Olá, {nome_candidato}!</p>
-    <p>Sua entrevista para a vaga <strong>{titulo_vaga}</strong> foi reagendada.</p>
-    <p>Nova data e horário: <strong>{nova_data_hora_formatada}</strong></p>
+    <p>Olá, {escape_html(nome_candidato)}!</p>
+    <p>Sua entrevista para a vaga <strong>{escape_html(titulo_vaga)}</strong> foi reagendada.</p>
+    <p>Nova data e horário: <strong>{escape_html(nova_data_hora_formatada)}</strong></p>
     """
     return enviar_email(destinatario, assunto, corpo)
 
@@ -94,8 +96,8 @@ def email_entrevista_reagendada(destinatario: str, nome_candidato: str, titulo_v
 def email_entrevista_cancelada(destinatario: str, nome_candidato: str, titulo_vaga: str) -> bool:
     assunto = f"Entrevista cancelada: {titulo_vaga}"
     corpo = f"""
-    <p>Olá, {nome_candidato}!</p>
-    <p>Sua entrevista para a vaga <strong>{titulo_vaga}</strong> foi cancelada.</p>
+    <p>Olá, {escape_html(nome_candidato)}!</p>
+    <p>Sua entrevista para a vaga <strong>{escape_html(titulo_vaga)}</strong> foi cancelada.</p>
     """
     return enviar_email(destinatario, assunto, corpo)
 
@@ -103,7 +105,7 @@ def email_entrevista_cancelada(destinatario: str, nome_candidato: str, titulo_va
 def email_nova_mensagem(destinatario: str, nome_remetente: str) -> bool:
     assunto = f"Nova mensagem de {nome_remetente}"
     corpo = f"""
-    <p>Você recebeu uma nova mensagem de <strong>{nome_remetente}</strong> no Talentix.</p>
+    <p>Você recebeu uma nova mensagem de <strong>{escape_html(nome_remetente)}</strong> no Talentix.</p>
     <p>Acesse o Talentix para ler e responder.</p>
     """
     return enviar_email(destinatario, assunto, corpo)
@@ -113,7 +115,7 @@ def email_denuncia_recebida(destinatario: str, motivo: str) -> bool:
     assunto = "Nova denúncia registrada"
     corpo = f"""
     <p>Uma nova denúncia foi registrada na plataforma.</p>
-    <p>Motivo: <strong>{motivo}</strong></p>
+    <p>Motivo: <strong>{escape_html(motivo)}</strong></p>
     <p>Acesse o painel administrativo para revisar.</p>
     """
     return enviar_email(destinatario, assunto, corpo)
@@ -123,18 +125,18 @@ def email_denuncia_resolvida(destinatario: str, motivo: str, novo_status: str) -
     assunto = "Sua denúncia foi analisada"
     corpo = f"""
     <p>Olá!</p>
-    <p>Sua denúncia sobre "<strong>{motivo}</strong>" foi analisada.</p>
-    <p>Status final: <strong>{novo_status}</strong></p>
+    <p>Sua denúncia sobre "<strong>{escape_html(motivo)}</strong>" foi analisada.</p>
+    <p>Status final: <strong>{escape_html(novo_status)}</strong></p>
     """
     return enviar_email(destinatario, assunto, corpo)
 
 
 def email_recomendacao_curso(destinatario: str, nome_candidato: str, titulo_curso: str, motivo: str | None) -> bool:
     assunto = "Nova recomendação de curso para você"
-    motivo_html = f"<p>Motivo: {motivo}</p>" if motivo else ""
+    motivo_html = f"<p>Motivo: {escape_html(motivo)}</p>" if motivo else ""
     corpo = f"""
-    <p>Olá, {nome_candidato}!</p>
-    <p>Recomendamos o curso <strong>{titulo_curso}</strong> para você.</p>
+    <p>Olá, {escape_html(nome_candidato)}!</p>
+    <p>Recomendamos o curso <strong>{escape_html(titulo_curso)}</strong> para você.</p>
     {motivo_html}
     """
     return enviar_email(destinatario, assunto, corpo)
@@ -142,10 +144,10 @@ def email_recomendacao_curso(destinatario: str, nome_candidato: str, titulo_curs
 
 def email_recomendacao_vaga(destinatario: str, nome_candidato: str, titulo_vaga: str, motivo: str | None) -> bool:
     assunto = f"Nova vaga recomendada: {titulo_vaga}"
-    motivo_html = f"<p>Motivo: {motivo}</p>" if motivo else ""
+    motivo_html = f"<p>Motivo: {escape_html(motivo)}</p>" if motivo else ""
     corpo = f"""
-    <p>Olá, {nome_candidato}!</p>
-    <p>Encontramos uma vaga que combina com seu perfil: <strong>{titulo_vaga}</strong>.</p>
+    <p>Olá, {escape_html(nome_candidato)}!</p>
+    <p>Encontramos uma vaga que combina com seu perfil: <strong>{escape_html(titulo_vaga)}</strong>.</p>
     {motivo_html}
     """
     return enviar_email(destinatario, assunto, corpo)
@@ -163,7 +165,7 @@ def email_pagamento_processado(destinatario: str, valor: float, aprovado: bool) 
 def email_boas_vindas(destinatario: str, nome: str) -> bool:
     assunto = "Bem-vindo(a) ao Talentix!"
     corpo = f"""
-    <p>Olá, {nome}!</p>
+    <p>Olá, {escape_html(nome)}!</p>
     <p>Seu cadastro no Talentix foi realizado com sucesso.</p>
     <p>Estamos felizes em ter você na plataforma.</p>
     """
@@ -173,10 +175,10 @@ def email_boas_vindas(destinatario: str, nome: str) -> bool:
 def email_recuperar_senha(destinatario: str, nome: str, link_reset: str) -> bool:
     assunto = "Redefinição de senha — Talentix"
     corpo = f"""
-    <p>Olá, {nome}!</p>
+    <p>Olá, {escape_html(nome)}!</p>
     <p>Recebemos um pedido para redefinir a senha da sua conta no Talentix.</p>
     <p>
-      <a href="{link_reset}" style="display:inline-block;padding:10px 18px;background:#12242E;color:#fff;text-decoration:none;border-radius:8px;">
+      <a href="{escape_html(link_reset)}" style="display:inline-block;padding:10px 18px;background:#12242E;color:#fff;text-decoration:none;border-radius:8px;">
         Redefinir minha senha
       </a>
     </p>
@@ -188,7 +190,7 @@ def email_recuperar_senha(destinatario: str, nome: str, link_reset: str) -> bool
 def email_senha_redefinida(destinatario: str, nome: str) -> bool:
     assunto = "Sua senha foi alterada — Talentix"
     corpo = f"""
-    <p>Olá, {nome}!</p>
+    <p>Olá, {escape_html(nome)}!</p>
     <p>Sua senha no Talentix foi alterada com sucesso.</p>
     <p>Se você não fez essa alteração, entre em contato com o suporte imediatamente.</p>
     """

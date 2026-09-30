@@ -1,12 +1,16 @@
 """
 CRUD de Avaliações (pós-processo seletivo) e Denúncias (moderação).
 """
-from fastapi import APIRouter, Depends, HTTPException, status
+from app.core.routes import AtomicRouter as APIRouter
+
+from fastapi import Depends, HTTPException, status
 from pydantic import BaseModel, Field
+from typing import Literal
 
 from app.db.database import fetch_one, fetch_all, execute
 from app.core.security import novo_uuid
 from app.core.deps import usuario_atual, exigir_tipo
+from app.routers.candidaturas import _checar_acesso_candidatura
 from app.core.notificar import notificar_usuario
 from app.core.email_service import email_denuncia_recebida, email_denuncia_resolvida
 
@@ -20,7 +24,7 @@ class AvaliacaoCreate(BaseModel):
     id_candidato: str | None = None
     id_empresa: str | None = None
     nota: int = Field(ge=1, le=5)
-    comentario: str | None = None
+    comentario: str | None = Field(default=None, max_length=5000)
 
 
 @router.post("/avaliacoes", status_code=201)
@@ -28,6 +32,21 @@ async def criar_avaliacao(dados: AvaliacaoCreate, sessao: dict = Depends(usuario
     candidatura = await fetch_one("SELECT * FROM Candidaturas WHERE ID_Candidaturas=%s", (dados.id_candidatura,))
     if not candidatura:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Candidatura não encontrada.")
+    await _checar_acesso_candidatura(candidatura, sessao)
+    if candidatura["ID_Status_Candidatura"] not in {5, 6, 7}:
+        raise HTTPException(status.HTTP_409_CONFLICT, "Avaliações são permitidas após o encerramento do processo.")
+    vaga = await fetch_one("SELECT ID_Empresas FROM Vagas WHERE ID_Vagas=%s", (candidatura["ID_Vagas"],))
+    if sessao["tipo_usuario"] == "candidato":
+        valido = dados.id_empresa == vaga["ID_Empresas"] and dados.id_candidato is None
+    elif sessao["tipo_usuario"] in {"empresa", "recrutador"}:
+        valido = dados.id_candidato == candidatura["ID_Candidatos"] and dados.id_empresa is None
+    else:
+        valido = False
+    if not valido:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Alvo da avaliação incompatível com esta candidatura.")
+    if await fetch_one("SELECT ID_Avaliacoes FROM Avaliacoes WHERE ID_Avaliador=%s AND ID_Candidaturas=%s",
+                       (sessao["id_usuario"], dados.id_candidatura)):
+        raise HTTPException(status.HTTP_409_CONFLICT, "Você já avaliou esta candidatura.")
 
     id_avaliacao = novo_uuid()
     await execute(
@@ -69,7 +88,7 @@ async def excluir_avaliacao(id_avaliacao: str, sessao: dict = Depends(usuario_at
 class DenunciaCreate(BaseModel):
     id_usuario_alvo: str | None = None
     id_vaga: str | None = None
-    motivo: str
+    motivo: str = Field(min_length=1, max_length=200)
     descricao: str | None = None
 
 
@@ -109,7 +128,7 @@ async def listar_minhas_denuncias(sessao: dict = Depends(usuario_atual)):
 
 
 class DenunciaResolucao(BaseModel):
-    id_status_denuncia: int  # 3 = RESOLVIDA, 4 = REJEITADA
+    id_status_denuncia: Literal[3, 4]
 
 
 @router.patch("/denuncias/{id_denuncia}/resolver")
@@ -120,9 +139,13 @@ async def resolver_denuncia(
     if not admin:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Administrador não encontrado.")
 
-    denuncia = await fetch_one("SELECT * FROM Denuncias WHERE ID_Denuncias=%s", (id_denuncia,))
+    denuncia = await fetch_one("SELECT * FROM Denuncias WHERE ID_Denuncias=%s FOR UPDATE", (id_denuncia,))
     if not denuncia:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Denúncia não encontrada.")
+    if denuncia["ID_Status_Denuncia"] in {3, 4}:
+        if denuncia["ID_Status_Denuncia"] == dados.id_status_denuncia:
+            return denuncia
+        raise HTTPException(status.HTTP_409_CONFLICT, "Denúncia já resolvida.")
 
     await execute(
         """UPDATE Denuncias SET ID_Status_Denuncia=%s, ID_Administradores=%s, ResolvidaEm=NOW()

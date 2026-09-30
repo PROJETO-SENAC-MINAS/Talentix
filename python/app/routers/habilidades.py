@@ -2,13 +2,15 @@
 CRUD de Habilidades e Idiomas (catálogos) + associações Candidato_Habilidades
 e Candidato_Idiomas.
 """
-from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel
+from app.core.routes import AtomicRouter as APIRouter
+
+from fastapi import Depends, HTTPException, status
+from pydantic import BaseModel, Field
 
 from app.db.database import fetch_one, fetch_all, execute
 from app.core.security import novo_uuid
 from app.core.deps import usuario_atual, exigir_tipo
-from app.core.access import checar_leitura_candidato
+from app.core.access import checar_leitura_candidato, checar_dono_candidato, checar_habilidade_ativa
 
 router = APIRouter(tags=["Habilidades e Idiomas"])
 
@@ -16,16 +18,18 @@ router = APIRouter(tags=["Habilidades e Idiomas"])
 # ==================== HABILIDADES (catálogo) ====================
 
 class HabilidadeCreate(BaseModel):
-    nome: str
-    categoria: str | None = None
+    nome: str = Field(min_length=1, max_length=100)
+    categoria: str | None = Field(default=None, max_length=100)
 
 
 @router.post("/habilidades", status_code=201, tags=["Habilidades"])
 async def criar_habilidade(
-    dados: HabilidadeCreate, sessao: dict = Depends(exigir_tipo("candidato", "empresa", "administrador"))
+    dados: HabilidadeCreate, sessao: dict = Depends(exigir_tipo("candidato", "empresa", "recrutador", "administrador"))
 ):
     existente = await fetch_one("SELECT * FROM Habilidades WHERE Nome=%s", (dados.nome,))
     if existente:
+        if not existente["Ativo"]:
+            raise HTTPException(status.HTTP_409_CONFLICT, "Esta habilidade foi desativada pelo administrador.")
         return existente
     id_hab = novo_uuid()
     await execute(
@@ -59,16 +63,12 @@ async def desativar_habilidade(id_habilidade: str, sessao: dict = Depends(exigir
 
 class CandidatoHabilidadeCreate(BaseModel):
     id_habilidade: str
-    nivel: int | None = None
-    anos_experiencia: int | None = None
+    nivel: int | None = Field(default=None, ge=0, le=255)
+    anos_experiencia: int | None = Field(default=None, ge=0, le=80)
 
 
 async def _checar_dono_candidato(id_candidato: str, sessao: dict) -> None:
-    if sessao["tipo_usuario"] == "administrador":
-        return
-    candidato = await fetch_one("SELECT * FROM Candidatos WHERE ID_Candidatos=%s", (id_candidato,))
-    if not candidato or candidato["ID_Usuarios"] != sessao["id_usuario"]:
-        raise HTTPException(status.HTTP_403_FORBIDDEN, "Sem permissão sobre este candidato.")
+    await checar_dono_candidato(id_candidato, sessao)
 
 
 @router.post("/candidatos/{id_candidato}/habilidades", status_code=201, tags=["Habilidades"])
@@ -76,6 +76,7 @@ async def adicionar_habilidade_candidato(
     id_candidato: str, dados: CandidatoHabilidadeCreate, sessao: dict = Depends(usuario_atual)
 ):
     await _checar_dono_candidato(id_candidato, sessao)
+    await checar_habilidade_ativa(dados.id_habilidade)
     id_ch = novo_uuid()
     await execute(
         """INSERT INTO Candidato_Habilidades (ID_Candidato_Habilidades, ID_Candidatos, ID_Habilidades, Nivel, AnosExperiencia)
@@ -91,7 +92,7 @@ async def listar_habilidades_candidato(id_candidato: str, sessao: dict = Depends
     return await fetch_all(
         """SELECT ch.*, h.Nome AS NomeHabilidade, h.Categoria
            FROM Candidato_Habilidades ch
-           JOIN Habilidades h ON h.ID_Habilidades = ch.ID_Habilidades
+           JOIN Habilidades h ON h.ID_Habilidades = ch.ID_Habilidades AND h.Ativo=1
            WHERE ch.ID_Candidatos=%s""",
         (id_candidato,),
     )
@@ -112,7 +113,7 @@ async def remover_habilidade_candidato(
 # ==================== IDIOMAS (catálogo) ====================
 
 class IdiomaCreate(BaseModel):
-    nome: str
+    nome: str = Field(min_length=1, max_length=100)
 
 
 @router.post("/idiomas", status_code=201, tags=["Idiomas"])
@@ -134,7 +135,7 @@ async def listar_idiomas():
 
 class CandidatoIdiomaCreate(BaseModel):
     id_idioma: str
-    nivel: str | None = None
+    nivel: str | None = Field(default=None, max_length=50)
 
 
 @router.post("/candidatos/{id_candidato}/idiomas", status_code=201, tags=["Idiomas"])

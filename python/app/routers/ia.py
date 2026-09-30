@@ -1,16 +1,18 @@
 """
 Análises de IA e Recomendações de Vaga. Seguem o padrão de processamento
 assíncrono: o endpoint de criação apenas enfileira (status_processamento = 'NA_FILA'),
-e um worker externo (fora do escopo desta API) é responsável por processar e
-atualizar o registro com o resultado via PATCH /processar.
+O worker local app.worker_ia processa a fila. Serviços externos também podem
+registrar resultados pelas rotas protegidas PATCH /processar.
 """
-from fastapi import APIRouter, Depends, HTTPException, status
+from app.core.routes import AtomicRouter as APIRouter
+
+from fastapi import Depends, HTTPException, status
 from pydantic import BaseModel, Field
 
 from app.db.database import fetch_one, fetch_all, execute
 from app.core.security import novo_uuid
 from app.core.deps import usuario_atual, exigir_tipo
-from app.core.access import checar_acesso_analise, checar_dono_candidato
+from app.core.access import checar_acesso_analise, checar_dono_candidato, empresa_da_sessao
 from app.core.service_auth import exigir_worker_ia
 from app.core.notificar import notificar_usuario
 from app.core.email_service import email_recomendacao_vaga
@@ -55,7 +57,7 @@ async def solicitar_analise_ia(dados: AnaliseIACreate, sessao: dict = Depends(us
 async def listar_analises_ia(
     id_candidato: str | None = None,
     id_vaga: str | None = None,
-    sessao: dict = Depends(exigir_tipo("candidato", "empresa", "administrador")),
+    sessao: dict = Depends(exigir_tipo("candidato", "empresa", "recrutador", "administrador")),
 ):
     query = """SELECT a.* FROM Analises_IA a
                JOIN Candidatos c ON c.ID_Candidatos=a.ID_Candidatos AND c.Ativo=1
@@ -65,11 +67,12 @@ async def listar_analises_ia(
     if sessao["tipo_usuario"] == "candidato":
         query += " AND c.ID_Usuarios=%s"
         params.append(sessao["id_usuario"])
-    elif sessao["tipo_usuario"] == "empresa":
-        query += """ AND e.ID_Usuarios=%s AND e.Ativo=1 AND EXISTS (
+    elif sessao["tipo_usuario"] in {"empresa", "recrutador"}:
+        empresa = await empresa_da_sessao(sessao)
+        query += """ AND e.ID_Empresas=%s AND e.Ativo=1 AND EXISTS (
             SELECT 1 FROM Candidaturas ca WHERE ca.ID_Candidatos=a.ID_Candidatos
             AND ca.ID_Vagas=a.ID_Vagas AND ca.Ativo=1)"""
-        params.append(sessao["id_usuario"])
+        params.append(empresa["ID_Empresas"])
     if id_candidato:
         query += " AND a.ID_Candidatos=%s"
         params.append(id_candidato)
@@ -94,7 +97,7 @@ class AnaliseIAResultado(BaseModel):
     pontos_fortes: str | None = None
     lacunas: str | None = None
     justificativa: str | None = None
-    modelo_ia: str | None = None
+    modelo_ia: str | None = Field(default=None, max_length=100)
 
 
 @router.patch("/analises-ia/{id_analise}/processar", dependencies=[Depends(exigir_worker_ia)])
@@ -103,9 +106,13 @@ async def processar_analise_ia(id_analise: str, resultado: AnaliseIAResultado):
     Endpoint chamado pelo worker/serviço de IA (processo assíncrono) para
     gravar o resultado final e marcar como concluído.
     """
-    analise = await fetch_one("SELECT * FROM Analises_IA WHERE ID_Analises_IA=%s", (id_analise,))
+    analise = await fetch_one("SELECT * FROM Analises_IA WHERE ID_Analises_IA=%s FOR UPDATE", (id_analise,))
     if not analise:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Análise não encontrada.")
+    if analise["ID_Status_Processamento_IA"] == _STATUS_CONCLUIDO:
+        return analise
+    if analise["ID_Status_Processamento_IA"] == _STATUS_FALHOU:
+        raise HTTPException(status.HTTP_409_CONFLICT, "Análise já finalizada com falha. Solicite uma nova análise.")
 
     await execute(
         """UPDATE Analises_IA SET ScoreCompatibilidade=%s, PontosFortes=%s, Lacunas=%s,
@@ -119,8 +126,11 @@ async def processar_analise_ia(id_analise: str, resultado: AnaliseIAResultado):
 
 @router.patch("/analises-ia/{id_analise}/falhar", dependencies=[Depends(exigir_worker_ia)])
 async def marcar_analise_ia_falhou(id_analise: str):
-    if not await fetch_one("SELECT ID_Analises_IA FROM Analises_IA WHERE ID_Analises_IA=%s", (id_analise,)):
+    analise = await fetch_one("SELECT * FROM Analises_IA WHERE ID_Analises_IA=%s FOR UPDATE", (id_analise,))
+    if not analise:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Análise não encontrada.")
+    if analise["ID_Status_Processamento_IA"] == _STATUS_CONCLUIDO:
+        raise HTTPException(status.HTTP_409_CONFLICT, "Análise concluída não pode ser marcada como falha.")
     await execute(
         "UPDATE Analises_IA SET ID_Status_Processamento_IA=%s WHERE ID_Analises_IA=%s",
         (_STATUS_FALHOU, id_analise),
@@ -166,9 +176,13 @@ class RecomendacaoVagaResultado(BaseModel):
 
 @router.patch("/recomendacoes-vaga/{id_recomendacao}/processar", dependencies=[Depends(exigir_worker_ia)])
 async def processar_recomendacao_vaga(id_recomendacao: str, resultado: RecomendacaoVagaResultado):
-    recomendacao = await fetch_one("SELECT * FROM Recomendacoes_Vaga WHERE ID_Recomendacoes_Vaga=%s", (id_recomendacao,))
+    recomendacao = await fetch_one("SELECT * FROM Recomendacoes_Vaga WHERE ID_Recomendacoes_Vaga=%s FOR UPDATE", (id_recomendacao,))
     if not recomendacao:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Recomendação não encontrada.")
+    if recomendacao["ID_Status_Processamento_IA"] == _STATUS_CONCLUIDO:
+        return recomendacao
+    if recomendacao["ID_Status_Processamento_IA"] == _STATUS_FALHOU:
+        raise HTTPException(status.HTTP_409_CONFLICT, "Recomendação finalizada com falha.")
     await execute(
         """UPDATE Recomendacoes_Vaga SET Score=%s, Motivo=%s, ID_Status_Processamento_IA=%s
            WHERE ID_Recomendacoes_Vaga=%s""",

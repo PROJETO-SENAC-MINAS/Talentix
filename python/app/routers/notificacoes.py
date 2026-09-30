@@ -1,8 +1,10 @@
 """
 CRUD de Notificações. Só o próprio usuário (ou admin) pode ler/marcar como lida.
 """
-from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel
+from app.core.routes import AtomicRouter as APIRouter
+
+from fastapi import Depends, HTTPException, status
+from pydantic import BaseModel, Field
 
 from app.db.database import fetch_one, fetch_all, execute
 from app.core.security import novo_uuid
@@ -13,9 +15,9 @@ router = APIRouter(prefix="/notificacoes", tags=["Notificações"])
 
 class NotificacaoCreate(BaseModel):
     id_usuario: str
-    titulo: str
+    titulo: str = Field(min_length=1, max_length=150)
     mensagem: str
-    tipo: str | None = None
+    tipo: str | None = Field(default=None, max_length=50)
 
 
 @router.post("", status_code=201)

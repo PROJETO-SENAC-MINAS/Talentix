@@ -1,10 +1,13 @@
 """Testes HTTP com sessões reais e banco isolado; não usam SMTP nem o MySQL local."""
 import importlib
+from datetime import datetime, date
 import os
 from pathlib import Path
 import sqlite3
 import sys
 import tempfile
+from contextlib import asynccontextmanager
+from hashlib import sha256
 
 import pytest
 from fastapi.testclient import TestClient
@@ -77,10 +80,12 @@ CREATE TABLE Pagamentos (ID_Pagamentos TEXT PRIMARY KEY, ID_Assinaturas TEXT,
 
 @pytest.fixture
 def ambiente(monkeypatch, tmp_path):
+    sqlite3.register_adapter(datetime, lambda value: value.isoformat())
+    sqlite3.register_adapter(date, lambda value: value.isoformat())
     conn = sqlite3.connect(":memory:", check_same_thread=False)
     conn.row_factory = sqlite3.Row
     conn.executescript(SCHEMA)
-    for usuario in ("uc1", "uc2", "ue1", "ue2", "ua", "desativado"):
+    for usuario in ("uc1", "uc2", "ue1", "ue2", "ua", "ur2", "desativado"):
         conn.execute("INSERT INTO Usuarios(ID_Usuarios, Nome, Email, SenhaHash, Ativo) VALUES (?, ?, ?, ?, ?)",
                      (usuario, usuario, usuario + "@example.com", SENHA_HASH, usuario != "desativado"))
     conn.executemany("INSERT INTO Candidatos(ID_Candidatos, ID_Usuarios) VALUES (?, ?)", [("c1", "uc1"), ("c2", "uc2")])
@@ -95,7 +100,7 @@ def ambiente(monkeypatch, tmp_path):
                      [("cr1", "c1", "Meu CV", URL_A), ("cr2", "c2", "Outro CV", URL_B)])
     conn.execute("INSERT INTO Etapas_Processo VALUES ('et2', 'ca2', 3, 'Triagem', 1, NULL, NULL)")
     conn.execute("INSERT INTO Entrevistas VALUES ('en2', 'ca2', 'r2', 1, '2026-10-01T10:00:00', NULL, NULL, NULL)")
-    conn.execute("INSERT INTO Recrutadores(ID_Recrutadores, ID_Empresas, ID_Usuarios) VALUES ('r2', 'e2', 'uc2')")
+    conn.execute("INSERT INTO Recrutadores(ID_Recrutadores, ID_Empresas, ID_Usuarios) VALUES ('r2', 'e2', 'ur2')")
     conn.executemany("INSERT INTO Analises_IA(ID_Analises_IA, ID_Candidatos, ID_Vagas, ID_Candidaturas) VALUES (?, ?, ?, ?)",
                      [("a1", "c1", "v1", "ca1"), ("a2", "c2", "v2", "ca2")])
     conn.executemany("INSERT INTO Recomendacoes_Vaga(ID_Recomendacoes_Vaga, ID_Candidatos, ID_Vagas) VALUES (?, ?, ?)",
@@ -113,7 +118,7 @@ def ambiente(monkeypatch, tmp_path):
 
     def consulta(query, params=()):
         # SQLite executa as queries reais, adaptando somente placeholders e NOW().
-        return conn.execute(query.replace("%s", "?").replace("NOW()", "CURRENT_TIMESTAMP"), params)
+        return conn.execute(query.replace("%s", "?").replace("NOW()", "CURRENT_TIMESTAMP").replace(" FOR UPDATE", ""), params)
 
     async def fetch_one(query, params=()):
         row = consulta(query, params).fetchone()
@@ -124,8 +129,20 @@ def ambiente(monkeypatch, tmp_path):
 
     async def execute(query, params=()):
         cur = consulta(query, params)
-        conn.commit()
         return cur.rowcount
+
+    @asynccontextmanager
+    async def transaction():
+        conn.execute("BEGIN")
+        try:
+            yield
+            conn.commit()
+        except BaseException:
+            conn.rollback()
+            raise
+
+    import app.db.database as database
+    monkeypatch.setattr(database, "transaction", transaction)
 
     async def sem_efeito(*args, **kwargs):
         return None
@@ -153,5 +170,6 @@ def autenticar():
     def entrar(client, usuario, tipo):
         client.cookies.clear()
         client.cookies.set(settings.SESSION_COOKIE_NAME,
-                           _serializer.dumps({"id_usuario": usuario, "tipo_usuario": tipo}))
+                           _serializer.dumps({"id_usuario": usuario, "tipo_usuario": tipo,
+                                              "auth_tag": sha256(SENHA_HASH.encode()).hexdigest()}))
     return entrar

@@ -2,12 +2,16 @@
 CRUD de Vagas, incluindo transições de status (publicar, pausar, encerrar)
 e busca com filtros básicos.
 """
-from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel
+from app.core.routes import AtomicRouter as APIRouter
+
+from fastapi import Depends, HTTPException, status
+from pydantic import BaseModel, Field, model_validator
 
 from app.db.database import fetch_one, fetch_all, execute
 from app.core.security import novo_uuid
-from app.core.deps import usuario_atual, exigir_tipo
+from app.core.deps import usuario_atual, exigir_tipo, usuario_opcional
+from app.core.access import checar_empresa, empresa_da_sessao, checar_habilidade_ativa
+from app.core.validation import Money
 
 router = APIRouter(prefix="/vagas", tags=["Vagas"])
 
@@ -19,48 +23,46 @@ _ID_STATUS_ENCERRADA = 4
 
 class VagaCreate(BaseModel):
     id_empresa: str
-    titulo: str
-    descricao: str
-    modalidade: str | None = None
-    nivel: str | None = None
-    tipo_contrato: str | None = None
-    salario_min: float | None = None
-    salario_max: float | None = None
-    localizacao: str | None = None
+    titulo: str = Field(min_length=1, max_length=200)
+    descricao: str = Field(min_length=1, max_length=20000)
+    modalidade: str | None = Field(default=None, max_length=50)
+    nivel: str | None = Field(default=None, max_length=50)
+    tipo_contrato: str | None = Field(default=None, max_length=50)
+    salario_min: Money | None = None
+    salario_max: Money | None = None
+    localizacao: str | None = Field(default=None, max_length=200)
     salario_confidencial: bool = False
+
+    @model_validator(mode="after")
+    def salary_range(self):
+        if self.salario_min is not None and self.salario_max is not None and self.salario_min > self.salario_max:
+            raise ValueError("Salário mínimo não pode superar o máximo.")
+        return self
 
 
 class VagaUpdate(BaseModel):
-    titulo: str | None = None
-    descricao: str | None = None
-    modalidade: str | None = None
-    nivel: str | None = None
-    tipo_contrato: str | None = None
-    salario_min: float | None = None
-    salario_max: float | None = None
-    localizacao: str | None = None
+    titulo: str | None = Field(default=None, min_length=1, max_length=200)
+    descricao: str | None = Field(default=None, min_length=1, max_length=20000)
+    modalidade: str | None = Field(default=None, max_length=50)
+    nivel: str | None = Field(default=None, max_length=50)
+    tipo_contrato: str | None = Field(default=None, max_length=50)
+    salario_min: Money | None = None
+    salario_max: Money | None = None
+    localizacao: str | None = Field(default=None, max_length=200)
     salario_confidencial: bool | None = None
 
 
 async def _checar_dono_vaga(id_vaga: str, sessao: dict) -> dict:
-    vaga = await fetch_one("SELECT * FROM Vagas WHERE ID_Vagas=%s", (id_vaga,))
+    vaga = await fetch_one("SELECT * FROM Vagas WHERE ID_Vagas=%s AND Ativo=1", (id_vaga,))
     if not vaga:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Vaga não encontrada.")
-    if sessao["tipo_usuario"] == "administrador":
-        return vaga
-    empresa = await fetch_one("SELECT * FROM Empresas WHERE ID_Empresas=%s", (vaga["ID_Empresas"],))
-    if not empresa or empresa["ID_Usuarios"] != sessao["id_usuario"]:
-        raise HTTPException(status.HTTP_403_FORBIDDEN, "Sem permissão sobre esta vaga.")
+    await checar_empresa(vaga["ID_Empresas"], sessao)
     return vaga
 
 
 @router.post("", status_code=status.HTTP_201_CREATED)
-async def criar_vaga(dados: VagaCreate, sessao: dict = Depends(exigir_tipo("empresa", "administrador"))):
-    empresa = await fetch_one("SELECT * FROM Empresas WHERE ID_Empresas=%s AND Ativo=1", (dados.id_empresa,))
-    if not empresa:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Empresa não encontrada.")
-    if sessao["tipo_usuario"] == "empresa" and empresa["ID_Usuarios"] != sessao["id_usuario"]:
-        raise HTTPException(status.HTTP_403_FORBIDDEN, "Sem permissão sobre esta empresa.")
+async def criar_vaga(dados: VagaCreate, sessao: dict = Depends(exigir_tipo("empresa", "recrutador", "administrador"))):
+    await checar_empresa(dados.id_empresa, sessao)
 
     id_vaga = novo_uuid()
     await execute(
@@ -82,10 +84,18 @@ async def listar_vagas(
     localizacao: str | None = None,
     id_empresa: str | None = None,
     apenas_publicadas: bool = True,
+    sessao: dict | None = Depends(usuario_opcional),
 ):
-    query = "SELECT * FROM Vagas WHERE Ativo=1"
+    query = """SELECT * FROM Vagas WHERE Ativo=1 AND EXISTS
+            (SELECT 1 FROM Empresas e WHERE e.ID_Empresas=Vagas.ID_Empresas AND e.Ativo=1)"""
     params: list = []
-    if apenas_publicadas:
+    empresa_id = None
+    if sessao and sessao["tipo_usuario"] in {"empresa", "recrutador"}:
+        empresa_id = (await empresa_da_sessao(sessao))["ID_Empresas"]
+    if not apenas_publicadas and empresa_id:
+        query += " AND ID_Empresas=%s"
+        params.append(empresa_id)
+    elif apenas_publicadas or not sessao or sessao["tipo_usuario"] != "administrador":
         query += " AND ID_Status_Vaga=%s"
         params.append(_ID_STATUS_PUBLICADA)
     if titulo:
@@ -104,28 +114,48 @@ async def listar_vagas(
         query += " AND ID_Empresas=%s"
         params.append(id_empresa)
     query += " ORDER BY PublicadaEm DESC, CriadoEm DESC"
-    return await fetch_all(query, tuple(params))
+    return [_serializar_vaga(v, sessao, empresa_id) for v in await fetch_all(query, tuple(params))]
+
+
+def _serializar_vaga(vaga: dict, sessao: dict | None, empresa_id: str | None):
+    pode_ver = sessao and (sessao["tipo_usuario"] == "administrador" or empresa_id == vaga["ID_Empresas"])
+    if vaga.get("SalarioConfidencial") and not pode_ver:
+        return {**vaga, "SalarioMin": None, "SalarioMax": None}
+    return vaga
 
 
 @router.get("/{id_vaga}")
-async def obter_vaga(id_vaga: str):
+async def obter_vaga(id_vaga: str, sessao: dict | None = Depends(usuario_opcional)):
     vaga = await fetch_one("SELECT * FROM Vagas WHERE ID_Vagas=%s AND Ativo=1", (id_vaga,))
     if not vaga:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Vaga não encontrada.")
+    if not await fetch_one("SELECT ID_Empresas FROM Empresas WHERE ID_Empresas=%s AND Ativo=1", (vaga["ID_Empresas"],)):
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Vaga não encontrada.")
+    empresa_id = None
+    if sessao and sessao["tipo_usuario"] in {"empresa", "recrutador"}:
+        empresa_id = (await empresa_da_sessao(sessao))["ID_Empresas"]
+    if vaga["ID_Status_Vaga"] == _ID_STATUS_RASCUNHO and not (
+        sessao and (sessao["tipo_usuario"] == "administrador" or empresa_id == vaga["ID_Empresas"])
+    ):
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Vaga não encontrada.")
     habilidades = await fetch_all(
         """SELECT vh.*, h.Nome AS NomeHabilidade, h.Categoria
            FROM Vaga_Habilidades vh
-           JOIN Habilidades h ON h.ID_Habilidades = vh.ID_Habilidades
+           JOIN Habilidades h ON h.ID_Habilidades = vh.ID_Habilidades AND h.Ativo=1
            WHERE vh.ID_Vagas=%s""",
         (id_vaga,),
     )
-    return {**vaga, "habilidades": habilidades}
+    return {**_serializar_vaga(vaga, sessao, empresa_id), "habilidades": habilidades}
 
 
 @router.put("/{id_vaga}")
 async def atualizar_vaga(id_vaga: str, dados: VagaUpdate, sessao: dict = Depends(usuario_atual)):
-    await _checar_dono_vaga(id_vaga, sessao)
+    atual = await _checar_dono_vaga(id_vaga, sessao)
     campos = dados.model_dump(exclude_unset=True)
+    minimo = campos.get("salario_min", atual.get("SalarioMin"))
+    maximo = campos.get("salario_max", atual.get("SalarioMax"))
+    if minimo is not None and maximo is not None and minimo > maximo:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Salário mínimo não pode superar o máximo.")
     if not campos:
         return await fetch_one("SELECT * FROM Vagas WHERE ID_Vagas=%s", (id_vaga,))
 
@@ -180,13 +210,14 @@ async def excluir_vaga(id_vaga: str, sessao: dict = Depends(usuario_atual)):
 class VagaHabilidadeCreate(BaseModel):
     id_habilidade: str
     obrigatoria: bool = False
-    nivel_minimo: int | None = None
-    peso: int | None = None
+    nivel_minimo: int | None = Field(default=None, ge=0, le=255)
+    peso: int | None = Field(default=None, ge=0, le=255)
 
 
 @router.post("/{id_vaga}/habilidades", status_code=201)
 async def adicionar_habilidade_vaga(id_vaga: str, dados: VagaHabilidadeCreate, sessao: dict = Depends(usuario_atual)):
     await _checar_dono_vaga(id_vaga, sessao)
+    await checar_habilidade_ativa(dados.id_habilidade)
     id_vh = novo_uuid()
     await execute(
         """INSERT INTO Vaga_Habilidades (ID_Vaga_Habilidades, ID_Vagas, ID_Habilidades, Obrigatoria, NivelMinimo, Peso)

@@ -1,3 +1,4 @@
--r requirements.txt
+-r requirements-ia.txt
 pytest>=8.3,<10
 httpx>=0.27,<1
+httpx2==2.13.1

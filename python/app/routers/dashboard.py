@@ -1,17 +1,20 @@
 """
 Endpoints de métricas agregadas para os dashboards de Candidato, Empresa e Admin.
 """
-from fastapi import APIRouter, Depends, HTTPException, status
+from app.core.routes import AtomicRouter as APIRouter
+
+from fastapi import Depends, HTTPException, status
 
 from app.db.database import fetch_one, fetch_all
 from app.core.deps import usuario_atual, exigir_tipo
+from app.core.access import checar_empresa
 
 router = APIRouter(prefix="/dashboard", tags=["Dashboard"])
 
 
 @router.get("/candidato")
 async def metricas_candidato(sessao: dict = Depends(usuario_atual)):
-    candidato = await fetch_one("SELECT ID_Candidatos FROM Candidatos WHERE ID_Usuarios=%s", (sessao["id_usuario"],))
+    candidato = await fetch_one("SELECT ID_Candidatos FROM Candidatos WHERE ID_Usuarios=%s AND Ativo=1", (sessao["id_usuario"],))
     if not candidato:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Apenas candidatos.")
     id_c = candidato["ID_Candidatos"]
@@ -43,10 +46,7 @@ async def metricas_candidato(sessao: dict = Depends(usuario_atual)):
 
 @router.get("/empresa/{id_empresa}")
 async def metricas_empresa(id_empresa: str, sessao: dict = Depends(usuario_atual)):
-    if sessao["tipo_usuario"] != "administrador":
-        empresa = await fetch_one("SELECT * FROM Empresas WHERE ID_Empresas=%s", (id_empresa,))
-        if not empresa or empresa["ID_Usuarios"] != sessao["id_usuario"]:
-            raise HTTPException(status.HTTP_403_FORBIDDEN, "Sem permissão.")
+    await checar_empresa(id_empresa, sessao)
 
     total_vagas = await fetch_one(
         "SELECT COUNT(*) AS total FROM Vagas WHERE ID_Empresas=%s AND Ativo=1", (id_empresa,)

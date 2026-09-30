@@ -2,7 +2,8 @@
 Endpoints de leitura para as tabelas de domínio (status/enums).
 Usados pelo front-end para popular selects/filtros.
 """
-from fastapi import APIRouter
+from app.core.routes import AtomicRouter as APIRouter
+
 from app.db.database import fetch_all
 
 router = APIRouter(prefix="/dominios", tags=["Domínios (Status)"])

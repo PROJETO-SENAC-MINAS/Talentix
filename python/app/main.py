@@ -7,9 +7,12 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import JSONResponse
+from fastapi.exceptions import RequestValidationError
+from pymysql.err import IntegrityError, DataError
 
 from app.core.config import settings
-from app.db.database import init_pool, close_pool
+from app.db.database import init_pool, close_pool, fetch_one
 
 from app.routers import (
     auth,
@@ -28,14 +31,17 @@ from app.routers import (
     financeiro,
     uploads,
     dashboard,
+    contato,
 )
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await init_pool()
-    yield
-    await close_pool()
+    try:
+        yield
+    finally:
+        await close_pool()
 
 
 app = FastAPI(
@@ -44,6 +50,27 @@ app = FastAPI(
     version="1.0.0",
     lifespan=lifespan,
 )
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_error(request, exc):
+    # Não devolver senhas ou outros valores privados no detalhe da validação.
+    errors = [{key: error[key] for key in ("type", "loc", "msg") if key in error}
+              for error in exc.errors()]
+    return JSONResponse(status_code=422, content={"detail": errors})
+
+
+@app.exception_handler(IntegrityError)
+async def integrity_error(request, exc):
+    code = exc.args[0] if exc.args else None
+    if code == 1062:
+        return JSONResponse(status_code=409, content={"detail": "Este registro ou vínculo já existe."})
+    return JSONResponse(status_code=422, content={"detail": "Relação inexistente ou dados incompatíveis."})
+
+
+@app.exception_handler(DataError)
+async def data_error(request, exc):
+    return JSONResponse(status_code=422, content={"detail": "Dados fora dos limites permitidos."})
 
 app.add_middleware(
     CORSMiddleware,
@@ -80,6 +107,7 @@ app.include_router(avaliacoes_denuncias.router)
 app.include_router(financeiro.router)
 app.include_router(uploads.router)
 app.include_router(dashboard.router)
+app.include_router(contato.router)
 
 
 @app.get("/", tags=["Status"])
@@ -89,4 +117,5 @@ async def raiz():
 
 @app.get("/saude", tags=["Status"])
 async def verificar_saude():
+    await fetch_one("SELECT 1 AS ok")
     return {"status": "ok"}

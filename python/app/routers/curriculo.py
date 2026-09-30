@@ -1,25 +1,23 @@
 """
 CRUD de Currículos (com upload de arquivo), Experiências e Formações.
 """
-from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form
-from pydantic import BaseModel
+from app.core.routes import AtomicRouter as APIRouter
+
+from fastapi import Depends, HTTPException, status, UploadFile, File, Form
+from pydantic import BaseModel, Field
 from datetime import date
 
 from app.db.database import fetch_one, fetch_all, execute
 from app.core.security import novo_uuid
 from app.core.deps import usuario_atual
-from app.core.access import checar_leitura_candidato
+from app.core.access import checar_leitura_candidato, checar_dono_candidato
 from app.core.upload import salvar_arquivo, remover_arquivo
 
 router = APIRouter(tags=["Currículo"])
 
 
 async def _checar_dono_candidato(id_candidato: str, sessao: dict) -> None:
-    if sessao["tipo_usuario"] == "administrador":
-        return
-    candidato = await fetch_one("SELECT * FROM Candidatos WHERE ID_Candidatos=%s", (id_candidato,))
-    if not candidato or candidato["ID_Usuarios"] != sessao["id_usuario"]:
-        raise HTTPException(status.HTTP_403_FORBIDDEN, "Sem permissão sobre este candidato.")
+    await checar_dono_candidato(id_candidato, sessao)
 
 
 # ==================== CURRÍCULOS (arquivo) ====================
@@ -27,7 +25,7 @@ async def _checar_dono_candidato(id_candidato: str, sessao: dict) -> None:
 @router.post("/candidatos/{id_candidato}/curriculos", status_code=201, tags=["Currículos"])
 async def enviar_curriculo(
     id_candidato: str,
-    titulo: str = Form(...),
+    titulo: str = Form(..., min_length=1, max_length=150),
     principal: bool = Form(False),
     arquivo: UploadFile = File(...),
     sessao: dict = Depends(usuario_atual),
@@ -74,8 +72,8 @@ async def excluir_curriculo(id_curriculo: str, sessao: dict = Depends(usuario_at
 # ==================== EXPERIÊNCIAS ====================
 
 class ExperienciaCreate(BaseModel):
-    empresa: str
-    cargo: str
+    empresa: str = Field(min_length=1, max_length=150)
+    cargo: str = Field(min_length=1, max_length=150)
     descricao: str | None = None
     data_inicio: date
     data_fim: date | None = None
@@ -131,12 +129,12 @@ async def excluir_experiencia(id_experiencia: str, sessao: dict = Depends(usuari
 # ==================== FORMAÇÕES ====================
 
 class FormacaoCreate(BaseModel):
-    instituicao: str
-    curso: str
-    nivel: str | None = None
+    instituicao: str = Field(min_length=1, max_length=200)
+    curso: str = Field(min_length=1, max_length=200)
+    nivel: str | None = Field(default=None, max_length=50)
     data_inicio: date | None = None
     data_conclusao: date | None = None
-    status_formacao: str | None = None
+    status_formacao: str | None = Field(default=None, max_length=50)
 
 
 @router.post("/candidatos/{id_candidato}/formacoes", status_code=201, tags=["Formações"])

@@ -14,7 +14,7 @@ class Settings(BaseSettings):
     DB_HOST: str = "localhost"
     DB_PORT: int = 3306
     DB_USER: str = "root"
-    DB_PASSWORD: str = ""
+    DB_PASSWORD: str = Field(default="", repr=False)
     DB_NAME: str = "talentix"
 
     # Sessão
@@ -41,7 +41,7 @@ class Settings(BaseSettings):
     SMTP_HOST: str = "smtp.gmail.com"
     SMTP_PORT: int = 587
     SMTP_USER: str = ""
-    SMTP_PASSWORD: str = ""
+    SMTP_PASSWORD: str = Field(default="", repr=False)
     SMTP_FROM_EMAIL: str = "no-reply@talentix.com"
 
     @field_validator("SECRET_KEY", "IA_WORKER_TOKEN", "PAYMENT_WEBHOOK_TOKEN")
@@ -55,7 +55,7 @@ class Settings(BaseSettings):
             raise ValueError("Chaves de exemplo não podem ser usadas.")
         return valor
 
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
+    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", hide_input_in_errors=True)
 
 
 settings = Settings()

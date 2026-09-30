@@ -1,8 +1,10 @@
 """
 CRUD de Cursos (catálogo) e Recomendações de Curso para candidatos.
 """
-from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel
+from app.core.routes import AtomicRouter as APIRouter
+
+from fastapi import Depends, HTTPException, status
+from pydantic import BaseModel, Field
 
 from app.db.database import fetch_one, fetch_all, execute
 from app.core.security import novo_uuid
@@ -20,13 +22,13 @@ _STATUS_CONCLUIDO = 3
 # ==================== CURSOS (catálogo) ====================
 
 class CursoCreate(BaseModel):
-    titulo: str
+    titulo: str = Field(min_length=1, max_length=200)
     descricao: str | None = None
-    plataforma: str | None = None
-    url: str | None = None
-    nivel: str | None = None
-    categoria: str | None = None
-    carga_horaria: int | None = None
+    plataforma: str | None = Field(default=None, max_length=100)
+    url: str | None = Field(default=None, max_length=500)
+    nivel: str | None = Field(default=None, max_length=50)
+    categoria: str | None = Field(default=None, max_length=100)
+    carga_horaria: int | None = Field(default=None, ge=0, le=65535)
 
 
 @router.post("/cursos", status_code=201)
@@ -65,6 +67,7 @@ async def obter_curso(id_curso: str):
 
 @router.put("/cursos/{id_curso}")
 async def atualizar_curso(id_curso: str, dados: CursoCreate, sessao: dict = Depends(exigir_tipo("administrador"))):
+    await obter_curso(id_curso)
     await execute(
         """UPDATE Cursos SET Titulo=%s, Descricao=%s, Plataforma=%s, Url=%s, Nivel=%s, Categoria=%s, CargaHoraria=%s
            WHERE ID_Cursos=%s""",
@@ -76,6 +79,7 @@ async def atualizar_curso(id_curso: str, dados: CursoCreate, sessao: dict = Depe
 
 @router.delete("/cursos/{id_curso}")
 async def desativar_curso(id_curso: str, sessao: dict = Depends(exigir_tipo("administrador"))):
+    await obter_curso(id_curso)
     await execute("UPDATE Cursos SET Ativo=0 WHERE ID_Cursos=%s", (id_curso,))
     return {"mensagem": "Curso desativado."}
 
@@ -86,7 +90,7 @@ class RecomendacaoCursoCreate(BaseModel):
     id_candidato: str
     id_curso: str
     motivo: str | None = None
-    prioridade: int | None = None
+    prioridade: int | None = Field(default=None, ge=0, le=255)
 
 
 @router.post("/recomendacoes-curso", status_code=201)

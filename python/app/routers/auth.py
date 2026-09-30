@@ -4,10 +4,12 @@ e recuperação/redefinição de senha.
 Login unificado: consulta Usuarios pelo e-mail, verifica a senha com bcrypt,
 descobre o tipo (candidato/empresa/administrador) e cria o cookie de sessão.
 """
-from fastapi import APIRouter, Depends, HTTPException, Response, status
+from app.core.routes import AtomicRouter as APIRouter
+
+from fastapi import Depends, HTTPException, Response, status
 from pydantic import BaseModel, EmailStr, Field
 
-from app.db.database import fetch_one, execute
+from app.db.database import fetch_one, execute, after_commit
 from app.core.security import (
     hash_senha,
     verificar_senha,
@@ -16,7 +18,8 @@ from app.core.security import (
     validar_token_reset_senha,
 )
 from app.core.session import criar_cookie_sessao, destruir_cookie_sessao
-from app.core.deps import usuario_atual
+from app.core.deps import usuario_atual, descobrir_tipo_usuario
+from app.core.validation import Password
 from app.core.config import settings
 from app.core.email_service import (
     email_boas_vindas,
@@ -30,20 +33,16 @@ router = APIRouter(prefix="/auth", tags=["Autenticação"])
 # ---------- Schemas ----------
 
 class CadastroCandidato(BaseModel):
-    nome: str
+    nome: str = Field(min_length=1, max_length=150)
     email: EmailStr
-    senha: str = Field(min_length=6)
-    telefone: str | None = None
+    senha: Password
+    telefone: str | None = Field(default=None, max_length=20)
 
 
-class CadastroEmpresa(BaseModel):
-    nome: str
-    email: EmailStr
-    senha: str = Field(min_length=6)
-    telefone: str | None = None
-    razao_social: str
+class CadastroEmpresa(CadastroCandidato):
+    razao_social: str = Field(min_length=1, max_length=200)
     cnpj: str = Field(min_length=14, max_length=18)
-    nome_fantasia: str | None = None
+    nome_fantasia: str | None = Field(default=None, max_length=200)
 
 
 class LoginRequest(BaseModel):
@@ -57,22 +56,30 @@ class RecuperarSenhaRequest(BaseModel):
 
 class RedefinirSenhaRequest(BaseModel):
     token: str
-    nova_senha: str = Field(min_length=6)
+    nova_senha: Password
 
 
 # ---------- Helpers internos ----------
 
 async def _descobrir_tipo_usuario(id_usuario: str) -> str:
-    if await fetch_one("SELECT ID_Candidatos FROM Candidatos WHERE ID_Usuarios=%s AND Ativo=1", (id_usuario,)):
-        return "candidato"
-    if await fetch_one("SELECT ID_Empresas FROM Empresas WHERE ID_Usuarios=%s AND Ativo=1", (id_usuario,)):
-        return "empresa"
-    if await fetch_one("SELECT ID_Administradores FROM Administradores WHERE ID_Usuarios=%s AND Ativo=1", (id_usuario,)):
-        return "administrador"
-    return "usuario"
+    tipo = await descobrir_tipo_usuario(id_usuario)
+    if tipo is None:
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Perfil ou vínculo desativado.")
+    return tipo
 
 
 # ---------- Endpoints ----------
+
+@router.post("/cadastro/recrutador", status_code=201)
+async def cadastrar_conta_recrutador(dados: CadastroCandidato):
+    if await fetch_one("SELECT ID_Usuarios FROM Usuarios WHERE Email=%s", (dados.email,)):
+        raise HTTPException(status.HTTP_409_CONFLICT, "Já existe um usuário com esse e-mail.")
+    id_usuario = novo_uuid()
+    await execute("""INSERT INTO Usuarios (ID_Usuarios, Nome, Email, SenhaHash, Telefone)
+                     VALUES (%s, %s, %s, %s, %s)""",
+                  (id_usuario, dados.nome, dados.email, hash_senha(dados.senha), dados.telefone))
+    await after_commit(lambda: email_boas_vindas(dados.email, dados.nome))
+    return {"id_usuario": id_usuario, "tipo_usuario": "usuario", "mensagem": "Aguardando vínculo com uma empresa."}
 
 @router.post("/cadastro/candidato", status_code=status.HTTP_201_CREATED)
 async def cadastrar_candidato(dados: CadastroCandidato):
@@ -93,7 +100,7 @@ async def cadastrar_candidato(dados: CadastroCandidato):
         (id_candidato, id_usuario),
     )
 
-    email_boas_vindas(dados.email, dados.nome)
+    await after_commit(lambda: email_boas_vindas(dados.email, dados.nome))
 
     return {"id_usuario": id_usuario, "id_candidato": id_candidato, "tipo_usuario": "candidato"}
 
@@ -122,7 +129,7 @@ async def cadastrar_empresa(dados: CadastroEmpresa):
         (id_empresa, id_usuario, dados.razao_social, dados.nome_fantasia, dados.cnpj),
     )
 
-    email_boas_vindas(dados.email, dados.nome)
+    await after_commit(lambda: email_boas_vindas(dados.email, dados.nome))
 
     return {"id_usuario": id_usuario, "id_empresa": id_empresa, "tipo_usuario": "empresa"}
 
@@ -140,7 +147,7 @@ async def login(dados: LoginRequest, response: Response):
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "E-mail ou senha inválidos.")
 
     tipo_usuario = await _descobrir_tipo_usuario(usuario["ID_Usuarios"])
-    criar_cookie_sessao(response, usuario["ID_Usuarios"], tipo_usuario)
+    criar_cookie_sessao(response, usuario["ID_Usuarios"], tipo_usuario, usuario["SenhaHash"])
 
     return {"id_usuario": usuario["ID_Usuarios"], "tipo_usuario": tipo_usuario}
 
@@ -179,7 +186,7 @@ async def recuperar_senha(dados: RecuperarSenhaRequest):
     if usuario and usuario["Ativo"]:
         token = gerar_token_reset_senha(usuario["ID_Usuarios"], usuario["SenhaHash"])
         link_reset = f"{settings.FRONTEND_RESET_URL}?token={token}"
-        email_recuperar_senha(dados.email, usuario["Nome"], link_reset)
+        await after_commit(lambda: email_recuperar_senha(dados.email, usuario["Nome"], link_reset))
 
     return {"mensagem": "Se este e-mail estiver cadastrado, você receberá um link de redefinição em instantes."}
 
@@ -207,7 +214,7 @@ async def redefinir_senha(dados: RedefinirSenhaRequest):
 
     id_usuario = payload_bruto.get("id_usuario")
     usuario = await fetch_one(
-        "SELECT ID_Usuarios, Nome, Email, SenhaHash, Ativo FROM Usuarios WHERE ID_Usuarios=%s",
+        "SELECT ID_Usuarios, Nome, Email, SenhaHash, Ativo FROM Usuarios WHERE ID_Usuarios=%s FOR UPDATE",
         (id_usuario,),
     )
     if not usuario or not usuario["Ativo"]:
@@ -220,6 +227,6 @@ async def redefinir_senha(dados: RedefinirSenhaRequest):
     novo_hash = hash_senha(dados.nova_senha)
     await execute("UPDATE Usuarios SET SenhaHash=%s WHERE ID_Usuarios=%s", (novo_hash, usuario["ID_Usuarios"]))
 
-    email_senha_redefinida(usuario["Email"], usuario["Nome"])
+    await after_commit(lambda: email_senha_redefinida(usuario["Email"], usuario["Nome"]))
 
     return {"mensagem": "Senha redefinida com sucesso. Você já pode entrar com a nova senha."}

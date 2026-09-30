@@ -1,13 +1,17 @@
 """
 CRUD de Assinaturas (planos das empresas) e Pagamentos.
 """
-from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel, Field
+from app.core.routes import AtomicRouter as APIRouter
+
+from fastapi import Depends, HTTPException, status
+from pydantic import BaseModel, Field, model_validator
 from datetime import date
 
 from app.db.database import fetch_one, fetch_all, execute
 from app.core.security import novo_uuid
 from app.core.deps import usuario_atual, exigir_tipo
+from app.core.access import checar_empresa
+from app.core.validation import PositiveMoney
 from app.core.service_auth import exigir_gateway_pagamento
 from app.core.notificar import notificar_usuario
 from app.core.email_service import email_pagamento_processado
@@ -22,26 +26,31 @@ _PAGAMENTO_ESTORNADO = 4
 
 
 async def _checar_dono_empresa(id_empresa: str, sessao: dict) -> None:
-    if sessao["tipo_usuario"] == "administrador":
-        return
-    empresa = await fetch_one("SELECT * FROM Empresas WHERE ID_Empresas=%s", (id_empresa,))
-    if not empresa or empresa["ID_Usuarios"] != sessao["id_usuario"]:
-        raise HTTPException(status.HTTP_403_FORBIDDEN, "Sem permissão sobre esta empresa.")
+    await checar_empresa(id_empresa, sessao, permitir_recrutador=False)
 
 
 # ==================== ASSINATURAS ====================
 
 class AssinaturaCreate(BaseModel):
     id_empresa: str
-    plano: str
-    valor: float = Field(gt=0)
+    plano: str = Field(min_length=1, max_length=50)
+    valor: PositiveMoney
     inicio: date
     fim: date | None = None
+
+    @model_validator(mode="after")
+    def intervalo(self):
+        if self.fim and self.fim < self.inicio:
+            raise ValueError("Fim da assinatura deve ser posterior ao início.")
+        return self
 
 
 @router.post("/assinaturas", status_code=201)
 async def criar_assinatura(dados: AssinaturaCreate, sessao: dict = Depends(exigir_tipo("administrador"))):
     await _checar_dono_empresa(dados.id_empresa, sessao)
+    await fetch_one("SELECT ID_Empresas FROM Empresas WHERE ID_Empresas=%s FOR UPDATE", (dados.id_empresa,))
+    if await fetch_one("SELECT ID_Assinaturas FROM Assinaturas WHERE ID_Empresas=%s AND ID_Status_Assinatura=1", (dados.id_empresa,)):
+        raise HTTPException(status.HTTP_409_CONFLICT, "A empresa já possui assinatura ativa.")
     id_assinatura = novo_uuid()
     await execute(
         """INSERT INTO Assinaturas (ID_Assinaturas, ID_Empresas, ID_Status_Assinatura, Plano, Valor, Inicio, Fim)
@@ -68,6 +77,8 @@ async def renovar_assinatura(id_assinatura: str, nova_data_fim: date, sessao: di
     if not assinatura:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Assinatura não encontrada.")
     await _checar_dono_empresa(assinatura["ID_Empresas"], sessao)
+    if nova_data_fim < assinatura["Inicio"]:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Fim anterior ao início da assinatura.")
     await execute(
         "UPDATE Assinaturas SET Fim=%s, ID_Status_Assinatura=%s WHERE ID_Assinaturas=%s",
         (nova_data_fim, _ASSINATURA_ATIVA, id_assinatura),
@@ -92,9 +103,9 @@ async def cancelar_assinatura(id_assinatura: str, sessao: dict = Depends(usuario
 
 class PagamentoCreate(BaseModel):
     id_assinatura: str
-    valor: float
-    metodo: str | None = None
-    transacao_id: str | None = None
+    valor: PositiveMoney
+    metodo: str | None = Field(default=None, max_length=50)
+    transacao_id: str | None = Field(default=None, min_length=1, max_length=150)
 
 
 @router.post("/pagamentos", status_code=201)
@@ -103,6 +114,11 @@ async def registrar_pagamento(dados: PagamentoCreate, sessao: dict = Depends(usu
     if not assinatura:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Assinatura não encontrada.")
     await _checar_dono_empresa(assinatura["ID_Empresas"], sessao)
+
+    if dados.valor != assinatura["Valor"]:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Valor deve corresponder ao valor da assinatura.")
+    if dados.transacao_id and await fetch_one("SELECT ID_Pagamentos FROM Pagamentos WHERE TransacaoId=%s", (dados.transacao_id,)):
+        raise HTTPException(status.HTTP_409_CONFLICT, "Transação já registrada.")
 
     id_pagamento = novo_uuid()
     await execute(
@@ -127,13 +143,17 @@ async def listar_pagamentos(id_assinatura: str, sessao: dict = Depends(usuario_a
 @router.patch("/pagamentos/{id_pagamento}/processar", dependencies=[Depends(exigir_gateway_pagamento)])
 async def processar_pagamento(id_pagamento: str, aprovado: bool):
     """Endpoint chamado pelo gateway de pagamento (webhook) para confirmar o resultado."""
-    pagamento = await fetch_one("SELECT * FROM Pagamentos WHERE ID_Pagamentos=%s", (id_pagamento,))
+    pagamento = await fetch_one("SELECT * FROM Pagamentos WHERE ID_Pagamentos=%s FOR UPDATE", (id_pagamento,))
     if not pagamento:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Pagamento não encontrado.")
     novo_status = _PAGAMENTO_APROVADO if aprovado else 3  # 3 = RECUSADO
+    if pagamento["ID_Status_Pagamento"] == novo_status:
+        return pagamento
+    if pagamento["ID_Status_Pagamento"] != _PAGAMENTO_PENDENTE:
+        raise HTTPException(status.HTTP_409_CONFLICT, "Pagamento já finalizado com outro resultado.")
     await execute(
-        "UPDATE Pagamentos SET ID_Status_Pagamento=%s, PagoEm=NOW() WHERE ID_Pagamentos=%s",
-        (novo_status, id_pagamento),
+        "UPDATE Pagamentos SET ID_Status_Pagamento=%s, PagoEm=CASE WHEN %s THEN NOW() ELSE NULL END WHERE ID_Pagamentos=%s",
+        (novo_status, aprovado, id_pagamento),
     )
 
     pagamento = await fetch_one("SELECT * FROM Pagamentos WHERE ID_Pagamentos=%s", (id_pagamento,))
@@ -154,8 +174,15 @@ async def processar_pagamento(id_pagamento: str, aprovado: bool):
 
 @router.patch("/pagamentos/{id_pagamento}/estornar")
 async def estornar_pagamento(id_pagamento: str, sessao: dict = Depends(exigir_tipo("administrador"))):
+    pagamento = await fetch_one("SELECT * FROM Pagamentos WHERE ID_Pagamentos=%s FOR UPDATE", (id_pagamento,))
+    if not pagamento:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Pagamento não encontrado.")
+    if pagamento["ID_Status_Pagamento"] == _PAGAMENTO_ESTORNADO:
+        return {"mensagem": "Estorno já registrado."}
+    if pagamento["ID_Status_Pagamento"] != _PAGAMENTO_APROVADO:
+        raise HTTPException(status.HTTP_409_CONFLICT, "Só é possível registrar estorno de pagamento aprovado.")
     await execute(
         "UPDATE Pagamentos SET ID_Status_Pagamento=%s WHERE ID_Pagamentos=%s",
         (_PAGAMENTO_ESTORNADO, id_pagamento),
     )
-    return {"mensagem": "Pagamento estornado."}
+    return {"mensagem": "Estorno registrado. A devolução financeira depende do gateway contratado."}

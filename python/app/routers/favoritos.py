@@ -1,7 +1,9 @@
 """
 CRUD de vagas favoritadas pelo candidato.
 """
-from fastapi import APIRouter, Depends, HTTPException, status
+from app.core.routes import AtomicRouter as APIRouter
+
+from fastapi import Depends, HTTPException, status
 from pydantic import BaseModel
 
 from app.db.database import fetch_one, fetch_all, execute

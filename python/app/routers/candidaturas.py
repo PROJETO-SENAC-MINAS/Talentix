@@ -1,13 +1,16 @@
 """
 CRUD de Candidaturas, Etapas do Processo Seletivo e Entrevistas.
 """
-from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel
+from app.core.routes import AtomicRouter as APIRouter
+
+from fastapi import Depends, HTTPException, status, Query
+from pydantic import BaseModel, Field
 from datetime import datetime
 
 from app.db.database import fetch_one, fetch_all, execute
 from app.core.security import novo_uuid
 from app.core.deps import usuario_atual, exigir_tipo
+from app.core.access import checar_empresa, empresa_da_sessao
 from app.core.notificar import notificar_usuario
 from app.core.email_service import (
     email_nova_candidatura,
@@ -26,12 +29,12 @@ _ID_STATUS_ENVIADA = 1
 
 class CandidaturaCreate(BaseModel):
     id_vaga: str
-    curriculo_url: str | None = None
-    carta_apresentacao: str | None = None
+    curriculo_url: str | None = Field(default=None, max_length=500)
+    carta_apresentacao: str | None = Field(default=None, max_length=20000)
 
 
 async def _obter_id_candidato_da_sessao(sessao: dict) -> str:
-    candidato = await fetch_one("SELECT ID_Candidatos FROM Candidatos WHERE ID_Usuarios=%s", (sessao["id_usuario"],))
+    candidato = await fetch_one("SELECT ID_Candidatos FROM Candidatos WHERE ID_Usuarios=%s AND Ativo=1", (sessao["id_usuario"],))
     if not candidato:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Apenas candidatos podem realizar esta ação.")
     return candidato["ID_Candidatos"]
@@ -41,9 +44,13 @@ async def _obter_id_candidato_da_sessao(sessao: dict) -> str:
 async def criar_candidatura(dados: CandidaturaCreate, sessao: dict = Depends(exigir_tipo("candidato"))):
     id_candidato = await _obter_id_candidato_da_sessao(sessao)
 
-    vaga = await fetch_one("SELECT * FROM Vagas WHERE ID_Vagas=%s AND Ativo=1", (dados.id_vaga,))
+    vaga = await fetch_one("SELECT * FROM Vagas WHERE ID_Vagas=%s AND Ativo=1 FOR UPDATE", (dados.id_vaga,))
     if not vaga:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Vaga não encontrada.")
+    if vaga["ID_Status_Vaga"] != 2 or not await fetch_one(
+        "SELECT ID_Empresas FROM Empresas WHERE ID_Empresas=%s AND Ativo=1", (vaga["ID_Empresas"],)
+    ):
+        raise HTTPException(status.HTTP_409_CONFLICT, "A vaga não está aberta para candidaturas.")
 
     if dados.curriculo_url:
         curriculo = await fetch_one(
@@ -98,14 +105,18 @@ async def criar_candidatura(dados: CandidaturaCreate, sessao: dict = Depends(exi
 async def listar_candidaturas(
     id_vaga: str | None = None,
     id_candidato: str | None = None,
-    sessao: dict = Depends(exigir_tipo("candidato", "empresa", "administrador")),
+    sessao: dict = Depends(exigir_tipo("candidato", "empresa", "recrutador", "administrador")),
 ):
     query = """
         SELECT c.*, v.Titulo AS TituloVaga, v.Localizacao AS LocalizacaoVaga,
-               v.Modalidade AS ModalidadeVaga, e.NomeFantasia AS NomeEmpresa
+               v.Modalidade AS ModalidadeVaga, e.NomeFantasia AS NomeEmpresa,
+               e.ID_Usuarios AS ID_Usuario_Empresa, u.Nome AS NomeCandidato,
+               u.ID_Usuarios AS ID_Usuario_Candidato
         FROM Candidaturas c
         JOIN Vagas v ON v.ID_Vagas = c.ID_Vagas
         JOIN Empresas e ON e.ID_Empresas = v.ID_Empresas
+        JOIN Candidatos perfil ON perfil.ID_Candidatos = c.ID_Candidatos AND perfil.Ativo=1
+        JOIN Usuarios u ON u.ID_Usuarios = perfil.ID_Usuarios AND u.Ativo=1
         WHERE c.Ativo=1
     """
     params: list = []
@@ -114,9 +125,10 @@ async def listar_candidaturas(
         meu_id = await _obter_id_candidato_da_sessao(sessao)
         query += " AND c.ID_Candidatos=%s"
         params.append(meu_id)
-    elif sessao["tipo_usuario"] == "empresa":
-        query += " AND e.ID_Usuarios=%s AND e.Ativo=1"
-        params.append(sessao["id_usuario"])
+    elif sessao["tipo_usuario"] in {"empresa", "recrutador"}:
+        empresa = await empresa_da_sessao(sessao)
+        query += " AND e.ID_Empresas=%s AND e.Ativo=1"
+        params.append(empresa["ID_Empresas"])
 
     if id_candidato and sessao["tipo_usuario"] != "candidato":
         query += " AND c.ID_Candidatos=%s"
@@ -137,10 +149,10 @@ async def _checar_acesso_candidatura(candidatura: dict, sessao: dict) -> None:
         candidato = await fetch_one("SELECT * FROM Candidatos WHERE ID_Candidatos=%s", (candidatura["ID_Candidatos"],))
         if candidato and candidato["ID_Usuarios"] == sessao["id_usuario"]:
             return
-    if sessao["tipo_usuario"] == "empresa":
+    if sessao["tipo_usuario"] in {"empresa", "recrutador"}:
         vaga = await fetch_one("SELECT * FROM Vagas WHERE ID_Vagas=%s", (candidatura["ID_Vagas"],))
-        empresa = await fetch_one("SELECT * FROM Empresas WHERE ID_Empresas=%s", (vaga["ID_Empresas"],)) if vaga else None
-        if empresa and empresa["ID_Usuarios"] == sessao["id_usuario"]:
+        if vaga:
+            await checar_empresa(vaga["ID_Empresas"], sessao)
             return
     raise HTTPException(status.HTTP_403_FORBIDDEN, "Sem permissão sobre esta candidatura.")
 
@@ -162,7 +174,7 @@ async def obter_candidatura(id_candidatura: str, sessao: dict = Depends(usuario_
 
 @router.patch("/candidaturas/{id_candidatura}/status", tags=["Candidaturas"])
 async def atualizar_status_candidatura(
-    id_candidatura: str, id_status_candidatura: int, sessao: dict = Depends(exigir_tipo("empresa", "administrador"))
+    id_candidatura: str, id_status_candidatura: int = Query(ge=1, le=7), sessao: dict = Depends(exigir_tipo("empresa", "recrutador", "administrador"))
 ):
     candidatura = await fetch_one("SELECT * FROM Candidaturas WHERE ID_Candidaturas=%s", (id_candidatura,))
     if not candidatura:
@@ -211,13 +223,13 @@ async def cancelar_candidatura(id_candidatura: str, sessao: dict = Depends(usuar
 # ==================== ETAPAS DO PROCESSO ====================
 
 class EtapaCreate(BaseModel):
-    nome: str
-    ordem: int
+    nome: str = Field(min_length=1, max_length=150)
+    ordem: int = Field(ge=1, le=255)
 
 
 @router.post("/candidaturas/{id_candidatura}/etapas", status_code=201, tags=["Etapas do Processo"])
 async def criar_etapa(
-    id_candidatura: str, dados: EtapaCreate, sessao: dict = Depends(exigir_tipo("empresa", "administrador"))
+    id_candidatura: str, dados: EtapaCreate, sessao: dict = Depends(exigir_tipo("empresa", "recrutador", "administrador"))
 ):
     candidatura = await fetch_one("SELECT * FROM Candidaturas WHERE ID_Candidaturas=%s", (id_candidatura,))
     if not candidatura:
@@ -234,7 +246,7 @@ async def criar_etapa(
 
 
 @router.patch("/etapas/{id_etapa}/concluir", tags=["Etapas do Processo"])
-async def concluir_etapa(id_etapa: str, sessao: dict = Depends(exigir_tipo("empresa", "administrador"))):
+async def concluir_etapa(id_etapa: str, sessao: dict = Depends(exigir_tipo("empresa", "recrutador", "administrador"))):
     etapa = await fetch_one("SELECT * FROM Etapas_Processo WHERE ID_Etapas_Processo=%s", (id_etapa,))
     if not etapa:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Etapa não encontrada.")
@@ -247,7 +259,7 @@ async def concluir_etapa(id_etapa: str, sessao: dict = Depends(exigir_tipo("empr
 
 
 @router.patch("/etapas/{id_etapa}/reabrir", tags=["Etapas do Processo"])
-async def reabrir_etapa(id_etapa: str, sessao: dict = Depends(exigir_tipo("empresa", "administrador"))):
+async def reabrir_etapa(id_etapa: str, sessao: dict = Depends(exigir_tipo("empresa", "recrutador", "administrador"))):
     etapa = await fetch_one("SELECT * FROM Etapas_Processo WHERE ID_Etapas_Processo=%s", (id_etapa,))
     if not etapa:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Etapa não encontrada.")
@@ -266,14 +278,14 @@ async def reabrir_etapa(id_etapa: str, sessao: dict = Depends(exigir_tipo("empre
 class EntrevistaCreate(BaseModel):
     id_recrutador: str
     data_hora: datetime
-    tipo: str | None = None
-    local_ou_link: str | None = None
-    observacoes: str | None = None
+    tipo: str | None = Field(default=None, max_length=50)
+    local_ou_link: str | None = Field(default=None, max_length=300)
+    observacoes: str | None = Field(default=None, max_length=20000)
 
 
 @router.post("/candidaturas/{id_candidatura}/entrevistas", status_code=201, tags=["Entrevistas"])
 async def agendar_entrevista(
-    id_candidatura: str, dados: EntrevistaCreate, sessao: dict = Depends(exigir_tipo("empresa", "administrador"))
+    id_candidatura: str, dados: EntrevistaCreate, sessao: dict = Depends(exigir_tipo("empresa", "recrutador", "administrador"))
 ):
     candidatura = await fetch_one("SELECT * FROM Candidaturas WHERE ID_Candidaturas=%s", (id_candidatura,))
     if not candidatura:
@@ -281,6 +293,13 @@ async def agendar_entrevista(
     await _checar_acesso_candidatura(candidatura, sessao)
 
     id_entrevista = novo_uuid()
+    vaga = await fetch_one("SELECT ID_Empresas FROM Vagas WHERE ID_Vagas=%s", (candidatura["ID_Vagas"],))
+    recrutador = await fetch_one("""SELECT r.ID_Recrutadores FROM Recrutadores r
+        JOIN Usuarios u ON u.ID_Usuarios=r.ID_Usuarios AND u.Ativo=1
+        WHERE r.ID_Recrutadores=%s AND r.ID_Empresas=%s AND r.Ativo=1""",
+        (dados.id_recrutador, vaga["ID_Empresas"]))
+    if not recrutador:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Recrutador deve estar ativo e vinculado à empresa da vaga.")
     await execute(
         """INSERT INTO Entrevistas (ID_Entrevistas, ID_Candidaturas, ID_Recrutadores, ID_Status_Entrevista,
                DataHora, Tipo, LocalOuLink, Observacoes)
@@ -337,7 +356,7 @@ async def _obter_contexto_entrevista(id_entrevista: str) -> tuple[dict, dict, di
 
 @router.patch("/entrevistas/{id_entrevista}/reagendar", tags=["Entrevistas"])
 async def reagendar_entrevista(
-    id_entrevista: str, nova_data_hora: datetime, sessao: dict = Depends(exigir_tipo("empresa", "administrador"))
+    id_entrevista: str, nova_data_hora: datetime, sessao: dict = Depends(exigir_tipo("empresa", "recrutador", "administrador"))
 ):
     await _checar_acesso_entrevista(id_entrevista, sessao)
     await execute(
@@ -365,7 +384,7 @@ async def reagendar_entrevista(
 
 
 @router.patch("/entrevistas/{id_entrevista}/cancelar", tags=["Entrevistas"])
-async def cancelar_entrevista(id_entrevista: str, sessao: dict = Depends(exigir_tipo("empresa", "administrador"))):
+async def cancelar_entrevista(id_entrevista: str, sessao: dict = Depends(exigir_tipo("empresa", "recrutador", "administrador"))):
     await _checar_acesso_entrevista(id_entrevista, sessao)
     contexto = await _obter_contexto_entrevista(id_entrevista)
 
@@ -387,7 +406,7 @@ async def cancelar_entrevista(id_entrevista: str, sessao: dict = Depends(exigir_
 
 
 @router.patch("/entrevistas/{id_entrevista}/realizar", tags=["Entrevistas"])
-async def marcar_entrevista_realizada(id_entrevista: str, sessao: dict = Depends(exigir_tipo("empresa", "administrador"))):
+async def marcar_entrevista_realizada(id_entrevista: str, sessao: dict = Depends(exigir_tipo("empresa", "recrutador", "administrador"))):
     await _checar_acesso_entrevista(id_entrevista, sessao)
     await execute("UPDATE Entrevistas SET ID_Status_Entrevista=2 WHERE ID_Entrevistas=%s", (id_entrevista,))
     return {"mensagem": "Entrevista marcada como realizada."}

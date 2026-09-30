@@ -1,13 +1,16 @@
 """
 Upload de foto de perfil (Usuario) e logo (Empresa).
 """
-from fastapi import APIRouter, Depends, UploadFile, File, HTTPException, status
+from app.core.routes import AtomicRouter as APIRouter
+
+from fastapi import Depends, UploadFile, File, HTTPException, status
 from fastapi.responses import FileResponse
 from pathlib import Path
 import re
 
 from app.db.database import fetch_one, execute
 from app.core.deps import usuario_atual
+from app.core.access import empresa_da_sessao
 from app.core.upload import salvar_arquivo
 from app.core.config import settings
 
@@ -31,7 +34,8 @@ async def baixar_curriculo(nome_arquivo: str, sessao: dict = Depends(usuario_atu
                WHERE cr.ArquivoUrl=%s AND cr.Ativo=1 AND c.ID_Usuarios=%s LIMIT 1""",
             (url, sessao["id_usuario"]),
         )
-    elif sessao["tipo_usuario"] == "empresa":
+    elif sessao["tipo_usuario"] in {"empresa", "recrutador"}:
+        empresa = await empresa_da_sessao(sessao)
         # Acesso somente ao arquivo que o candidato anexou à candidatura desta empresa.
         curriculo = await fetch_one(
             """SELECT cr.ID_Curriculos FROM Curriculos cr
@@ -39,8 +43,8 @@ async def baixar_curriculo(nome_arquivo: str, sessao: dict = Depends(usuario_atu
                  AND ca.CurriculoUrl=cr.ArquivoUrl AND ca.Ativo=1
                JOIN Vagas v ON v.ID_Vagas=ca.ID_Vagas
                JOIN Empresas e ON e.ID_Empresas=v.ID_Empresas AND e.Ativo=1
-               WHERE cr.ArquivoUrl=%s AND cr.Ativo=1 AND e.ID_Usuarios=%s LIMIT 1""",
-            (url, sessao["id_usuario"]),
+               WHERE cr.ArquivoUrl=%s AND cr.Ativo=1 AND e.ID_Empresas=%s LIMIT 1""",
+            (url, empresa["ID_Empresas"]),
         )
     else:
         curriculo = None

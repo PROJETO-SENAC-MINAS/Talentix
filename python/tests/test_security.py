@@ -226,3 +226,14 @@ def test_remocao_fisica_respeita_pasta_de_uploads(ambiente, tmp_path):
     assert externo.exists()
     remover_arquivo(URL_A)
     assert not arquivo.exists()
+
+
+def test_validacao_nao_devolve_senha_no_corpo_da_resposta(ambiente):
+    client, _ = ambiente
+    senha_curta = 'abc12'
+    resposta = client.post('/auth/cadastro/candidato', json={
+        'nome': 'Candidato', 'email': 'validacao@example.com', 'senha': senha_curta,
+    })
+    assert resposta.status_code == 422
+    assert senha_curta not in resposta.text
+    assert 'input' not in resposta.json()['detail'][0]
