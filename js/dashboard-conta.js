@@ -24,15 +24,17 @@ document.addEventListener('DOMContentLoaded', async () => {
         : null;
     }
 
-    if (adminEmModoUsuario) return;
-
     const destinations = {
       recrutador:'dashboard-recrutador.html',
       empresa:'dashboard-empresa.html',
       candidato:'dashboard-candidato.html',
       administrador:'dashboard-admin.html'
     };
-    if (destinations[user.tipo_usuario]) window.location.assign(destinations[user.tipo_usuario]);
+    if (destinations[user.tipo_usuario]) {
+      window.location.assign(destinations[user.tipo_usuario]);
+      return;
+    }
+    if (adminEmModoUsuario) return;
   }
 
   $('#atualizarVinculo').addEventListener('click', () => verify().catch(error => toast(error.message, true)));
