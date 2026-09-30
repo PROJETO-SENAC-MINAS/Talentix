@@ -1,25 +1,4 @@
-/* ============================================================
-                        Observação!!!!
-        Sobre RH/Recrutador:
-     A API atual não expõe um cadastro público de recrutador.
-     Um recrutador é adicionado por uma empresa já autenticada,
-     via POST /empresas/{id_empresa}/recrutadores, informando o
-     ID de um usuário já existente. Por isso, ao escolher "RH /
-     Recrutador" aqui, criamos apenas a conta de usuário base
-     (via /auth/cadastro/candidato, que cria a linha em Usuarios)
-     e orientamos a pessoa a pedir para a empresa vinculá-la.
-     Ajuste este trecho se/quando existir um endpoint dedicado.
-
-                    Observação!!!!! 
-        Sobre recuperação de senha:
-     A API atual não possui endpoint de "esqueci minha senha".
-     O formulário abaixo já está pronto e chama
-     POST /auth/recuperar-senha — implemente essa rota no backend
-     (gerar token, enviar e-mail via notificar.py, e um endpoint
-     de redefinição) para o fluxo funcionar de ponta a ponta.
-     Até lá, o front trata a ausência do endpoint (404) sem
-     quebrar a experiência do usuário.
-   ============================================================ */
+/* Login unificado; recrutadores aguardam vínculo criado pelo responsável da empresa. */
 
    
 
@@ -293,7 +272,8 @@ document.addEventListener('DOMContentLoaded', () => {
       case 'empresa': return 'dashboard-empresa.html';
       case 'administrador': return 'dashboard-admin.html';
       case 'candidato': return 'dashboard-candidato.html';
-      default: return 'dashboard.html'; // recrutador e demais tipos genéricos
+      case 'recrutador': return 'dashboard-recrutador.html';
+      default: return 'dashboard.html';
     }
   }
 
@@ -423,12 +403,10 @@ document.addEventListener('DOMContentLoaded', () => {
   async function realizarCadastro(dados) {
     btnCadastroSubmit.setAttribute('data-loading', 'true');
 
-    // RH/Recrutador não tem cadastro público próprio na API atual:
-    // criamos a conta de usuário base pelo mesmo endpoint de candidato
-    // (que popula Usuarios) e orientamos a vinculação pela empresa.
+    // O vínculo empresarial é criado pelo responsável após o cadastro da conta.
     const endpoint = dados.perfil === 'empresa'
       ? '/auth/cadastro/empresa'
-      : '/auth/cadastro/candidato';
+      : dados.perfil === 'recrutador' ? '/auth/cadastro/recrutador' : '/auth/cadastro/candidato';
 
     const payload = dados.perfil === 'empresa'
       ? {
@@ -720,6 +698,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // Detecta ?token= na URL ao carregar a página e abre o modal automaticamente
   (function verificarTokenNaUrl() {
     const params = new URLSearchParams(window.location.search);
+    if (params.get('modo') === 'cadastro') irParaCadastroPanel();
     const token = params.get('token');
     if (token) {
       abrirModalNovaSenha(token);

@@ -1,0 +1,16 @@
+{
+  "name": "talentix-web-tests",
+  "private": true,
+  "scripts": {
+    "test": "node flow.cjs",
+    "check": "node validate.mjs"
+  },
+  "devDependencies": {
+    "playwright": "1.63.0",
+    "mermaid": "12.0.0",
+    "jsdom": "30.1.1"
+  },
+  "overrides": {
+    "lodash-es": "4.18.1"
+  }
+}

@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/css/dashboard-candidato.css">
+<link rel="stylesheet" href="../css/painel.css">
 </head>
 <body>
 
@@ -33,6 +33,9 @@
       <button class="nav-item" data-tab="candidaturas">
         <span class="nav-icon">✓</span> Minhas candidaturas
       </button>
+      <button class="nav-item" data-tab="notificacoes">Notificações</button>
+      <button class="nav-item" data-tab="mensagens">Mensagens</button>
+      <button class="nav-item" data-tab="recomendacoes">Desenvolvimento</button>
     </nav>
 
     <div class="sidebar__footer">
@@ -349,6 +352,8 @@
       </div>
     </section>
 
+<section class="tab-panel" id="tab-notificacoes"><header class="content__header"><h1>Notificações</h1></header><div class="list" id="listaNotificacoes"></div></section>
+<section class="tab-panel" id="tab-mensagens"><header class="content__header"><h1>Mensagens</h1></header><div class="list" id="listaMensagens"></div></section><section class="tab-panel" id="tab-recomendacoes"><header class="content__header"><h1>Seu desenvolvimento</h1></header><p class="content__sub">A compatibilidade é uma ajuda para sua preparação. A seleção é responsabilidade da empresa.</p><h2 class="section-heading">Análises de compatibilidade</h2><div class="list" id="listaAnalises"></div><h2 class="section-heading">Vagas recomendadas</h2><div class="list" id="listaRecomendacoesVaga"></div><h2 class="section-heading">Cursos recomendados</h2><div class="list" id="listaRecomendacoesCurso"></div><h2 class="section-heading">Favoritos</h2><div class="list" id="listaFavoritos"></div></section>
   </main>
 </div>
 
@@ -360,7 +365,10 @@
   </div>
 </div>
 
-<script src="/js/config.js"></script>
-<script src="/js/dashboard-candidato.js"></script>
+<dialog id="modalMensagem"><div class="dialog-header"><h2>Conversa</h2><button type="button" id="fecharMensagem" aria-label="Fechar conversa">×</button></div><div id="conversa"></div><form id="formMensagem"><input type="hidden" id="msgDestinatario"><input type="hidden" id="msgContexto"><div class="field"><label for="msgConteudo">Sua mensagem</label><textarea id="msgConteudo" required minlength="1" maxlength="10000" rows="4"></textarea></div><button class="btn btn-primary" type="submit">Enviar mensagem</button></form></dialog><dialog id="modalCandidatura"><div class="dialog-header"><h2>Enviar candidatura</h2><button id="fecharCandidatura" type="button" aria-label="Fechar candidatura">×</button></div><form id="formCandidatura"><input type="hidden" id="candidaturaVaga"><div class="field"><label for="candidaturaCurriculo">Currículo anexado</label><select id="candidaturaCurriculo" required></select><small class="hint">Escolha o documento que será compartilhado com a empresa desta vaga.</small></div><div class="field"><label for="candidaturaCarta">Carta de apresentação (opcional)</label><textarea id="candidaturaCarta" rows="4" maxlength="20000"></textarea></div><button class="btn btn-primary" type="submit">Enviar candidatura</button></form></dialog>
+<dialog id="modalAcompanhamento"><div class="dialog-header"><h2>Acompanhamento</h2><button id="fecharAcompanhamento" type="button" aria-label="Fechar acompanhamento">×</button></div><div id="acompanhamentoConteudo"></div></dialog>
+<script src="../js/config.js"></script>
+<script src="../js/painel-comum.js"></script>
+<script src="../js/dashboard-candidato.js"></script>
 </body>
 </html>

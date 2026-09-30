@@ -1,0 +1,26 @@
+@import url('dashboard-candidato.css');
+.content {min-width:0;}
+.panel-toolbar {display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:20px;}
+.metric-grid {display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:16px;margin:20px 0;}
+.metric strong {display:block;font-size:32px;color:var(--accent);margin:8px 0;}
+.list-item {flex-wrap:wrap;gap:12px;}
+.list-item__actions {flex-wrap:wrap;gap:8px;}
+.list-item h3 {font-size:16px;margin:0 0 8px;}
+.list-item p {overflow-wrap:anywhere;white-space:pre-wrap;}
+.section-heading {margin:28px 0 16px;}
+small.hint {display:block;color:var(--text-muted);margin:8px 0;}
+dialog {border:1px solid var(--border);border-radius:16px;padding:28px;width:min(720px,calc(100vw - 32px));max-height:90vh;overflow:auto;background:var(--panel);color:var(--text);}
+dialog::backdrop {background:rgba(18,36,46,.55);}
+.dialog-header {display:flex;align-items:center;justify-content:space-between;gap:20px;margin-bottom:20px;}
+.dialog-header h2 {margin:0;}
+.dialog-header button {border:0;background:none;font-size:24px;}
+.inline-actions {display:flex;gap:10px;flex-wrap:wrap;}
+code.account-id {display:block;overflow-wrap:anywhere;margin:20px 0;padding:15px;background:var(--bg);}
+.scroll-table {overflow-x:auto;}
+table {border-collapse:collapse;width:100%;}th,td {text-align:left;border-bottom:1px solid var(--border);padding:12px;}
+[hidden] {display:none !important;}
+@media(max-width:800px) {.app {display:block;}.sidebar {position:relative;height:auto;}.sidebar__nav {display:flex;flex-flow:row wrap;}.sidebar__footer {display:flex;justify-content:space-between;align-items:center;gap:12px;}.btn-logout {width:auto;padding:10px 22px;}.sidebar__brand {padding-bottom:16px;}.content {padding:24px 16px;}.grid-2 {grid-template-columns:1fr;}}
+
+.sidebar__brand {color:inherit;text-decoration:none;}
+
+.content a {color:var(--accent-dark);font-weight:500;}

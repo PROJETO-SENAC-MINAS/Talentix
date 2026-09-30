@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/css/institucional.css">
+<link rel="stylesheet" href="../css/institucional.css">
 </head>
 <body>
 
@@ -39,7 +39,7 @@
   <div class="container page-hero__inner">
     <span class="eyebrow"><span class="eyebrow__dot"></span> Fale com a gente</span>
     <h1>Estamos aqui para ajudar</h1>
-    <p>Dúvidas sobre sua conta, uma vaga publicada ou uma parceria? Escolha o assunto e mande sua mensagem — respondemos em até 1 dia útil.</p>
+    <p>Dúvidas sobre sua conta, uma vaga publicada ou uma parceria? Escolha o assunto e mande sua mensagem — a equipe poderá consultar sua solicitação.</p>
   </div>
 </section>
 
@@ -53,9 +53,10 @@
 
         <div class="contact-success" id="contatoSucesso">
           <span>✓</span>
-          <span>Mensagem enviada! Nossa equipe vai te responder em breve pelo e-mail informado.</span>
+          <span>Mensagem recebida! Sua solicitação foi registrada para a equipe Talentix.</span>
         </div>
 
+        <p id="contatoFalha" role="alert" hidden></p>
         <form id="formContato" novalidate>
           <div class="contact-field">
             <label for="contatoNome">Nome *</label>
@@ -94,19 +95,9 @@
 
       <div class="contact-info">
         <div class="info-card">
-          <h3>Canais diretos</h3>
-          <div class="info-row">
-            <div class="info-row__icon">✉</div>
-            <div><strong>suporte@talentix.com.br</strong><span>Resposta em até 1 dia útil</span></div>
-          </div>
-          <div class="info-row">
-            <div class="info-row__icon">📞</div>
-            <div><strong>(31) 3333-4444</strong><span>Seg. a sex., 9h às 18h</span></div>
-          </div>
-          <div class="info-row">
-            <div class="info-row__icon">📍</div>
-            <div><strong>Belo Horizonte, MG</strong><span>Projeto integrador — SENAC Minas</span></div>
-          </div>
+          <h3>Atendimento Talentix</h3>
+          <p>Use o formulário para falar com a equipe. Sua mensagem fica registrada para consulta pela administração.</p>
+          <p>Informe um e-mail válido para que a equipe possa retornar seu contato.</p>
         </div>
 
         <div class="faq-card">
@@ -172,6 +163,7 @@
   </div>
 </footer>
 
-<script src="/js/institucional.js"></script>
+<script src="../js/config.js"></script>
+<script src="../js/institucional.js"></script>
 </body>
 </html>

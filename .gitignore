@@ -52,3 +52,8 @@ uploads/curriculos~*
 
 .DS_Store
 Thumbs.db
+
+# Resultados e evidências de testes locais
+test-results/
+playwright-report/
+node_modules/

@@ -1,5 +1,3 @@
-```mermaid
-
 classDiagram
     direction LR
 
@@ -20,6 +18,7 @@ classDiagram
     }
 
     class Candidato {
+        +UUID id
         +UUID usuarioId
         +String tituloProfissional
         +String resumo
@@ -29,7 +28,7 @@ classDiagram
         +String githubUrl
         +String portfolioUrl
         +Integer experienciaAnos
-        +Integer pretensaoSalarial
+        +Decimal pretensaoSalarial
         +Boolean disponivel
         +buscarVagas()
         +candidatarSe()
@@ -38,6 +37,7 @@ classDiagram
     }
 
     class Empresa {
+        +UUID id
         +UUID usuarioId
         +String razaoSocial
         +String nomeFantasia
@@ -55,6 +55,8 @@ classDiagram
     }
 
     class Recrutador {
+        +UUID id
+        +UUID usuarioId
         +UUID empresaId
         +String cargo
         +criarVaga()
@@ -198,6 +200,9 @@ classDiagram
     }
 
     class AnaliseIA {
+        +DateTime processamentoIniciadoEm
+        +String erroProcessamento
+        +StatusProcessamentoIA status
         +UUID id
         +UUID candidatoId
         +UUID vagaId
@@ -213,6 +218,9 @@ classDiagram
     }
 
     class RecomendacaoVaga {
+        +DateTime processamentoIniciadoEm
+        +String erroProcessamento
+        +StatusProcessamentoIA status
         +UUID id
         +UUID candidatoId
         +UUID vagaId
@@ -235,6 +243,7 @@ classDiagram
     }
 
     class RecomendacaoCurso {
+        +StatusProcessamentoIA status
         +UUID id
         +UUID candidatoId
         +UUID cursoId
@@ -279,6 +288,8 @@ classDiagram
     }
 
     class Denuncia {
+        +UUID administradorId
+        +DateTime resolvidaEm
         +UUID id
         +UUID denuncianteId
         +UUID usuarioAlvoId
@@ -291,6 +302,7 @@ classDiagram
     }
 
     class Administrador {
+        +UUID id
         +UUID usuarioId
         +String nivelAcesso
         +gerenciarUsuarios()
@@ -324,6 +336,7 @@ classDiagram
     }
 
     class Dashboard {
+        <<service>>
         +obterMetricasCandidato()
         +obterMetricasEmpresa()
         +obterMetricasAdmin()
@@ -332,9 +345,10 @@ classDiagram
     Usuario <|-- Candidato
     Usuario <|-- Empresa
     Usuario <|-- Administrador
+    Usuario "1" --> "0..1" Recrutador : identidade
     Empresa "1" --> "0..*" Recrutador : possui
     Empresa "1" --> "0..*" Vaga : publica
-    Empresa "1" --> "0..1" Assinatura : possui
+    Empresa "1" --> "0..*" Assinatura : historico
     Assinatura "1" --> "0..*" Pagamento : gera
 
     Candidato "1" --> "0..*" Curriculo : possui
@@ -376,9 +390,9 @@ classDiagram
     Candidatura "1" --> "0..*" Avaliacao : origina
 
     Usuario "1" --> "0..*" Denuncia : registra
-    Usuario "1" --> "0..*" Denuncia : alvo
+    Usuario "0..1" --> "0..*" Denuncia : alvo
     Vaga "0..1" --> "0..*" Denuncia : denunciada
-    Administrador "1" --> "0..*" Denuncia : resolve
+    Administrador "0..1" --> "0..*" Denuncia : resolve
 
     Dashboard ..> Candidato : consulta
     Dashboard ..> Empresa : consulta
@@ -443,4 +457,21 @@ classDiagram
         ESTORNADO
     }
 
-```
+    class StatusProcessamentoIA {
+        <<enumeration>>
+        NA_FILA
+        PROCESSANDO
+        CONCLUIDO
+        FALHOU
+    }
+
+    class Contato {
+        +UUID id
+        +String nome
+        +String email
+        +String assunto
+        +String mensagem
+        +Boolean lido
+        +DateTime criadoEm
+    }
+    Administrador ..> Contato : consulta

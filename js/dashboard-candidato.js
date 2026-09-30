@@ -59,13 +59,8 @@ document.addEventListener('DOMContentLoaded', () => {
     return `${dia}/${mes}/${ano}`;
   }
 
-  function escapeHtml(str) {
-    if (str === null || str === undefined) return '';
-    return String(str)
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;');
-  }
+  const escapeHtml = Talentix.esc;
+  Talentix.bindCommunication();
 
   /* ============================================================
      Navegação entre abas
@@ -80,6 +75,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
       if (botao.dataset.tab === 'vagas' && !listaVagasCarregada) carregarVagas();
       if (botao.dataset.tab === 'candidaturas') carregarCandidaturas();
+      if (botao.dataset.tab === 'notificacoes') Talentix.notifications().catch(e => mostrarToast(e.message, 'error'));
+      if (botao.dataset.tab === 'mensagens') Talentix.messages().catch(e => mostrarToast(e.message, 'error'));
+      if (botao.dataset.tab === 'recomendacoes') carregarDesenvolvimento().catch(e => mostrarToast(e.message, 'error'));
     });
   });
 
@@ -141,56 +139,6 @@ document.addEventListener('DOMContentLoaded', () => {
       lista.forEach((s) => { statusCandidaturaMap[s.ID_Status_Candidatura] = s.Descricao; });
     } catch {
       // Segue sem os rótulos amigáveis — usa fallback numérico.
-    }
-  }
-
-  async function carregarCandidaturas() {
-    const container = $('#listaCandidaturas');
-    container.innerHTML = '<p class="empty-state">Carregando suas candidaturas…</p>';
-
-    // A API não tem "GET /candidatos/me"; localizamos pelo ID do
-    // usuário logado, listando e filtrando no client não é ideal —
-    // por isso usamos diretamente os dados básicos de /auth/me e
-    // buscamos o registro de Candidatos pela listagem filtrável.
-    // Para manter simples e correto, guardamos o ID assim que a
-    // primeira ação de escrita (perfil) precisar dele: ele já vem
-    // implícito nas respostas de currículo/experiência/formação
-    // que exigem id_candidato na URL. Buscamos aqui via candidatos
-    // (rota pública) filtrando não é suportado por usuário, então
-    // resolvemos com um endpoint auxiliar: tentamos obter pela
-    // listagem geral não é viável em produção — usamos o próprio
-    // ID de usuário como chave de busca não suportada pela API.
-    //
-    // Solução real usada: o backend cria Candidatos com
-    // ID_Usuarios = sessao.id_usuario no cadastro. Como não há
-    // endpoint de busca por ID_Usuarios exposto publicamente,
-    // pedimos ao backend via /candidatos e filtramos no cliente.
-    try {
-      const candidaturas = await api(`/candidaturas?id_candidato=${idCandidato}`);
-      if (candidaturas.length === 0) {
-        container.innerHTML = '<p class="empty-state">Você ainda não se candidatou a nenhuma vaga.</p>';
-        return;
-      }
-
-      container.innerHTML = candidaturas.map((c) => {
-        const statusTexto = statusCandidaturaMap[c.ID_Status_Candidatura] || `Status ${c.ID_Status_Candidatura}`;
-        const classeBadge = classeBadgeStatus(statusTexto);
-
-        return `
-          <div class="list-item">
-            <div class="list-item__main">
-              <p class="list-item__title">${escapeHtml(c.TituloVaga)}</p>
-              <p class="list-item__sub">${escapeHtml(c.NomeEmpresa || '')} ${c.LocalizacaoVaga ? '· ' + escapeHtml(c.LocalizacaoVaga) : ''}</p>
-              <p class="list-item__meta">Candidatura enviada em ${formatarData(c.CriadaEm)}</p>
-            </div>
-            <div class="list-item__actions">
-              <span class="badge ${classeBadge}">${escapeHtml(statusTexto)}</span>
-            </div>
-          </div>
-        `;
-      }).join('');
-    } catch (erro) {
-      container.innerHTML = `<p class="empty-state">${escapeHtml(erro.message)}</p>`;
     }
   }
 
@@ -596,6 +544,7 @@ document.addEventListener('DOMContentLoaded', () => {
             ${faixaSalarial ? `<p class="list-item__meta">${escapeHtml(faixaSalarial)}</p>` : ''}
           </div>
           <div class="list-item__actions">
+            <button type="button" class="btn btn-secondary" data-favoritar="${v.ID_Vagas}">Favoritar</button>
             <button type="button" class="btn btn-secondary" data-ver-vaga="${v.ID_Vagas}">Ver detalhes</button>
             ${jaCandidatado
               ? '<span class="badge">Já candidatado</span>'
@@ -619,6 +568,8 @@ document.addEventListener('DOMContentLoaded', () => {
   $('#listaVagas')?.addEventListener('click', async (e) => {
     const idVer = e.target.getAttribute('data-ver-vaga');
     const idCandidatar = e.target.getAttribute('data-candidatar');
+    const idFavoritar = e.target.getAttribute('data-favoritar');
+    if (idFavoritar) { try { await api('/favoritos', {method:'POST',body:JSON.stringify({id_vaga:idFavoritar})}); mostrarToast('Vaga adicionada aos favoritos.'); } catch(error) { mostrarToast(error.message,'error'); } }
 
     if (idVer) {
       abrirDetalheVaga(idVer);
@@ -629,21 +580,33 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  async function candidatarSe(idVaga, botao) {
-    botao.setAttribute('data-loading', 'true');
-    botao.disabled = true;
+  async function candidatarSe(idVaga) {
     try {
-      await api('/candidaturas', { method: 'POST', body: JSON.stringify({ id_vaga: idVaga }) });
-      mostrarToast('Candidatura enviada com sucesso!');
-      idsVagasCandidatadas.add(idVaga);
-      renderizarVagas(vagasEmCache);
+      const curriculos = await api(`/candidatos/${idCandidato}/curriculos`);
+      if (!curriculos.length) {
+        mostrarToast('Envie um currículo na aba Currículo antes de se candidatar.', 'error');
+        document.querySelector('[data-tab="curriculo"]').click();
+        fecharModalVaga();
+        return;
+      }
+      $('#candidaturaVaga').value = idVaga;
+      $('#candidaturaCarta').value = '';
+      $('#candidaturaCurriculo').innerHTML = curriculos.map(c => `<option value="${escapeHtml(c.ArquivoUrl)}">${escapeHtml(c.Titulo)}${c.Principal ? ' (principal)' : ''}</option>`).join('');
       fecharModalVaga();
-    } catch (erro) {
-      mostrarToast(erro.message, 'error');
-      botao.disabled = false;
-      botao.removeAttribute('data-loading');
-    }
+      $('#modalCandidatura').showModal();
+    } catch (error) { mostrarToast(error.message, 'error'); }
   }
+
+  $('#fecharCandidatura').addEventListener('click', () => $('#modalCandidatura').close());
+  $('#formCandidatura').addEventListener('submit', async event => {
+    event.preventDefault(); const button = event.submitter; button.disabled = true;
+    try {
+      const idVaga = $('#candidaturaVaga').value;
+      await api('/candidaturas', {method:'POST', body:JSON.stringify({id_vaga:idVaga, curriculo_url:$('#candidaturaCurriculo').value, carta_apresentacao:$('#candidaturaCarta').value.trim() || null})});
+      idsVagasCandidatadas.add(idVaga); renderizarVagas(vagasEmCache);
+      $('#modalCandidatura').close(); mostrarToast('Candidatura enviada com o currículo selecionado.');
+    } catch (error) { mostrarToast(error.message, 'error'); } finally { button.disabled = false; }
+  });
 
   /* ---------- Modal de detalhe da vaga ---------- */
 
@@ -695,28 +658,21 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
 
-      // Busca o título da vaga para cada candidatura (a listagem não traz join).
-      const vagasIds = [...new Set(candidaturas.map((c) => c.ID_Vagas))];
-      const vagasDetalhe = await Promise.all(
-        vagasIds.map((id) => api(`/vagas/${id}`).catch(() => null))
-      );
-      const vagaPorId = Object.fromEntries(
-        vagasDetalhe.filter(Boolean).map((v) => [v.ID_Vagas, v])
-      );
-
       container.innerHTML = candidaturas.map((c) => {
-        const vaga = vagaPorId[c.ID_Vagas];
         const statusTexto = statusCandidaturaMap[c.ID_Status_Candidatura] || `Status ${c.ID_Status_Candidatura}`;
         const classeBadge = classeBadgeStatus(statusTexto);
 
         return `
           <div class="list-item">
             <div class="list-item__main">
-              <p class="list-item__title">${escapeHtml(vaga ? vaga.Titulo : 'Vaga não encontrada')}</p>
+              <p class="list-item__title">${escapeHtml(c.TituloVaga)}</p>
               <p class="list-item__meta">Candidatura enviada em ${formatarData(c.CriadaEm)}</p>
+              ${c.CurriculoUrl ? `<p><a href="${escapeHtml(Talentix.safeUrl(c.CurriculoUrl))}" target="_blank" rel="noopener">Currículo anexado</a></p>` : '<p>Nenhum currículo anexado.</p>'}
             </div>
             <div class="list-item__actions">
               <span class="badge ${classeBadge}">${escapeHtml(statusTexto)}</span>
+              <button class="btn btn-secondary" type="button" data-acompanhar="${escapeHtml(c.ID_Candidaturas)}">Etapas e entrevistas</button>
+              <button class="btn btn-secondary" type="button" data-empresa-mensagem="${escapeHtml(c.ID_Usuario_Empresa)}" data-contexto="${escapeHtml(c.ID_Candidaturas)}">Mensagem à empresa</button>
             </div>
           </div>
         `;
@@ -735,6 +691,45 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   /* ============================================================ */
+
+
+  $('#fecharAcompanhamento').addEventListener('click', () => $('#modalAcompanhamento').close());
+  $('#listaCandidaturas').addEventListener('click', async event => {
+    const button = event.target.closest('button'); if (!button) return;
+    try {
+      if (button.dataset.empresaMensagem) { await Talentix.conversation(button.dataset.empresaMensagem, button.dataset.contexto); return; }
+      if (!button.dataset.acompanhar) return;
+      const c = await api(`/candidaturas/${button.dataset.acompanhar}`);
+      const labels = {1:'Agendada',2:'Realizada',3:'Reagendada',4:'Cancelada',5:'Não compareceu'};
+      $('#acompanhamentoConteudo').innerHTML = `<h3>Etapas do processo</h3>${c.etapas.map(e => `<p>${escapeHtml(e.Ordem)}. ${escapeHtml(e.Nome)} — ${e.ID_Status_Etapa === 3 ? 'Concluída' : 'Em andamento'}</p>`).join('')}<h3>Entrevistas</h3>${c.entrevistas.length ? c.entrevistas.map(e => `<p>${escapeHtml(e.DataHora)} — ${escapeHtml(labels[e.ID_Status_Entrevista])}</p><p>${escapeHtml(e.LocalOuLink)}</p>`).join('') : '<p>Nenhuma entrevista agendada.</p>'}<button class="btn btn-secondary" data-solicitar-analise="${escapeHtml(c.ID_Vagas)}" data-candidatura="${escapeHtml(c.ID_Candidaturas)}">Analisar compatibilidade</button>`;
+      $('#modalAcompanhamento').showModal();
+    } catch (error) { mostrarToast(error.message, 'error'); }
+  });
+  $('#acompanhamentoConteudo').addEventListener('click', async event => {
+    if (!event.target.dataset.solicitarAnalise) return;
+    event.target.disabled = true;
+    try { await api('/analises-ia', {method:'POST',body:JSON.stringify({id_candidato:idCandidato,id_vaga:event.target.dataset.solicitarAnalise,id_candidatura:event.target.dataset.candidatura})}); mostrarToast('Análise solicitada. Acompanhe na aba Desenvolvimento.'); }
+    catch(error) { mostrarToast(error.message, 'error'); } finally { event.target.disabled = false; }
+  });
+  let developmentTimer;
+  async function carregarDesenvolvimento() {
+    clearTimeout(developmentTimer);
+    const [analyses,jobs,courses,favorites] = await Promise.all([api(`/analises-ia?id_candidato=${idCandidato}`),api(`/candidatos/${idCandidato}/recomendacoes-vaga`),api(`/candidatos/${idCandidato}/recomendacoes-curso`),api('/favoritos')]);
+    const statuses = {1:'Na fila',2:'Processando',3:'Concluída',4:'Falhou'};
+    $('#listaAnalises').innerHTML = analyses.length ? analyses.map(a => `<article class="list-item"><div><h3>${escapeHtml(statuses[a.ID_Status_Processamento_IA])}${a.ID_Status_Processamento_IA === 3 ? ` · ${escapeHtml(a.ScoreCompatibilidade)}% de compatibilidade` : ''}</h3><p>${escapeHtml(a.Justificativa)}</p>${a.PontosFortes ? `<p>Pontos fortes: ${escapeHtml(a.PontosFortes)}</p>` : ''}${a.Lacunas ? `<p>A desenvolver: ${escapeHtml(a.Lacunas)}</p>` : ''}</div></article>`).join('') : '<p class="empty-state">Solicite uma análise pelo acompanhamento de uma candidatura.</p>';
+    $('#listaRecomendacoesVaga').innerHTML = jobs.length ? jobs.map(r => `<article class="list-item"><div><h3>${escapeHtml(r.Titulo)} · ${escapeHtml(r.Score)}%</h3><p>${escapeHtml(r.Motivo)}</p></div></article>`).join('') : '<p class="empty-state">Nenhuma vaga recomendada ainda.</p>';
+    $('#listaRecomendacoesCurso').innerHTML = courses.length ? courses.map(r => `<article class="list-item"><div><h3>${escapeHtml(r.Titulo)}</h3><p>${escapeHtml(r.Motivo)}</p>${r.Url ? `<a href="${escapeHtml(Talentix.safeUrl(r.Url))}" target="_blank" rel="noopener">Acessar curso</a>` : ''}</div>${r.Concluida ? '<span class="badge">Concluído</span>' : `<button class="btn btn-secondary" data-concluir-curso="${escapeHtml(r.ID_Recomendacoes_Curso)}">Marcar concluído</button>`}</article>`).join('') : '<p class="empty-state">Nenhum curso recomendado ainda.</p>';
+    $('#listaFavoritos').innerHTML = favorites.length ? favorites.map(f => `<article class="list-item"><h3>${escapeHtml(f.Titulo)}</h3><button class="btn-danger-ghost" data-remover-favorito="${escapeHtml(f.ID_Vagas)}">Remover</button></article>`).join('') : '<p class="empty-state">Nenhuma vaga favorita.</p>';
+    if (analyses.some(a=>[1,2].includes(a.ID_Status_Processamento_IA))) developmentTimer = setTimeout(() => { if ($('#tab-recomendacoes').classList.contains('active')) carregarDesenvolvimento().catch(e=>mostrarToast(e.message,'error')); },5000);
+  }
+  $('#tab-recomendacoes').addEventListener('click', async event => {
+    try {
+      if (event.target.dataset.concluirCurso) await api(`/recomendacoes-curso/${event.target.dataset.concluirCurso}/concluir`,{method:'PATCH'});
+      else if (event.target.dataset.removerFavorito) await api(`/favoritos/${event.target.dataset.removerFavorito}`,{method:'DELETE'});
+      else return;
+      await carregarDesenvolvimento();
+    } catch(error) { mostrarToast(error.message,'error'); }
+  });
 
   inicializar();
 });

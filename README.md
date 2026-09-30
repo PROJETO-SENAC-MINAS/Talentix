@@ -2,7 +2,8 @@
 
 Plataforma full stack de recrutamento com HTML, CSS, JavaScript, FastAPI e MySQL 8.
 A API inclui cadastro, autenticação, perfis, currículos, vagas, candidaturas,
-entrevistas, mensagens e endpoints para integrações externas de IA e pagamentos.
+entrevistas, mensagens, painéis por papel, contatos persistidos, compatibilidade local
+e endpoints protegidos para serviços de IA e pagamentos.
 
 ## Segurança e credenciais anteriormente expostas
 
@@ -47,7 +48,7 @@ Prepare a API:
 cd python
 python -m venv .venv
 source .venv/bin/activate
-pip install -r requirements.txt
+pip install -r requirements-ia.txt
 python configure_dev.py
 ```
 
@@ -96,10 +97,46 @@ em `http://127.0.0.1:8000/docs`. Use o mesmo host definido em `FRONTEND_ORIGIN`;
 - A criação e a renovação manual de assinaturas são exclusivas do administrador;
   uma empresa não pode atribuir a si própria uma assinatura ativa.
 
-Os endpoints de IA armazenam solicitações/resultados; o worker que realiza a
-análise e o gateway de pagamentos são serviços externos, não incluídos aqui.
-Ao integrar um gateway real, valide também sua assinatura específica, os dados
-da transação e eventos repetidos antes de chamar a rota interna de confirmação.
+## Atualizar um banco existente
+
+Faça um backup e, dentro de `python/`, execute `python migrate.py` com uma conta
+MySQL autorizada a executar DDL. O script consulta a configuração local e aplica
+somente as alterações incrementais. Depois, volte a executar a API com o usuário
+restrito a `SELECT`, `INSERT`, `UPDATE` e `DELETE`.
+
+A migração pode ser repetida e não apaga registros de negócio. Ela verifica
+transações de pagamento duplicadas, avaliações repetidas e múltiplas assinaturas
+ativas antes de executar DDL. Se encontrar um conflito, interrompe a atualização
+para revisão dos dados. O SQL de instalação deve ser usado somente em banco novo;
+reimportá-lo sobre uma instalação existente não substitui uma migração.
+
+## Administrador e worker de compatibilidade
+
+Crie o primeiro administrador local, informando a senha de forma interativa:
+
+```bash
+cd python
+python create_admin.py --nome "Administrador" --email "seu-email@exemplo.com"
+```
+
+Com `requirements-ia.txt` instalado e `IA_WORKER_TOKEN` configurado, execute em
+outro terminal dentro de `python/`:
+
+```bash
+python -m app.worker_ia
+```
+
+Para processar a fila existente e sair, use `python -m app.worker_ia --once`.
+O worker usa o mesmo banco, não envia dados a serviços externos e não precisa de
+chave de provedor de IA. O modelo TF-IDF e as habilidades fornecem um índice
+explicável; não são uma previsão de contratação. A metodologia e o roteiro estão
+em [docs/andamento_inicial.md](docs/andamento_inicial.md).
+
+As empresas e os candidatos fazem cadastro na interface. Recrutadores têm uma
+conta própria e aguardam o vínculo concedido no painel da empresa. Os painéis
+validam o papel na API; a autorização nunca depende apenas do redirecionamento.
+Mudança de senha invalida sessões anteriores. Vagas em rascunho são privadas,
+e o salário confidencial não aparece na resposta pública da API.
 
 ## Testes
 
@@ -109,19 +146,37 @@ pip install -r requirements-dev.txt
 python -m pytest tests -q
 ```
 
-Os testes fazem requisições HTTP à aplicação, usam cookies assinados reais e
-executam as consultas afetadas em um banco SQLite isolado. Não enviam e-mails e
-não dependem de um MySQL disponível. Cobrem acessos de empresas e candidatos
-distintos, arquivos privados, tokens de serviço e tentativas de alteração de
-dados de terceiros. Não substituem testes completos de integração com MySQL,
-SMTP, worker de IA e gateway de pagamentos.
+A suíte rápida verifica segurança HTTP em SQLite isolado e propriedades do índice
+de compatibilidade. Os testes completos usam MySQL 8 com isolamento padrão e
+Chromium, incluindo falha no segundo INSERT do cadastro, rollback, concorrência,
+revogação, migração de esquema anterior e worker real.
 
-O workflow `.github/workflows/security-checks.yml` executa esses testes e impede
-que configurações secretas, caches Python ou uploads sejam versionados novamente.
+O workflow `.github/workflows/security-checks.yml` executa essas suítes, o roteiro
+no navegador, a validação Mermaid/HTML, `pip-audit` e `npm audit`. Também impede que
+configurações privadas, caches ou uploads sejam versionados. Os dados e as senhas
+do CI são fictícios e exclusivos de serviços descartáveis.
 
-## Funcionalidades ainda em desenvolvimento
+Para verificar os arquivos e o diagrama localmente (Node 24):
 
-O painel de candidato está incluído. Os painéis de empresa e administrador ainda
-não estão no repositório. O formulário de contato ainda é uma demonstração de
-interface. Esses recursos, o worker de IA e o checkout real precisam ser
-concluídos antes de uma disponibilização geral para usuários.
+```bash
+npm ci --prefix web-tests --ignore-scripts
+npm run check --prefix web-tests
+```
+
+Os scripts `python/tests/mysql/run_scenarios.py`, `run_regressions.py` e
+`web-tests/flow.cjs` são destinados **somente a banco descartável de testes**.
+Exigem `TALENTIX_ISOLATED_TESTS=1`, variáveis de conexão e uma API de teste em
+execução. A preparação reproduzível completa está no workflow; não execute esses
+scripts no banco pessoal ou compartilhado. `run_scenarios.py` exige banco vazio e
+não o apaga. Os resultados ficam em `test-results/`, fora do controle de versão.
+
+## Serviços externos
+
+O contato é gravado no banco e aparece para o administrador. As notificações são
+persistidas junto à operação; SMTP ocorre após o commit. Para entrega de e-mail,
+habilite e configure SMTP com credenciais atuais no seu `.env`.
+
+Os pagamentos continuam sendo registros internos: não há checkout nem estorno
+financeiro real. Uma integração com um provedor deve validar assinatura de webhook,
+valor, identidade da transação e executar a movimentação financeira. Os testes de
+callback usam tokens isolados e não movimentam dinheiro.

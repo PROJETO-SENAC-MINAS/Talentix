@@ -84,9 +84,10 @@ document.addEventListener('DOMContentLoaded', () => {
     assunto.addEventListener('change', validarAssunto);
     mensagem.addEventListener('input', validarMensagem);
   
-    formContato.addEventListener('submit', (e) => {
+    formContato.addEventListener('submit', async (e) => {
       e.preventDefault();
       sucesso.classList.remove('show');
+      document.getElementById('contatoFalha').hidden = true;
   
       const valido = [validarNome(), validarEmail(), validarAssunto(), validarMensagem()].every(Boolean);
       if (!valido) return;
@@ -94,12 +95,12 @@ document.addEventListener('DOMContentLoaded', () => {
       btnSubmit.setAttribute('disabled', 'true');
       btnSubmit.textContent = 'Enviando...';
   
-      // TODO_API: substituir pelo fetch real, ex.: POST /api/contato
-      setTimeout(() => {
-        btnSubmit.removeAttribute('disabled');
-        btnSubmit.textContent = 'Enviar mensagem';
-        sucesso.classList.add('show');
-        formContato.reset();
-      }, 800);
+      try {
+        const response = await fetch(`${API_BASE_URL}/contato`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({nome:nome.value.trim(), email:email.value.trim(), assunto:assunto.value, mensagem:mensagem.value.trim()})});
+        const body = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(Array.isArray(body.detail) ? body.detail.map(d=>d.msg).join(' ') : body.detail || 'Não foi possível enviar.');
+        sucesso.classList.add('show'); formContato.reset();
+      } catch(error) { const target = document.getElementById('contatoFalha'); target.textContent = error.message; target.hidden = false; }
+      finally { btnSubmit.removeAttribute('disabled'); btnSubmit.textContent = 'Enviar mensagem'; }
     });
   });
