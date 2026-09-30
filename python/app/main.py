@@ -32,12 +32,14 @@ from app.routers import (
     uploads,
     dashboard,
     contato,
+    admin,
 )
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await init_pool()
+    await contato.garantir_schema_contato()
     try:
         yield
     finally:
@@ -108,6 +110,7 @@ app.include_router(financeiro.router)
 app.include_router(uploads.router)
 app.include_router(dashboard.router)
 app.include_router(contato.router)
+app.include_router(admin.router)
 
 
 @app.get("/", tags=["Status"])
