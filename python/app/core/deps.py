@@ -28,6 +28,19 @@ async def descobrir_tipo_usuario(id_usuario: str) -> str | None:
     return "usuario"
 
 
+async def descobrir_tipo_usuario_comum(id_usuario: str) -> str:
+    """Descobre o perfil não administrativo usado quando um admin alterna para o modo usuário."""
+    if await fetch_one("SELECT ID_Candidatos FROM Candidatos WHERE ID_Usuarios=%s AND Ativo=1", (id_usuario,)):
+        return "candidato"
+    if await fetch_one("SELECT ID_Empresas FROM Empresas WHERE ID_Usuarios=%s AND Ativo=1", (id_usuario,)):
+        return "empresa"
+    if await fetch_one("""SELECT r.ID_Recrutadores FROM Recrutadores r
+                          JOIN Empresas e ON e.ID_Empresas=r.ID_Empresas AND e.Ativo=1
+                          WHERE r.ID_Usuarios=%s AND r.Ativo=1""", (id_usuario,)):
+        return "recrutador"
+    return "usuario"
+
+
 async def usuario_atual(request: Request) -> dict:
     """
     Exige que exista uma sessão válida (cookie). Retorna o payload da sessão:
@@ -48,10 +61,22 @@ async def usuario_atual(request: Request) -> dict:
         sessao["auth_tag"], sha256(usuario["SenhaHash"].encode()).hexdigest()
     ):
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Sessão expirada. Faça login novamente.")
-    tipo = await descobrir_tipo_usuario(sessao["id_usuario"])
-    if tipo is None:
+    tipo_principal = await descobrir_tipo_usuario(sessao["id_usuario"])
+    if tipo_principal is None:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Perfil ou vínculo desativado.")
-    return {**sessao, "tipo_usuario": tipo}
+
+    modo_usuario = bool(sessao.get("modo_usuario")) and tipo_principal == "administrador"
+    tipo_efetivo = (
+        await descobrir_tipo_usuario_comum(sessao["id_usuario"])
+        if modo_usuario
+        else tipo_principal
+    )
+    return {
+        **sessao,
+        "tipo_usuario": tipo_efetivo,
+        "tipo_principal": tipo_principal,
+        "modo_usuario": modo_usuario,
+    }
 
 
 def exigir_tipo(*tipos_permitidos: str):
