@@ -66,26 +66,10 @@ class AlternarModoRequest(BaseModel):
 # ---------- Helpers internos ----------
 
 async def _descobrir_tipo_usuario(id_usuario: str) -> str:
-    if await fetch_one(
-        "SELECT ID_Administradores FROM Administradores WHERE ID_Usuarios=%s AND Ativo=1",
-        (id_usuario,),
-    ):
-        return "administrador"
-
-    if await fetch_one(
-        "SELECT ID_Empresas FROM Empresas WHERE ID_Usuarios=%s AND Ativo=1",
-        (id_usuario,),
-    ):
-        return "empresa"
-
-    if await fetch_one(
-        "SELECT ID_Candidatos FROM Candidatos WHERE ID_Usuarios=%s AND Ativo=1",
-        (id_usuario,),
-    ):
-        return "candidato"
-
-    return "usuario"
-
+    tipo = await descobrir_tipo_usuario(id_usuario)
+    if tipo is None:
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Perfil ou vínculo desativado.")
+    return tipo
 
 # ---------- Endpoints ----------
 

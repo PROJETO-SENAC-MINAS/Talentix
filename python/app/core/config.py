@@ -15,7 +15,7 @@ class Settings(BaseSettings):
     DB_PORT: int = 3306
     DB_USER: str = "root"
     DB_PASSWORD: str = Field(default="", repr=False)
-    DB_NAME: str = "talentix_db"
+    DB_NAME: str = "talentix"
 
     # Sessão
     # Sem chave padrão: uma instalação deve gerar sua própria chave aleatória.

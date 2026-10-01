@@ -20,7 +20,7 @@ async def garantir_schema_contato() -> None:
                Mensagem TEXT NOT NULL,
                Lido BOOLEAN NOT NULL DEFAULT FALSE,
                CriadoEm DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
-           ) ENGINE=InnoDB CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"""
+           )"""
     )
 
 
