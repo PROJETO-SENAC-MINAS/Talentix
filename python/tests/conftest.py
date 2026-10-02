@@ -35,7 +35,9 @@ URL_A = "/uploads/curriculos/" + ARQUIVO_A
 URL_B = "/uploads/curriculos/" + ARQUIVO_B
 
 SCHEMA = """
-CREATE TABLE Usuarios (ID_Usuarios TEXT PRIMARY KEY, Nome TEXT, Email TEXT, SenhaHash TEXT,
+CREATE TABLE Usuarios (ID_Usuarios TEXT PRIMARY KEY, Nome TEXT, Email TEXT, EmailConfirmadoEm TEXT,
+  SenhaHash TEXT, TentativasLogin INTEGER DEFAULT 0, BloqueadoAte TEXT, UltimoLoginEm TEXT,
+  TwoFactorAtivo INTEGER DEFAULT 0, TwoFactorSecretEnc TEXT,
   Telefone TEXT, FotoUrl TEXT, Ativo INTEGER DEFAULT 1, CriadoEm TEXT DEFAULT CURRENT_TIMESTAMP);
 CREATE TABLE Candidatos (ID_Candidatos TEXT PRIMARY KEY, ID_Usuarios TEXT, Ativo INTEGER DEFAULT 1,
   Cidade TEXT, Disponivel INTEGER DEFAULT 1, CriadoEm TEXT DEFAULT CURRENT_TIMESTAMP);
@@ -75,6 +77,12 @@ CREATE TABLE Assinaturas (ID_Assinaturas TEXT PRIMARY KEY, ID_Empresas TEXT, ID_
   Plano TEXT, Valor REAL, Inicio TEXT, Fim TEXT, CriadaEm TEXT DEFAULT CURRENT_TIMESTAMP);
 CREATE TABLE Pagamentos (ID_Pagamentos TEXT PRIMARY KEY, ID_Assinaturas TEXT,
   ID_Status_Pagamento INTEGER DEFAULT 1, Valor REAL, PagoEm TEXT);
+CREATE TABLE Sessoes (ID_Sessoes TEXT PRIMARY KEY, ID_Usuarios TEXT, UserAgent TEXT,
+  CriadaEm TEXT DEFAULT CURRENT_TIMESTAMP, UltimaAtividadeEm TEXT DEFAULT CURRENT_TIMESTAMP,
+  ExpiraEm TEXT, RevogadaEm TEXT);
+CREATE TABLE Audit_Logs (ID_Audit_Logs TEXT PRIMARY KEY, ID_Usuarios TEXT, Acao TEXT,
+  Recurso TEXT, RecursoId TEXT, RequestId TEXT, UserAgent TEXT, ValorAnterior TEXT,
+  ValorNovo TEXT, CriadoEm TEXT DEFAULT CURRENT_TIMESTAMP);
 """
 
 
@@ -88,6 +96,7 @@ def ambiente(monkeypatch, tmp_path):
     for usuario in ("uc1", "uc2", "ue1", "ue2", "ua", "ur2", "desativado"):
         conn.execute("INSERT INTO Usuarios(ID_Usuarios, Nome, Email, SenhaHash, Ativo) VALUES (?, ?, ?, ?, ?)",
                      (usuario, usuario, usuario + "@example.com", SENHA_HASH, usuario != "desativado"))
+    conn.execute("UPDATE Usuarios SET EmailConfirmadoEm=CURRENT_TIMESTAMP")
     conn.executemany("INSERT INTO Candidatos(ID_Candidatos, ID_Usuarios) VALUES (?, ?)", [("c1", "uc1"), ("c2", "uc2")])
     conn.executemany("INSERT INTO Empresas(ID_Empresas, ID_Usuarios, NomeFantasia) VALUES (?, ?, ?)",
                      [("e1", "ue1", "Empresa 1"), ("e2", "ue2", "Empresa 2")])
