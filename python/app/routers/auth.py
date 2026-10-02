@@ -193,11 +193,15 @@ async def login(dados: LoginRequest, request: Request, response: Response):
     if not usuario or not usuario["Ativo"]:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "E-mail ou senha inválidos.")
 
-    if usuario.get("BloqueadoAte") and usuario["BloqueadoAte"] > datetime.utcnow():
-        raise HTTPException(
-            status.HTTP_423_LOCKED,
-            "Conta temporariamente bloqueada por tentativas de login. Tente novamente mais tarde.",
-        )
+    if usuario.get("BloqueadoAte"):
+        bloqueado_ate = usuario["BloqueadoAte"]
+        if isinstance(bloqueado_ate, str):
+            bloqueado_ate = datetime.fromisoformat(bloqueado_ate)
+        if bloqueado_ate > datetime.utcnow():
+            raise HTTPException(
+                status.HTTP_423_LOCKED,
+                "Conta temporariamente bloqueada por tentativas de login. Tente novamente mais tarde.",
+            )
 
     if not verificar_senha(dados.senha, usuario["SenhaHash"]):
         await _registrar_falha_login(request, usuario)
