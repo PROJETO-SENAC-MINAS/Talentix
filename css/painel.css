@@ -14,3 +14,11 @@ dialog{border:1px solid var(--border);border-radius:16px;padding:28px;width:min(
 .btn-switch-mode:hover{filter:brightness(.95)}
 .tab-panel{width:100%}
 .admin-card{width:100%}
+
+.catalog-language-card{padding:24px}
+.catalog-language-card form{padding-bottom:24px;border-bottom:1px solid var(--border)}
+.catalog-language-list{margin-top:24px}
+.catalog-language-list h3{margin:0 0 14px;font-size:16px}
+.language-chips{display:flex;flex-wrap:wrap;gap:10px;align-items:center;min-height:34px}
+.language-chip{display:inline-flex;align-items:center;padding:8px 12px;border-radius:999px;background:rgba(47,139,119,.10);border:1px solid rgba(47,139,119,.18);color:var(--accent-dark);font-size:13px;font-weight:600;line-height:1}
+.language-empty{color:var(--text-muted);font-size:13px}

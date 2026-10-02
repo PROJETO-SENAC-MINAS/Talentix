@@ -39,7 +39,19 @@
 
 <section class="tab-panel" id="tab-catalogo"><header class="content__header"><h1>Catálogo de cursos e idiomas</h1></header>
 <div class="card"><form id="formCursoAdmin"><input type="hidden" id="cursoId"><div class="field"><label for="cursoTitulo">Título do curso</label><input id="cursoTitulo" required maxlength="200"></div><div class="field"><label for="cursoDescricao">Descrição</label><textarea id="cursoDescricao" rows="3"></textarea></div><div class="grid-2"><div class="field"><label for="cursoPlataforma">Plataforma</label><input id="cursoPlataforma" maxlength="100"></div><div class="field"><label for="cursoCategoria">Categoria</label><input id="cursoCategoria" maxlength="100"></div></div><div class="field"><label for="cursoUrl">Link</label><input id="cursoUrl" type="url" maxlength="500"></div><button class="btn btn-primary" type="submit">Salvar curso</button> <button class="btn btn-secondary" id="limparCurso" type="button">Novo curso</button></form></div><div class="list" id="cursosAdmin"></div>
-<div class="card"><form id="formIdiomaAdmin"><div class="field"><label for="idiomaNome">Novo idioma</label><input id="idiomaNome" required maxlength="100"></div><button class="btn btn-primary" type="submit">Adicionar idioma</button></form><div id="idiomasAdmin"></div></div></section>
+<div class="card catalog-language-card">
+  <form id="formIdiomaAdmin">
+    <div class="field">
+      <label for="idiomaNome">Novo idioma</label>
+      <input id="idiomaNome" required maxlength="100" placeholder="Ex: Francês">
+    </div>
+    <button class="btn btn-primary" type="submit">Adicionar idioma</button>
+  </form>
+  <div class="catalog-language-list">
+    <h3>Idiomas cadastrados</h3>
+    <div id="idiomasAdmin" class="language-chips" aria-live="polite"></div>
+  </div>
+</div></section>
 
 <section class="tab-panel" id="tab-contatos"><header class="content__header"><div><h1>Contato</h1><p>Solicitações enviadas pelo formulário público.</p></div></header><section class="card admin-card"><div class="scroll-table"><table class="admin-table"><thead><tr><th>Remetente</th><th>Assunto</th><th>Mensagem</th><th>Data</th><th>Status</th><th>Ação</th></tr></thead><tbody id="contatosAdmin"></tbody></table></div></section></section>
 
