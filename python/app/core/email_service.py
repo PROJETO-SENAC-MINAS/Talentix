@@ -195,3 +195,34 @@ def email_senha_redefinida(destinatario: str, nome: str) -> bool:
     <p>Se você não fez essa alteração, entre em contato com o suporte imediatamente.</p>
     """
     return enviar_email(destinatario, assunto, corpo)
+
+def email_confirmar_endereco(destinatario: str, nome: str, link_confirmacao: str) -> bool:
+    assunto = "Confirme seu e-mail — Talentix"
+    corpo = f"""
+    <p>Olá, {escape_html(nome)}!</p>
+    <p>Confirme que este endereço pertence a você:</p>
+    <p><a href="{escape_html(link_confirmacao)}">Confirmar meu e-mail</a></p>
+    <p>O link expira em 1 hora.</p>
+    """
+    return enviar_email(destinatario, assunto, corpo)
+
+
+def email_email_alterado(destinatario: str, nome: str) -> bool:
+    assunto = "E-mail da conta alterado — Talentix"
+    corpo = f"""
+    <p>Olá, {escape_html(nome)}!</p>
+    <p>O endereço de e-mail da sua conta Talentix foi alterado com sucesso.</p>
+    <p>Se você não reconhece esta alteração, procure o suporte imediatamente.</p>
+    """
+    return enviar_email(destinatario, assunto, corpo)
+
+
+def email_2fa_alterado(destinatario: str, nome: str, ativo: bool) -> bool:
+    estado = "ativada" if ativo else "desativada"
+    assunto = f"Autenticação em dois fatores {estado} — Talentix"
+    corpo = f"""
+    <p>Olá, {escape_html(nome)}!</p>
+    <p>A autenticação em dois fatores foi <strong>{estado}</strong> na sua conta.</p>
+    <p>Se você não reconhece esta alteração, troque sua senha imediatamente.</p>
+    """
+    return enviar_email(destinatario, assunto, corpo)

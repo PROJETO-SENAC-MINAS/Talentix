@@ -14,7 +14,7 @@ from pymysql.err import DataError, IntegrityError
 
 from app.core.config import settings
 from app.core.logging_config import configurar_logging
-from app.core.middleware import RequestContextMiddleware
+from app.core.middleware import RateLimitMiddleware, RequestContextMiddleware
 from app.db.database import close_pool, fetch_one, init_pool
 from app.routers import (
     admin,
@@ -109,6 +109,7 @@ async def data_error(request: Request, exc):
 
 
 app.add_middleware(RequestContextMiddleware)
+app.add_middleware(RateLimitMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[settings.FRONTEND_ORIGIN],
