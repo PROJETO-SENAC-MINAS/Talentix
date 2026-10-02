@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>Administração — Talentix</title><link rel="stylesheet" href="../css/painel.css">
-</head>
+<link rel="stylesheet" href="../css/acessibilidade.css">\n</head>
 <body data-painel="administrador">
 <div class="app">
 <aside class="sidebar">
@@ -65,4 +65,4 @@
 <dialog id="modalEmpresa"><div class="dialog-header"><h2>Editar empresa</h2><button type="button" data-close="modalEmpresa">×</button></div><form id="formEmpresaAdmin"><input type="hidden" id="empresaId"><div class="grid-2"><div class="field"><label for="empresaRazao">Razão social</label><input id="empresaRazao" required maxlength="200"></div><div class="field"><label for="empresaFantasia">Nome fantasia</label><input id="empresaFantasia" maxlength="200"></div></div><div class="grid-2"><div class="field"><label for="empresaCnpj">CNPJ</label><input id="empresaCnpj" required maxlength="18"></div><div class="field"><label for="empresaSetor">Setor</label><input id="empresaSetor" maxlength="100"></div></div><div class="grid-2"><div class="field"><label for="empresaPorte">Porte</label><input id="empresaPorte" maxlength="50"></div><div class="field"><label for="empresaSite">Site</label><input id="empresaSite" type="url" maxlength="300"></div></div><div class="field"><label for="empresaEndereco">Endereço</label><input id="empresaEndereco" maxlength="300"></div><div class="field"><label for="empresaDescricao">Descrição</label><textarea id="empresaDescricao" rows="4" maxlength="5000"></textarea></div><label class="checkbox-row"><input id="empresaVerificada" type="checkbox"> Empresa verificada</label><div class="dialog-actions"><button class="btn btn-secondary" type="button" data-close="modalEmpresa">Cancelar</button><button class="btn btn-primary" type="submit">Salvar alterações</button></div></form></dialog>
 
 <script src="../js/config.js"></script><script src="../js/painel-comum.js"></script><script src="../js/dashboard-admin.js"></script>
-</body></html>
+<script src="../js/seguranca-conta.js"></script>\n<script src="../js/acessibilidade.js"></script>\n</body></html>
