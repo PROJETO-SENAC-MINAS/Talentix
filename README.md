@@ -180,3 +180,36 @@ Os pagamentos continuam sendo registros internos: não há checkout nem estorno
 financeiro real. Uma integração com um provedor deve validar assinatura de webhook,
 valor, identidade da transação e executar a movimentação financeira. Os testes de
 callback usam tokens isolados e não movimentam dinheiro.
+
+
+## Execução com Docker Compose
+
+O ambiente de desenvolvimento também pode ser iniciado de forma reproduzível com Docker:
+
+```bash
+cd python
+python configure_dev.py
+cd ..
+docker compose up --build
+```
+
+O Compose inicia MySQL 8, API FastAPI e o frontend estático. A API fica em
+`http://127.0.0.1:8000`, o frontend em `http://127.0.0.1:5500/html/index.html`
+e o MySQL permanece persistido em volume próprio. O arquivo `python/.env`
+continua sendo local e nunca deve ser versionado.
+
+Para dados fictícios de apresentação, depois que o banco estiver disponível:
+
+```bash
+cd python
+python seed_demo.py --password "uma-senha-forte-de-demonstracao"
+```
+
+O seed é idempotente, é bloqueado em `APP_ENV=production` e nunca usa dados reais.
+
+## Ambientes, logs e rastreabilidade
+
+`APP_ENV` aceita `development`, `test` ou `production`. Em produção a API
+exige cookie seguro. Cada requisição recebe um `X-Request-ID`, também incluído
+nos logs JSON da API e nas respostas de erro, permitindo correlacionar falhas sem
+expor dados sensíveis.

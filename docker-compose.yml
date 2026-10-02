@@ -1,0 +1,60 @@
+services:
+  db:
+    image: mysql:8.4
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: talentix-local-root
+      MYSQL_DATABASE: talentix
+      MYSQL_USER: talentix_app
+      MYSQL_PASSWORD: talentix-local-app
+    ports:
+      - "3306:3306"
+    volumes:
+      - talentix_mysql:/var/lib/mysql
+      - ./sql/talentix_db.sql:/docker-entrypoint-initdb.d/001_talentix.sql:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-utalentix_app", "-ptalentix-local-app"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
+  api:
+    build:
+      context: .
+      dockerfile: python/Dockerfile
+    restart: unless-stopped
+    env_file:
+      - ./python/.env
+    environment:
+      APP_ENV: development
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_NAME: talentix
+      DB_USER: talentix_app
+      DB_PASSWORD: talentix-local-app
+      FRONTEND_ORIGIN: http://127.0.0.1:5500
+      FRONTEND_RESET_URL: http://127.0.0.1:5500/html/login.html
+      SESSION_COOKIE_SECURE: "false"
+      UPLOAD_DIR: /app/uploads
+    ports:
+      - "8000:8000"
+    volumes:
+      - talentix_uploads:/app/uploads
+    depends_on:
+      db:
+        condition: service_healthy
+
+  frontend:
+    image: python:3.12-alpine
+    working_dir: /site
+    command: python -m http.server 5500 --bind 0.0.0.0
+    volumes:
+      - ./:/site:ro
+    ports:
+      - "5500:5500"
+    depends_on:
+      - api
+
+volumes:
+  talentix_mysql:
+  talentix_uploads:
