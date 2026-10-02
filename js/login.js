@@ -285,7 +285,7 @@ document.addEventListener('DOMContentLoaded', () => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ email: dados.email, senha: dados.senha }),
+        body: JSON.stringify({ email: dados.email, senha: dados.senha, codigo_2fa: document.querySelector('#login2fa')?.value || null }),
       });
 
       const corpo = await resposta.json().catch(() => ({}));
@@ -299,6 +299,17 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
 
+      if (corpo.two_factor_required) {
+        let field = document.querySelector('#login2faField');
+        if (!field) {
+          field = document.createElement('div'); field.className='field'; field.id='login2faField';
+          field.innerHTML='<label for="login2fa">Código de autenticação em dois fatores</label><input id="login2fa" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required>';
+          btnLoginSubmit.closest('form').insertBefore(field, btnLoginSubmit);
+        }
+        document.querySelector('#login2fa').focus();
+        $('#loginAlertText').textContent='Digite o código de autenticação para concluir o login.';
+        loginAlert.classList.add('show'); return;
+      }
       window.location.href = destinoPorTipo(corpo.tipo_usuario);
     } catch (erro) {
       console.error('Falha ao conectar com a API:', erro);
