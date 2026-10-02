@@ -123,7 +123,7 @@ jobs:
           python tests/mysql/run_regressions.py
       - name: Start frontend
         run: python -m http.server 5500 --bind 127.0.0.1 > "$TEST_RESULTS_DIR/frontend.log" 2>&1 &
-      - name: Validate diagram, files and complete browser flow
+      - name: Validate diagram, accessibility, files and complete browser flow
         run: |
           npm run check --prefix web-tests
           npm test --prefix web-tests
