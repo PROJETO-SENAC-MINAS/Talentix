@@ -1,8 +1,9 @@
 """Operações administrativas de usuários, empresas e auditoria da plataforma."""
 from app.core.routes import AtomicRouter as APIRouter
-from fastapi import Depends, HTTPException, Query, status
+from fastapi import Depends, HTTPException, Query, Request, status
 from pydantic import BaseModel, EmailStr, Field
 
+from app.core.audit import registrar_auditoria
 from app.core.deps import exigir_tipo
 from app.db.database import execute, fetch_all, fetch_one
 
@@ -71,10 +72,11 @@ async def listar_usuarios_admin(
 async def editar_usuario_admin(
     id_usuario: str,
     dados: UsuarioAdminUpdate,
+    request: Request,
     sessao: dict = Depends(exigir_tipo("administrador")),
 ):
     usuario = await fetch_one(
-        "SELECT ID_Usuarios FROM Usuarios WHERE ID_Usuarios=%s", (id_usuario,)
+        "SELECT ID_Usuarios, Nome, Email, Telefone, Ativo FROM Usuarios WHERE ID_Usuarios=%s", (id_usuario,)
     )
     if not usuario:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Usuário não encontrado.")
@@ -93,6 +95,13 @@ async def editar_usuario_admin(
         f"UPDATE Usuarios SET {', '.join(set_clauses)} WHERE ID_Usuarios=%s",
         tuple(valores),
     )
+    atualizado = await fetch_one(
+        "SELECT ID_Usuarios, Nome, Email, Telefone, Ativo, CriadoEm, AtualizadoEm FROM Usuarios WHERE ID_Usuarios=%s",
+        (id_usuario,),
+    )
+    await registrar_auditoria(request, "ADMIN_USUARIO_EDITADO", "Usuarios", sessao["id_usuario"], id_usuario, usuario, atualizado)
+    return atualizado
+    # retorno abaixo mantido inalcançável por compatibilidade de diff
     return await fetch_one(
         "SELECT ID_Usuarios, Nome, Email, Telefone, Ativo, CriadoEm, AtualizadoEm FROM Usuarios WHERE ID_Usuarios=%s",
         (id_usuario,),
@@ -103,6 +112,7 @@ async def editar_usuario_admin(
 async def alterar_status_usuario_admin(
     id_usuario: str,
     dados: StatusAtivoUpdate,
+    request: Request,
     sessao: dict = Depends(exigir_tipo("administrador")),
 ):
     if id_usuario == sessao["id_usuario"] and not dados.ativo:
@@ -120,12 +130,14 @@ async def alterar_status_usuario_admin(
             f"UPDATE {tabela} SET Ativo=%s, DeletadoEm=IF(%s=1,NULL,NOW()) WHERE ID_Usuarios=%s",
             (ativo, ativo, id_usuario),
         )
+    await registrar_auditoria(request, "ADMIN_USUARIO_STATUS", "Usuarios", sessao["id_usuario"], id_usuario, novo={"ativo": dados.ativo})
     return {"mensagem": "Usuário ativado." if dados.ativo else "Usuário desativado."}
 
 
 @router.delete("/usuarios/{id_usuario}")
 async def excluir_usuario_admin(
     id_usuario: str,
+    request: Request,
     confirmar: bool = Query(False),
     sessao: dict = Depends(exigir_tipo("administrador")),
 ):
@@ -135,6 +147,7 @@ async def excluir_usuario_admin(
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Você não pode excluir sua própria conta administrativa.")
     if not await fetch_one("SELECT ID_Usuarios FROM Usuarios WHERE ID_Usuarios=%s", (id_usuario,)):
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Usuário não encontrado.")
+    await registrar_auditoria(request, "ADMIN_USUARIO_EXCLUIDO", "Usuarios", sessao["id_usuario"], id_usuario)
     await execute("DELETE FROM Usuarios WHERE ID_Usuarios=%s", (id_usuario,))
     return {"mensagem": "Usuário excluído permanentemente."}
 
@@ -165,9 +178,10 @@ async def listar_empresas_admin(
 async def editar_empresa_admin(
     id_empresa: str,
     dados: EmpresaAdminUpdate,
+    request: Request,
     sessao: dict = Depends(exigir_tipo("administrador")),
 ):
-    empresa = await fetch_one("SELECT ID_Empresas FROM Empresas WHERE ID_Empresas=%s", (id_empresa,))
+    empresa = await fetch_one("SELECT * FROM Empresas WHERE ID_Empresas=%s", (id_empresa,))
     if not empresa:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Empresa não encontrada.")
     campos = dados.model_dump(exclude_unset=True)
@@ -185,13 +199,16 @@ async def editar_empresa_admin(
         f"UPDATE Empresas SET {', '.join(set_clauses)} WHERE ID_Empresas=%s",
         tuple(valores),
     )
-    return await fetch_one("SELECT * FROM Empresas WHERE ID_Empresas=%s", (id_empresa,))
+    atualizada = await fetch_one("SELECT * FROM Empresas WHERE ID_Empresas=%s", (id_empresa,))
+    await registrar_auditoria(request, "ADMIN_EMPRESA_EDITADA", "Empresas", sessao["id_usuario"], id_empresa, empresa, atualizada)
+    return atualizada
 
 
 @router.patch("/empresas/{id_empresa}/status")
 async def alterar_status_empresa_admin(
     id_empresa: str,
     dados: StatusAtivoUpdate,
+    request: Request,
     sessao: dict = Depends(exigir_tipo("administrador")),
 ):
     if not await fetch_one("SELECT ID_Empresas FROM Empresas WHERE ID_Empresas=%s", (id_empresa,)):
@@ -201,12 +218,14 @@ async def alterar_status_empresa_admin(
         "UPDATE Empresas SET Ativo=%s, DeletadoEm=IF(%s=1,NULL,NOW()) WHERE ID_Empresas=%s",
         (ativo, ativo, id_empresa),
     )
+    await registrar_auditoria(request, "ADMIN_EMPRESA_STATUS", "Empresas", sessao["id_usuario"], id_empresa, novo={"ativo": dados.ativo})
     return {"mensagem": "Empresa ativada." if dados.ativo else "Empresa desativada."}
 
 
 @router.delete("/empresas/{id_empresa}")
 async def excluir_empresa_admin(
     id_empresa: str,
+    request: Request,
     confirmar: bool = Query(False),
     sessao: dict = Depends(exigir_tipo("administrador")),
 ):
@@ -214,8 +233,25 @@ async def excluir_empresa_admin(
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Confirmação obrigatória para exclusão permanente.")
     if not await fetch_one("SELECT ID_Empresas FROM Empresas WHERE ID_Empresas=%s", (id_empresa,)):
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Empresa não encontrada.")
+    await registrar_auditoria(request, "ADMIN_EMPRESA_EXCLUIDA", "Empresas", sessao["id_usuario"], id_empresa)
     await execute("DELETE FROM Empresas WHERE ID_Empresas=%s", (id_empresa,))
     return {"mensagem": "Empresa excluída permanentemente."}
+
+
+@router.get("/auditoria")
+async def listar_auditoria_admin(
+    limite: int = Query(200, ge=1, le=500),
+    sessao: dict = Depends(exigir_tipo("administrador")),
+):
+    return await fetch_all(
+        """SELECT a.ID_Audit_Logs, a.ID_Usuarios, a.Acao, a.Recurso, a.RecursoId,
+                  a.RequestId, a.UserAgent, a.ValorAnterior, a.ValorNovo, a.CriadoEm,
+                  u.Nome AS UsuarioNome, u.Email AS UsuarioEmail
+           FROM Audit_Logs a
+           LEFT JOIN Usuarios u ON u.ID_Usuarios=a.ID_Usuarios
+           ORDER BY a.CriadoEm DESC LIMIT %s""",
+        (limite,),
+    )
 
 
 @router.get("/denuncias")
