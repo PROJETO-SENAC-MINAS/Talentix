@@ -3,7 +3,8 @@
   "private": true,
   "scripts": {
     "test": "node flow.cjs",
-    "check": "node validate.mjs"
+    "check": "node validate.mjs && node accessibility.mjs",
+    "check:a11y": "node accessibility.mjs"
   },
   "devDependencies": {
     "playwright": "1.63.0",
