@@ -8,17 +8,27 @@ from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
 from app.core.config import settings
 
 
+def _validar_senha_bcrypt(senha_plana: str) -> None:
+    if len(senha_plana) < settings.PASSWORD_MIN_LENGTH:
+        raise ValueError(f"A senha deve ter no mínimo {settings.PASSWORD_MIN_LENGTH} caracteres.")
+    if len(senha_plana.encode("utf-8")) > 72:
+        raise ValueError("A senha deve ter no máximo 72 bytes em UTF-8.")
+
+
 def hash_senha(senha_plana: str) -> str:
-    """Gera o hash bcrypt de uma senha em texto plano."""
-    salt = bcrypt.gensalt()
+    """Gera hash bcrypt irreversível para senhas de usuários."""
+    _validar_senha_bcrypt(senha_plana)
+    salt = bcrypt.gensalt(rounds=settings.BCRYPT_ROUNDS)
     return bcrypt.hashpw(senha_plana.encode("utf-8"), salt).decode("utf-8")
 
 
 def verificar_senha(senha_plana: str, senha_hash: str) -> bool:
     """Verifica se a senha em texto plano corresponde ao hash armazenado."""
     try:
+        if len(senha_plana.encode("utf-8")) > 72:
+            return False
         return bcrypt.checkpw(senha_plana.encode("utf-8"), senha_hash.encode("utf-8"))
-    except ValueError:
+    except (ValueError, TypeError):
         return False
 
 
@@ -31,7 +41,7 @@ def novo_uuid() -> str:
 # Token de redefinição de senha (assinado, com expiração, sem estado no banco)
 # ============================================================================
 
-_TOKEN_RESET_MAX_AGE_SEGUNDOS = 1800  # 30 minutos
+_TOKEN_RESET_MAX_AGE_SEGUNDOS = 900  # 15 minutos
 _reset_serializer = URLSafeTimedSerializer(settings.SECRET_KEY, salt="talentix-reset-senha")
 
 
