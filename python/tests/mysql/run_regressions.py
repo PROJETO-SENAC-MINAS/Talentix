@@ -48,8 +48,20 @@ def execute(statement,params=(),connection=conn):
         cur.execute(statement,params)
 
 
+class TalentixTestClient(httpx.Client):
+    """Cliente de integração que reproduz o double-submit CSRF do navegador."""
+    def request(self, method, url, **kwargs):
+        if method.upper() in {"POST", "PUT", "PATCH", "DELETE"}:
+            csrf = self.cookies.get("talentix_csrf")
+            if csrf:
+                headers = dict(kwargs.get("headers") or {})
+                headers.setdefault("X-CSRF-Token", csrf)
+                kwargs["headers"] = headers
+        return super().request(method, url, **kwargs)
+
+
 def client():
-    c=httpx.Client(base_url=API,timeout=30,trust_env=False);clients.append(c);return c
+    c=TalentixTestClient(base_url=API,timeout=30,trust_env=False);clients.append(c);return c
 
 
 def signup(role,name):
