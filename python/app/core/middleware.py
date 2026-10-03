@@ -47,6 +47,7 @@ import asyncio
 
 from starlette.responses import JSONResponse
 from app.core.config import settings
+from app.core.session import csrf_valido
 
 
 class RateLimitMiddleware(BaseHTTPMiddleware):
@@ -59,15 +60,16 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         if request.url.path in {"/saude", "/"} or request.method == "OPTIONS":
             return await call_next(request)
-        forwarded = request.headers.get("x-forwarded-for", "")
-        client = forwarded.split(",", 1)[0].strip() or (request.client.host if request.client else "unknown")
-        key = f"{client}:{request.url.path.split('/')[1] if '/' in request.url.path else request.url.path}"
+        client = request.client.host if request.client else "unknown"
+        eh_auth = request.url.path.startswith("/auth/")
+        limite = settings.RATE_LIMIT_AUTH_REQUESTS if eh_auth else settings.RATE_LIMIT_REQUESTS
+        key = f"{client}:{'auth' if eh_auth else 'global'}"
         now = time.monotonic()
         async with self._lock:
             bucket = self._hits[key]
             while bucket and now - bucket[0] >= settings.RATE_LIMIT_WINDOW_SECONDS:
                 bucket.popleft()
-            if len(bucket) >= settings.RATE_LIMIT_REQUESTS:
+            if len(bucket) >= limite:
                 return JSONResponse(
                     status_code=429,
                     content={"detail": "Muitas requisições. Tente novamente em instantes."},
@@ -75,3 +77,35 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
                 )
             bucket.append(now)
         return await call_next(request)
+
+
+class SecurityMiddleware(BaseHTTPMiddleware):
+    """CSRF, limite de payload e cabeçalhos defensivos para toda a API."""
+    _MUTATING = {"POST", "PUT", "PATCH", "DELETE"}
+
+    async def dispatch(self, request: Request, call_next):
+        tamanho = request.headers.get("content-length")
+        if tamanho:
+            try:
+                if int(tamanho) > settings.MAX_REQUEST_SIZE_MB * 1024 * 1024:
+                    return JSONResponse(status_code=413, content={"detail": "Requisição grande demais."})
+            except ValueError:
+                return JSONResponse(status_code=400, content={"detail": "Content-Length inválido."})
+
+        if (
+            request.method in self._MUTATING
+            and request.cookies.get(settings.SESSION_COOKIE_NAME)
+            and not csrf_valido(request)
+        ):
+            return JSONResponse(status_code=403, content={"detail": "Token CSRF ausente ou inválido."})
+
+        response = await call_next(request)
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+        response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
+        if request.url.path.startswith("/auth/"):
+            response.headers["Cache-Control"] = "no-store"
+        if settings.SESSION_COOKIE_SECURE:
+            response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+        return response
