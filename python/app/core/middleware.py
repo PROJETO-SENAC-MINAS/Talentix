@@ -61,9 +61,17 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         if request.url.path in {"/saude", "/"} or request.method == "OPTIONS":
             return await call_next(request)
         client = request.client.host if request.client else "unknown"
-        eh_auth = request.url.path.startswith("/auth/")
+        partes = [parte for parte in request.url.path.split("/") if parte]
+        eh_auth = bool(partes and partes[0] == "auth")
         limite = settings.RATE_LIMIT_AUTH_REQUESTS if eh_auth else settings.RATE_LIMIT_REQUESTS
-        key = f"{client}:{'auth' if eh_auth else 'global'}"
+        if eh_auth:
+            # Autenticação precisa de limite mais rígido, mas não deve colocar
+            # cadastro, login, recuperação e 2FA no mesmo balde.
+            grupo = "auth:" + (partes[1] if len(partes) > 1 else "root")
+        else:
+            # Agrupa por domínio de API para impedir evasão por IDs diferentes.
+            grupo = partes[0] if partes else "root"
+        key = f"{client}:{grupo}"
         now = time.monotonic()
         async with self._lock:
             bucket = self._hits[key]
