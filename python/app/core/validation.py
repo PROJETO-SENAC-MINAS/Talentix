@@ -10,7 +10,7 @@ def password_bytes(value: str) -> str:
     return value
 
 
-Password = Annotated[str, Field(min_length=6, max_length=72), AfterValidator(password_bytes)]
+Password = Annotated[str, Field(min_length=10, max_length=72), AfterValidator(password_bytes)]
 Money = Annotated[Decimal, Field(ge=0, max_digits=10, decimal_places=2)]
 PositiveMoney = Annotated[Decimal, Field(gt=0, max_digits=10, decimal_places=2)]
 
