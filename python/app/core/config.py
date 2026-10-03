@@ -23,8 +23,13 @@ class Settings(BaseSettings):
 
     SECRET_KEY: str = Field(min_length=64, repr=False)
     SESSION_COOKIE_NAME: str = "talentix_session"
-    SESSION_MAX_AGE_SECONDS: int = 86400
+    CSRF_COOKIE_NAME: str = "talentix_csrf"
+    SESSION_MAX_AGE_SECONDS: int = 3600
     SESSION_COOKIE_SECURE: bool = True
+    SESSION_COOKIE_SAMESITE: Literal["lax", "strict"] = "lax"
+
+    BCRYPT_ROUNDS: int = 12
+    PASSWORD_MIN_LENGTH: int = 10
 
     IA_WORKER_TOKEN: str = Field(default="", repr=False)
     PAYMENT_WEBHOOK_TOKEN: str = Field(default="", repr=False)
@@ -33,6 +38,9 @@ class Settings(BaseSettings):
     MAX_UPLOAD_SIZE_MB: int = 10
 
     FRONTEND_ORIGIN: str = "http://localhost:3000"
+    CORS_ALLOW_METHODS: str = "GET,POST,PUT,PATCH,DELETE,OPTIONS"
+    CORS_ALLOW_HEADERS: str = "Content-Type,Accept,X-CSRF-Token,X-Request-ID"
+    TRUSTED_HOSTS: str = "127.0.0.1,localhost,testserver"
 
     SMTP_ENABLED: bool = False
     SMTP_HOST: str = "smtp.gmail.com"
@@ -44,7 +52,9 @@ class Settings(BaseSettings):
     LOGIN_MAX_ATTEMPTS: int = 5
     LOGIN_LOCKOUT_SECONDS: int = 900
     RATE_LIMIT_REQUESTS: int = 120
+    RATE_LIMIT_AUTH_REQUESTS: int = 10
     RATE_LIMIT_WINDOW_SECONDS: int = 60
+    MAX_REQUEST_SIZE_MB: int = 12
     EMAIL_CONFIRMATION_REQUIRED: bool = False
 
     @field_validator("SECRET_KEY", "IA_WORKER_TOKEN", "PAYMENT_WEBHOOK_TOKEN")
@@ -57,6 +67,22 @@ class Settings(BaseSettings):
         if any(marcador in valor.lower() for marcador in ("change-me", "changeme", "substitua", "your-secret")):
             raise ValueError("Chaves de exemplo não podem ser usadas.")
         return valor
+
+    @property
+    def cors_origins(self) -> list[str]:
+        return [x.strip() for x in self.FRONTEND_ORIGIN.split(",") if x.strip()]
+
+    @property
+    def cors_methods(self) -> list[str]:
+        return [x.strip() for x in self.CORS_ALLOW_METHODS.split(",") if x.strip()]
+
+    @property
+    def cors_headers(self) -> list[str]:
+        return [x.strip() for x in self.CORS_ALLOW_HEADERS.split(",") if x.strip()]
+
+    @property
+    def trusted_hosts(self) -> list[str]:
+        return [x.strip() for x in self.TRUSTED_HOSTS.split(",") if x.strip()]
 
     @field_validator("LOG_LEVEL")
     @classmethod
