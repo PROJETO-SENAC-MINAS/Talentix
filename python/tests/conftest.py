@@ -181,4 +181,7 @@ def autenticar():
         client.cookies.set(settings.SESSION_COOKIE_NAME,
                            _serializer.dumps({"id_usuario": usuario, "tipo_usuario": tipo,
                                               "auth_tag": sha256(SENHA_HASH.encode()).hexdigest()}))
+        csrf = "csrf-token-de-teste"
+        client.cookies.set(settings.CSRF_COOKIE_NAME, csrf)
+        client.headers["X-CSRF-Token"] = csrf
     return entrar
