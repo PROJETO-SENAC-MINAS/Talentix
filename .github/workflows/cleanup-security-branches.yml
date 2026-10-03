@@ -1,0 +1,23 @@
+name: Cleanup temporary security branches
+
+on:
+  push:
+    branches:
+      - arthur
+
+permissions:
+  contents: write
+
+jobs:
+  delete-temporary-branches:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Delete obsolete security branches
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git init cleanup
+          cd cleanup
+          git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git push origin --delete security/hardening-2026-10 || true
+          git push origin --delete security/hardening-2026-10-03 || true
