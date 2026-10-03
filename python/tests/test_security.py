@@ -237,3 +237,32 @@ def test_validacao_nao_devolve_senha_no_corpo_da_resposta(ambiente):
     assert resposta.status_code == 422
     assert senha_curta not in resposta.text
     assert 'input' not in resposta.json()['detail'][0]
+
+
+
+def test_csrf_bloqueia_mutacao_com_cookie_sem_header(ambiente, autenticar):
+    client, _ = ambiente
+    autenticar(client, "uc1", "candidato")
+    client.headers.pop("X-CSRF-Token", None)
+    resposta = client.post("/auth/logout")
+    assert resposta.status_code == 403
+
+
+def test_csrf_permite_mutacao_com_double_submit(ambiente, autenticar):
+    client, _ = ambiente
+    autenticar(client, "uc1", "candidato")
+    resposta = client.post("/auth/logout")
+    assert resposta.status_code == 200
+
+
+def test_cors_nao_autoriza_origem_estranha(ambiente):
+    client, _ = ambiente
+    resposta = client.options(
+        "/auth/login",
+        headers={
+            "Origin": "https://malicioso.example",
+            "Access-Control-Request-Method": "POST",
+        },
+    )
+    assert resposta.status_code == 400
+    assert resposta.headers.get("access-control-allow-origin") != "https://malicioso.example"
