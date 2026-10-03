@@ -61,6 +61,12 @@ def call(label, role, method, path, expected=200, check=None, kind="funcional", 
     if "json" in kwargs:
         result["request_body"] = clean(kwargs["json"])
     try:
+        if method.upper() in {"POST", "PUT", "PATCH", "DELETE"}:
+            csrf = clients[role].cookies.get("talentix_csrf")
+            if csrf:
+                headers = dict(kwargs.get("headers") or {})
+                headers.setdefault("X-CSRF-Token", csrf)
+                kwargs["headers"] = headers
         response = clients[role].request(method, path, **kwargs)
         try:
             body = response.json()
