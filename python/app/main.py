@@ -10,11 +10,12 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
+from starlette.middleware.trustedhost import TrustedHostMiddleware
 from pymysql.err import DataError, IntegrityError
 
 from app.core.config import settings
 from app.core.logging_config import configurar_logging
-from app.core.middleware import RateLimitMiddleware, RequestContextMiddleware
+from app.core.middleware import RateLimitMiddleware, RequestContextMiddleware, SecurityMiddleware
 from app.db.database import close_pool, fetch_one, init_pool
 from app.routers import (
     admin,
@@ -110,13 +111,16 @@ async def data_error(request: Request, exc):
 
 app.add_middleware(RequestContextMiddleware)
 app.add_middleware(RateLimitMiddleware)
+app.add_middleware(SecurityMiddleware)
+app.add_middleware(TrustedHostMiddleware, allowed_hosts=settings.trusted_hosts)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[settings.FRONTEND_ORIGIN],
+    allow_origins=settings.cors_origins,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=settings.cors_methods,
+    allow_headers=settings.cors_headers,
     expose_headers=["X-Request-ID"],
+    max_age=600,
 )
 
 for categoria in ("fotos", "logos", "curriculos"):
