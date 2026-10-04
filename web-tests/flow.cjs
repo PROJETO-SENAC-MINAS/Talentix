@@ -75,7 +75,7 @@ async function test(name,fn) {
       await candidate.locator('#completudeTexto').filter({hasText:'%'}).waitFor();
       const before=await candidate.locator('#completudeBarra').getAttribute('value');
       await candidate.locator('[name="pModalidade"][value="remoto"]').check();await candidate.locator('[name="pContrato"][value="CLT"]').check();
-      await candidate.locator('#pSoftSkills').fill('Comunicação, Colaboração');await candidate.locator('#pPreferencias').fill('Tecnologia e trabalho remoto');await candidate.locator('#pResumo').fill('Apresentação profissional revisada pelo candidato.');
+      await candidate.locator('#pSoftSkills').fill('Comunicação, Colaboração');await candidate.locator('#pPreferencias').fill('Tecnologia e trabalho remoto');await candidate.locator('#pResumo').fill('Apresentação profissional revisada pelo candidato.');await candidate.locator('#pPortfolio').fill('https://existing.example.com');
       await submit(candidate,'#btnSalvarPerfil','/candidatos/','PUT');
       const image=spawnSync(process.env.TEST_PYTHON || 'python',['-c','from PIL import Image; from io import BytesIO; import sys; b=BytesIO(); Image.new("RGB",(20,20),"blue").save(b,"PNG"); sys.stdout.buffer.write(b.getvalue())']);assert.equal(image.status,0);
       await candidate.locator('#fotoArquivo').setInputFiles({name:'foto.png',mimeType:'image/png',buffer:image.stdout});await submit(candidate,'#formFoto button','/foto-perfil');
@@ -100,11 +100,11 @@ async function test(name,fn) {
       const portfolioSuggestion=candidate.locator('#curriculoImportacaoResumo input[data-campo="portfolio_url"]');assert.equal(await portfolioSuggestion.isChecked(),true);
       const githubSuggestion=candidate.locator('#curriculoImportacaoResumo input[data-campo="github_url"]');assert.equal(await githubSuggestion.isChecked(),true);
       assert.equal(await candidate.locator('#pGithub').inputValue(),'','O perfil não é alterado antes da confirmação do candidato.');
-      assert.equal(await candidate.locator('#pPortfolio').inputValue(),'https://example.com/projeto','Campos já preenchidos são preservados antes da confirmação.');
+      assert.equal(await candidate.locator('#pPortfolio').inputValue(),'https://existing.example.com','Campos já preenchidos são preservados antes da confirmação.');
       await candidate.locator('#modalImportarCurriculo').evaluate(dialog=>{dialog.scrollTop=dialog.scrollHeight});await candidate.locator('#btnAplicarCurriculo').scrollIntoViewIfNeeded();
       const applied=await submit(candidate,'#btnAplicarCurriculo','/importacao/aplicar');assert.ok(Number(applied.importados?.perfil)>0,'O backend deve confirmar campos aplicados ao perfil.');
       await candidate.waitForFunction(()=>document.querySelector('#pGithub').value==='https://github.com/camila-reis');
-      assert.equal(await candidate.locator('#pPortfolio').inputValue(),'https://example.com/projeto','A importação padrão preserva campos que já estavam preenchidos.');
+      assert.equal(await candidate.locator('#pPortfolio').inputValue(),'https://existing.example.com','A importação padrão preserva campos que já estavam preenchidos.');
       await candidate.locator('#listaCurriculos').filter({hasText:'Currículo da apresentação'}).waitFor();
     });
     let applicationId;
