@@ -296,6 +296,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   let curriculosEmCache = [];
   let timerCurriculos;
+  let curriculoAguardandoRevisao = null;
   document.addEventListener('curriculos:atualizar', carregarCurriculos);
 
   function rotuloStatusImportacao(status) {
@@ -386,6 +387,20 @@ document.addEventListener('DOMContentLoaded', () => {
           </div>
         `;
       }).join('');
+
+      if (curriculoAguardandoRevisao) {
+        const pendente = curriculos.find(c => c.ID_Curriculos === curriculoAguardandoRevisao);
+        const statusPendente = Number(pendente?.ImportacaoStatus);
+        if (statusPendente === 3) {
+          const idPronto = curriculoAguardandoRevisao;
+          curriculoAguardandoRevisao = null;
+          await abrirImportacaoCurriculo(idPronto);
+          mostrarToast('Análise concluída. Revise as sugestões; seu perfil só muda quando você confirmar a importação.');
+        } else if (statusPendente === 4) {
+          curriculoAguardandoRevisao = null;
+          mostrarToast(pendente.ImportacaoErro || 'Não foi possível analisar este currículo.', 'error');
+        }
+      }
     } catch (erro) {
       container.innerHTML = `<p class="empty-state">${escapeHtml(erro.message)}</p>`;
     }
@@ -398,7 +413,7 @@ document.addEventListener('DOMContentLoaded', () => {
     return `
       <section>
         <h3>${escapeHtml(titulo)}</h3>
-        <ul>${itens.map((item, i) => `<li><label><input type="checkbox" data-secao="${secao}" data-indice="${i}"> ${renderItem(item)}</label></li>`).join('')}</ul>
+        <ul>${itens.map((item, i) => `<li><label><input type="checkbox" checked data-secao="${secao}" data-indice="${i}"> ${renderItem(item)}</label></li>`).join('')}</ul>
       </section>
     `;
   }
@@ -420,7 +435,7 @@ document.addEventListener('DOMContentLoaded', () => {
         <section>
           <h3>Perfil</h3>
           ${camposPerfil.length
-            ? camposPerfil.map(([nome, valor, chave]) => `<p><label><input type="checkbox" data-secao="perfil" data-campo="${chave}"> <strong>${escapeHtml(nome)}:</strong> ${escapeHtml(String(valor))}</label></p>`).join('')
+            ? camposPerfil.map(([nome, valor, chave]) => `<p><label><input type="checkbox" checked data-secao="perfil" data-campo="${chave}"> <strong>${escapeHtml(nome)}:</strong> ${escapeHtml(String(valor))}</label></p>`).join('')
             : '<p class="curriculum-import-empty">Nenhum dado de perfil identificado.</p>'}
         </section>
         <section><h3>Contato identificado</h3><p>${escapeHtml(dados?.contato?.nome || '')} · ${escapeHtml(dados?.contato?.email || '')} · ${escapeHtml(dados?.contato?.telefone || '')}</p><p>Revise seu contato nas configurações da conta. O e-mail de acesso não é alterado por importação.</p></section>
@@ -439,6 +454,10 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   async function abrirImportacaoCurriculo(idCurriculo) {
+    if ($('#modalImportarCurriculo')?.open && $('#curriculoImportacaoId').value === idCurriculo) {
+      curriculoAguardandoRevisao = null;
+      return;
+    }
     const importacao = await api(`/curriculos/${idCurriculo}/importacao`);
     if (Number(importacao.ID_Status_Processamento_IA) !== 3 || !importacao.DadosExtraidos) {
       throw new Error(importacao.ErroProcessamento || 'A análise ainda não está pronta.');
@@ -454,6 +473,7 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       const importacao = await api(`/curriculos/${idCurriculo}/analisar`, { method: 'POST' });
       if (Number(importacao.ID_Status_Processamento_IA) !== 3) {
+        curriculoAguardandoRevisao = idCurriculo;
         mostrarToast('Currículo na fila de análise. O resultado será atualizado automaticamente.'); await carregarCurriculos(); return;
       }
       mostrarToast('Currículo analisado. Revise os dados antes de importar.');
@@ -484,6 +504,9 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       const curriculo = await api(`/candidatos/${idCandidato}/curriculos`, { method: 'POST', body: formData });
       $('#formCurriculo').reset();
+      if ([1, 2].includes(Number(curriculo.importacao?.ID_Status_Processamento_IA))) {
+        curriculoAguardandoRevisao = curriculo.ID_Curriculos;
+      }
       await carregarCurriculos();
 
       if (Number(curriculo.importacao?.ID_Status_Processamento_IA) === 3 && curriculo.importacao?.DadosExtraidos) {
@@ -493,6 +516,8 @@ document.addEventListener('DOMContentLoaded', () => {
         $('#modalImportarCurriculo').showModal();
       } else if (curriculo.importacao?.ErroProcessamento) {
         mostrarToast(`Currículo salvo. ${curriculo.importacao.ErroProcessamento}`, 'error');
+      } else if ([1, 2].includes(Number(curriculo.importacao?.ID_Status_Processamento_IA)) && curriculoAguardandoRevisao === curriculo.ID_Curriculos) {
+        mostrarToast('Currículo enviado e em análise. A prévia abrirá quando o processamento terminar.');
       } else {
         mostrarToast('Currículo enviado com sucesso.');
       }

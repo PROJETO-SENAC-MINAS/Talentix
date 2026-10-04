@@ -89,20 +89,28 @@ async function test(name,fn) {
       const language=await candidate.locator('#idiomaCatalogo option').nth(1).getAttribute('value');await candidate.locator('#idiomaCatalogo').selectOption(language);await candidate.locator('#idiomaNivel').selectOption('fluente');await submit(candidate,'#formIdioma button','/idiomas');
       await candidate.locator('#listaIdiomasProfissionais').filter({hasText:'fluente'}).waitFor();
     });
-    await test('curriculo PDF Talentix gerado e importacao exige selecao manual',async()=> {
+    await test('curriculo PDF Talentix gera pre-visao e aguarda confirmacao manual',async()=> {
       await tab(candidate,'perfil');await candidate.locator('#secaoCurriculos').scrollIntoViewIfNeeded();const cv=await submit(candidate,'#gerarCurriculoTalentix','/curriculo-talentix');
       const saved=await candidate.context().request.get(API+`/candidatos/${cv.ID_Candidatos}/curriculos`);
       assert.ok((await saved.json()).some(item=>item.ID_Curriculos===cv.ID_Curriculos),'PDF Talentix deve ficar persistido no histórico do candidato.');
       await candidate.reload();await candidate.waitForLoadState('networkidle');await candidate.locator(`[data-analisar-curriculo="${cv.ID_Curriculos}"]`).waitFor();await submit(candidate,`[data-analisar-curriculo="${cv.ID_Curriculos}"]`,'/analisar');
       const result=spawnSync(process.env.TEST_PYTHON || 'python',['-m','app.worker_profissional','--once'],{cwd:path.join(__dirname,'../python'),env:process.env,encoding:'utf8',timeout:120000});assert.equal(result.status,0,result.stderr);
       await candidate.locator(`#listaCurriculos [data-revisar-importacao="${cv.ID_Curriculos}"]`).waitFor({timeout:15000});await candidate.locator(`#listaCurriculos [data-revisar-importacao="${cv.ID_Curriculos}"]`).click();
-      await candidate.locator('#modalImportarCurriculo[open]').waitFor();assert.equal(await candidate.locator('#curriculoImportacaoResumo input:checked').count(),0);await audit(candidate,'curriculo-importacao-seletiva');
+      await candidate.locator('#modalImportarCurriculo[open]').waitFor();assert.ok(await candidate.locator('#curriculoImportacaoResumo input[data-secao="perfil"]:checked').count()>0);await audit(candidate,'curriculo-importacao-seletiva');
       const checkbox=candidate.locator('#curriculoImportacaoResumo input[data-secao="perfil"]').first();await checkbox.check();await submit(candidate,'#btnAplicarCurriculo','/importacao/aplicar');await candidate.locator('#modalImportarCurriculo').waitFor({state:'hidden'});
     });
     let cvUrl;
-    await test('upload retorna curriculo real no isolamento padrao',async()=> {
-      await tab(candidate,'perfil');await candidate.locator('#secaoCurriculos').scrollIntoViewIfNeeded();await candidate.locator('#cvTitulo').fill('Currículo da apresentação');await candidate.locator('#cvPrincipal').check();await candidate.locator('#cvArquivo').setInputFiles({name:'curriculo.pdf',mimeType:'application/pdf',buffer:Buffer.from('%PDF-1.4\n% Documento ficticio para teste de transporte\n%%EOF\n')});
-      const cv=await submit(candidate,'#btnEnviarCurriculo','/curriculos');assert.ok(cv?.ID_Curriculos);cvUrl=cv.ArquivoUrl;await candidate.locator('#listaCurriculos').filter({hasText:'Currículo da apresentação'}).waitFor();
+    await test('upload analisa, sugere preenchimento e só altera após confirmação',async()=> {
+      await tab(candidate,'perfil');await candidate.locator('#secaoCurriculos').scrollIntoViewIfNeeded();await candidate.locator('#cvTitulo').fill('Currículo da apresentação');await candidate.locator('#cvPrincipal').check();
+      const pdf=spawnSync(process.env.TEST_PYTHON || 'python',['-c',"from io import BytesIO; from reportlab.pdfgen import canvas; import sys; out=BytesIO(); c=canvas.Canvas(out); lines=['Camila Reis','Analista de Qualidade','Contagem - MG','https://portfolio.example.com','Resumo','Profissional de QA com testes automatizados.']; [c.drawString(72,800-i*24,line) for i,line in enumerate(lines)]; c.save(); sys.stdout.buffer.write(out.getvalue())"]);assert.equal(pdf.status,0,pdf.stderr);
+      await candidate.locator('#cvArquivo').setInputFiles({name:'curriculo.pdf',mimeType:'application/pdf',buffer:pdf.stdout});
+      const cv=await submit(candidate,'#btnEnviarCurriculo','/curriculos');assert.ok(cv?.ID_Curriculos);cvUrl=cv.ArquivoUrl;
+      const worker=spawnSync(process.env.TEST_PYTHON || 'python',['-m','app.worker_profissional','--once'],{cwd:path.join(__dirname,'../python'),env:process.env,encoding:'utf8',timeout:120000});assert.equal(worker.status,0,worker.stderr);
+      await candidate.locator('#modalImportarCurriculo[open]').waitFor({timeout:20000});
+      const portfolioSuggestion=candidate.locator('#curriculoImportacaoResumo input[data-campo="portfolio_url"]');assert.equal(await portfolioSuggestion.isChecked(),true);
+      assert.equal(await candidate.locator('#pPortfolio').inputValue(),'','O perfil não é alterado antes da confirmação do candidato.');
+      await submit(candidate,'#btnAplicarCurriculo','/importacao/aplicar');assert.equal(await candidate.locator('#pPortfolio').inputValue(),'https://portfolio.example.com');
+      await candidate.locator('#listaCurriculos').filter({hasText:'Currículo da apresentação'}).waitFor();
     });
     let applicationId;
     await test('candidato seleciona e anexa curriculo ao se candidatar',async()=> {
