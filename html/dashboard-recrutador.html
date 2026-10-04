@@ -1,8 +1,247 @@
 <!DOCTYPE html>
-<html lang="pt-BR"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Painel do recrutador — Talentix</title><link rel="stylesheet" href="../css/painel.css"><link rel="stylesheet" href="../css/acessibilidade.css">\n</head>
-<body data-painel="recrutador"><div class="app"><aside class="sidebar"><a href="index.html" class="sidebar__brand">Talentix</a><nav class="sidebar__nav" aria-label="Painel"><button type="button" class="nav-item active" data-tab="perfil">Empresa</button><button type="button" class="nav-item " data-tab="vagas">Vagas</button><button type="button" class="nav-item " data-tab="candidaturas">Candidaturas</button><button type="button" class="nav-item " data-tab="recrutadores">Equipe</button><button type="button" class="nav-item " data-tab="notificacoes">Notificações</button><button type="button" class="nav-item " data-tab="mensagens">Mensagens</button></nav><div class="sidebar__footer"><div class="user-chip"><div class="user-chip__avatar" id="userAvatar">–</div><div><div class="user-chip__name" id="userName">Carregando…</div><div class="user-chip__role">Painel do recrutador</div></div></div><button class="btn-logout" id="btnLogout" type="button">Sair</button><button class="btn-switch-mode" id="btnModoAdmin" type="button" hidden>Voltar à administração</button></div></aside><main class="content"><div class="toast" id="toast" role="status" aria-live="polite"></div><section class="tab-panel active" id="tab-perfil"><header class="content__header"><div><h1 id="tituloEmpresa">Minha empresa</h1><p class="content__sub">Mantenha o perfil que acompanha suas vagas.</p></div></header><div class="metric-grid" id="metricasEmpresa"></div><div class="card"><form id="formEmpresa"><div class="grid-2"><div class="field"><label for="empresaNome">Nome fantasia</label><input id="empresaNome" maxlength="200"></div><div class="field"><label for="empresaSetor">Setor</label><input id="empresaSetor" maxlength="100"></div></div><div class="field"><label for="empresaDescricao">Descrição</label><textarea id="empresaDescricao" rows="4"></textarea></div><div class="grid-2"><div class="field"><label for="empresaSite">Site</label><input id="empresaSite" type="url" maxlength="300"></div><div class="field"><label for="empresaEndereco">Endereço</label><input id="empresaEndereco" maxlength="300"></div></div><button class="btn btn-primary" type="submit" data-responsavel>Salvar perfil</button></form></div></section>
-<section class="tab-panel" id="tab-vagas"><header class="content__header"><h1>Vagas da empresa</h1><button class="btn btn-primary" id="novaVaga" type="button">Criar vaga</button></header><div class="list" id="listaVagasEmpresa"></div></section>
-<section class="tab-panel" id="tab-candidaturas"><header class="content__header"><h1>Candidaturas recebidas</h1></header><div class="field"><label for="filtroVagaEmpresa">Vaga</label><select id="filtroVagaEmpresa"><option value="">Todas as vagas</option></select></div><div class="list" id="listaCandidaturasEmpresa"></div></section>
-<section class="tab-panel" id="tab-recrutadores"><header class="content__header"><h1>Equipe de recrutamento</h1></header><div class="card" data-responsavel><form id="formRecrutador"><div class="field"><label for="recrUsuario">ID do usuário cadastrado</label><input id="recrUsuario" required maxlength="36"><small class="hint">O recrutador encontra seu ID no painel após se cadastrar. Use seu próprio ID para conduzir entrevistas como responsável.</small></div><div class="field"><label for="recrCargo">Cargo</label><input id="recrCargo" maxlength="100"></div><button class="btn btn-primary" type="submit">Adicionar recrutador</button></form></div><div class="list" id="listaRecrutadores"></div></section><section class="tab-panel" id="tab-notificacoes"><header class="content__header"><h1>Notificações</h1></header><div class="list" id="listaNotificacoes"></div></section>
-<section class="tab-panel" id="tab-mensagens"><header class="content__header"><h1>Mensagens</h1></header><div class="list" id="listaMensagens"></div></section></main></div><dialog id="modalVagaEmpresa"><div class="dialog-header"><h2 id="tituloModalVaga">Criar vaga</h2><button id="fecharVagaEmpresa" type="button" aria-label="Fechar vaga">×</button></div><form id="formVagaEmpresa"><input type="hidden" id="vagaId"><div class="field"><label for="vagaTitulo">Título da vaga</label><input id="vagaTitulo" required maxlength="200"></div><div class="field"><label for="vagaDescricao">Descrição da vaga</label><textarea id="vagaDescricao" required maxlength="20000" rows="5"></textarea></div><div class="grid-2"><div class="field"><label for="vagaModalidade">Modalidade</label><select id="vagaModalidade"><option>Presencial</option><option>Híbrido</option><option>Remoto</option></select></div><div class="field"><label for="vagaNivel">Nível</label><select id="vagaNivel"><option>Estágio</option><option>Júnior</option><option>Pleno</option><option>Sênior</option></select></div></div><div class="grid-2"><div class="field"><label for="vagaContrato">Contrato</label><input id="vagaContrato" maxlength="50" placeholder="CLT, PJ ou estágio"></div><div class="field"><label for="vagaLocal">Localização</label><input id="vagaLocal" maxlength="200"></div></div><div class="grid-2"><div class="field"><label for="vagaSalarioMin">Salário mínimo</label><input id="vagaSalarioMin" type="number" min="0" step="0.01"></div><div class="field"><label for="vagaSalarioMax">Salário máximo</label><input id="vagaSalarioMax" type="number" min="0" step="0.01"></div></div><div class="field"><label for="vagaHabilidades">Habilidades obrigatórias</label><input id="vagaHabilidades" placeholder="Python, SQL, comunicação" maxlength="2000"><small class="hint">Separe os nomes por vírgula. As habilidades são usadas na análise de compatibilidade.</small></div><label><input id="vagaConfidencial" type="checkbox"> Salário confidencial</label><div class="form-actions"><button class="btn btn-primary" type="submit">Salvar vaga</button></div></form></dialog>
-<dialog id="modalProcesso"><div class="dialog-header"><h2 id="processoTitulo">Processo seletivo</h2><button id="fecharProcesso" type="button" aria-label="Fechar processo">×</button></div><div id="processoPerfil"></div><div class="panel-toolbar"><label for="processoStatus">Status da candidatura</label><select id="processoStatus"></select><button class="btn btn-primary" id="salvarStatus" type="button">Atualizar status</button></div><h3 class="section-heading">Etapas</h3><div id="processoEtapas"></div><form id="formEtapa"><div class="field"><label for="etapaNome">Nome da nova etapa</label><input id="etapaNome" required maxlength="150"></div><button class="btn btn-secondary" type="submit">Adicionar etapa</button></form><h3 class="section-heading">Entrevistas</h3><div id="processoEntrevistas"></div><form id="formEntrevista"><div class="field"><label for="entrevistaRecrutador">Recrutador responsável</label><select id="entrevistaRecrutador" required></select></div><div class="field"><label for="entrevistaData">Data e hora</label><input id="entrevistaData" type="datetime-local" required></div><div class="field"><label for="entrevistaLocal">Local ou link</label><input id="entrevistaLocal" maxlength="300"></div><button class="btn btn-primary" type="submit">Agendar entrevista</button></form></dialog><dialog id="modalMensagem"><div class="dialog-header"><h2>Conversa</h2><button type="button" id="fecharMensagem" aria-label="Fechar conversa">×</button></div><div id="conversa"></div><form id="formMensagem"><input type="hidden" id="msgDestinatario"><input type="hidden" id="msgContexto"><div class="field"><label for="msgConteudo">Sua mensagem</label><textarea id="msgConteudo" required minlength="1" maxlength="10000" rows="4"></textarea></div><button class="btn btn-primary" type="submit">Enviar mensagem</button></form></dialog><script src="../js/config.js"></script><script src="../js/painel-comum.js"></script><script src="../js/dashboard-empresa.js"></script><script src="../js/seguranca-conta.js"></script>\n<script src="../js/acessibilidade.js"></script>\n</body></html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Painel do recrutador — Talentix</title>
+    <link rel="stylesheet" href="../css/painel.css">
+    <link rel="stylesheet" href="../css/acessibilidade.css">
+  </head>
+
+  <body data-painel="recrutador">
+    <div class="app">
+      <aside class="sidebar">
+        <a href="index.html" class="sidebar__brand">Talentix</a>
+        <nav class="sidebar__nav" aria-label="Painel">
+          <button type="button" class="nav-item active" data-tab="perfil">Empresa</button>
+          <button type="button" class="nav-item " data-tab="vagas">Vagas</button>
+          <button type="button" class="nav-item " data-tab="candidaturas">Candidaturas</button>
+          <button type="button" class="nav-item " data-tab="recrutadores">Equipe</button>
+          <button type="button" class="nav-item " data-tab="notificacoes">Notificações</button>
+          <button type="button" class="nav-item " data-tab="mensagens">Mensagens</button>
+        </nav>
+        <div class="sidebar__footer">
+          <div class="user-chip">
+            <div class="user-chip__avatar" id="userAvatar">–</div>
+            <div>
+              <div class="user-chip__name" id="userName">Carregando…</div>
+              <div class="user-chip__role">Painel do recrutador</div>
+            </div>
+          </div>
+          <button class="btn-logout" id="btnLogout" type="button">Sair</button>
+          <button class="btn-switch-mode" id="btnModoAdmin" type="button" hidden>Voltar à administração</button>
+        </div>
+      </aside>
+      <main class="content">
+        <div class="toast" id="toast" role="status" aria-live="polite"></div>
+        <section class="tab-panel active" id="tab-perfil">
+          <header class="content__header">
+            <div>
+              <h1 id="tituloEmpresa">Minha empresa</h1>
+              <p class="content__sub">Mantenha o perfil que acompanha suas vagas.</p>
+            </div>
+          </header>
+          <div class="metric-grid" id="metricasEmpresa"></div>
+          <div class="card">
+            <form id="formEmpresa">
+              <div class="grid-2">
+                <div class="field">
+                  <label for="empresaNome">Nome fantasia</label>
+                  <input id="empresaNome" maxlength="200">
+                </div>
+                <div class="field">
+                  <label for="empresaSetor">Setor</label>
+                  <input id="empresaSetor" maxlength="100">
+                </div>
+              </div>
+              <div class="field">
+                <label for="empresaDescricao">Descrição</label>
+                <textarea id="empresaDescricao" rows="4"></textarea>
+              </div>
+              <div class="grid-2">
+                <div class="field">
+                  <label for="empresaSite">Site</label>
+                  <input id="empresaSite" type="url" maxlength="300">
+                </div>
+                <div class="field">
+                  <label for="empresaEndereco">Endereço</label>
+                  <input id="empresaEndereco" maxlength="300">
+                </div>
+              </div>
+              <button class="btn btn-primary" type="submit" data-responsavel>Salvar perfil</button>
+            </form>
+          </div>
+        </section>
+        <section class="tab-panel" id="tab-vagas">
+          <header class="content__header">
+            <h1>Vagas da empresa</h1>
+            <button class="btn btn-primary" id="novaVaga" type="button">Criar vaga</button>
+          </header>
+          <div class="list" id="listaVagasEmpresa"></div>
+        </section>
+        <section class="tab-panel" id="tab-candidaturas">
+          <header class="content__header">
+            <h1>Candidaturas recebidas</h1>
+          </header>
+          <div class="field">
+            <label for="filtroVagaEmpresa">Vaga</label>
+            <select id="filtroVagaEmpresa">
+              <option value="">Todas as vagas</option>
+            </select>
+          </div>
+          <div class="list" id="listaCandidaturasEmpresa"></div>
+        </section>
+        <section class="tab-panel" id="tab-recrutadores">
+          <header class="content__header">
+            <h1>Equipe de recrutamento</h1>
+          </header>
+          <div class="card" data-responsavel>
+            <form id="formRecrutador">
+              <div class="field">
+                <label for="recrUsuario">ID do usuário cadastrado</label>
+                <input id="recrUsuario" required maxlength="36">
+                <small class="hint">O recrutador encontra seu ID no painel após se cadastrar. Use seu próprio ID para conduzir entrevistas como responsável.</small>
+              </div>
+              <div class="field">
+                <label for="recrCargo">Cargo</label>
+                <input id="recrCargo" maxlength="100">
+              </div>
+              <button class="btn btn-primary" type="submit">Adicionar recrutador</button>
+            </form>
+          </div>
+          <div class="list" id="listaRecrutadores"></div>
+        </section>
+        <section class="tab-panel" id="tab-notificacoes">
+          <header class="content__header">
+            <h1>Notificações</h1>
+          </header>
+          <div class="list" id="listaNotificacoes"></div>
+        </section>
+        <section class="tab-panel" id="tab-mensagens">
+          <header class="content__header">
+            <h1>Mensagens</h1>
+          </header>
+          <div class="list" id="listaMensagens"></div>
+        </section>
+      </main>
+    </div>
+    <dialog id="modalVagaEmpresa">
+      <div class="dialog-header">
+        <h2 id="tituloModalVaga">Criar vaga</h2>
+        <button id="fecharVagaEmpresa" type="button" aria-label="Fechar vaga">×</button>
+      </div>
+      <form id="formVagaEmpresa">
+        <input type="hidden" id="vagaId">
+        <div class="field">
+          <label for="vagaTitulo">Título da vaga</label>
+          <input id="vagaTitulo" required maxlength="200">
+        </div>
+        <div class="field">
+          <label for="vagaDescricao">Descrição da vaga</label>
+          <textarea id="vagaDescricao" required maxlength="20000" rows="5"></textarea>
+        </div>
+        <div class="grid-2">
+          <div class="field">
+            <label for="vagaModalidade">Modalidade</label>
+            <select id="vagaModalidade">
+              <option>Presencial</option><option>Híbrido</option><option>Remoto</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="vagaNivel">Nível</label>
+            <select id="vagaNivel">
+              <option>Estágio</option><option>Júnior</option><option>Pleno</option><option>Sênior</option>
+            </select>
+          </div>
+        </div>
+        <div class="grid-2">
+          <div class="field">
+            <label for="vagaContrato">Contrato</label>
+            <input id="vagaContrato" maxlength="50" placeholder="CLT, PJ ou estágio">
+          </div>
+          <div class="field">
+            <label for="vagaLocal">Localização</label>
+            <input id="vagaLocal" maxlength="200">
+          </div>
+        </div>
+        <div class="grid-2">
+          <div class="field">
+            <label for="vagaSalarioMin">Salário mínimo</label>
+            <input id="vagaSalarioMin" type="number" min="0" step="0.01">
+          </div>
+          <div class="field">
+            <label for="vagaSalarioMax">Salário máximo</label>
+            <input id="vagaSalarioMax" type="number" min="0" step="0.01">
+          </div>
+        </div>
+        <div class="field">
+          <label for="vagaHabilidades">Habilidades obrigatórias</label>
+          <input id="vagaHabilidades" placeholder="Python, SQL, comunicação" maxlength="2000">
+          <small class="hint">Separe os nomes por vírgula. As habilidades são usadas na análise de compatibilidade.</small>
+        </div>
+        <label>
+          <input id="vagaConfidencial" type="checkbox">
+          Salário confidencial
+        </label>
+        <div class="form-actions">
+          <button class="btn btn-primary" type="submit">Salvar vaga</button>
+        </div>
+      </form>
+    </dialog>
+    <dialog id="modalProcesso">
+      <div class="dialog-header">
+        <h2 id="processoTitulo">Processo seletivo</h2>
+        <button id="fecharProcesso" type="button" aria-label="Fechar processo">×</button>
+      </div>
+      <div id="processoPerfil"></div>
+      <div class="panel-toolbar">
+        <label for="processoStatus">Status da candidatura</label>
+        <select id="processoStatus"></select>
+        <button class="btn btn-primary" id="salvarStatus" type="button">Atualizar status</button>
+      </div>
+      <h3 class="section-heading">Etapas</h3>
+      <div id="processoEtapas"></div>
+      <form id="formEtapa">
+        <div class="field">
+          <label for="etapaNome">Nome da nova etapa</label>
+          <input id="etapaNome" required maxlength="150">
+        </div>
+        <button class="btn btn-secondary" type="submit">Adicionar etapa</button>
+      </form>
+      <h3 class="section-heading">Entrevistas</h3>
+      <div id="processoEntrevistas"></div>
+      <form id="formEntrevista">
+        <div class="field">
+          <label for="entrevistaRecrutador">Recrutador responsável</label>
+          <select id="entrevistaRecrutador" required></select>
+        </div>
+        <div class="field">
+          <label for="entrevistaData">Data e hora</label>
+          <input id="entrevistaData" type="datetime-local" required>
+        </div>
+        <div class="field">
+          <label for="entrevistaLocal">Local ou link</label>
+          <input id="entrevistaLocal" maxlength="300">
+        </div>
+        <button class="btn btn-primary" type="submit">Agendar entrevista</button>
+      </form>
+    </dialog>
+    <dialog id="modalMensagem">
+      <div class="dialog-header">
+        <h2>Conversa</h2>
+        <button type="button" id="fecharMensagem" aria-label="Fechar conversa">×</button>
+      </div>
+      <div id="conversa"></div>
+      <form id="formMensagem">
+        <input type="hidden" id="msgDestinatario">
+        <input type="hidden" id="msgContexto">
+        <div class="field">
+          <label for="msgConteudo">Sua mensagem</label>
+          <textarea id="msgConteudo" required minlength="1" maxlength="10000" rows="4"></textarea>
+        </div>
+        <button class="btn btn-primary" type="submit">Enviar mensagem</button>
+      </form>
+    </dialog>
+    <script src="../js/config.js"></script><script src="../js/painel-comum.js"></script><script src="../js/dashboard-empresa.js"></script><script src="../js/seguranca-conta.js"></script> <script src="../js/acessibilidade.js"></script>
+  </body>
+</html>
