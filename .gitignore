@@ -24,13 +24,21 @@ env/
 # Uploads
 # =========================
 
+python/uploads/fotos/*
+python/uploads/logos/*
+python/uploads/curriculos/*
+!python/uploads/fotos/.gitkeep
+!python/uploads/logos/.gitkeep
+!python/uploads/curriculos/.gitkeep
+python/uploads/curriculos~*
+
+# Compatibilidade caso UPLOAD_DIR seja apontado para a raiz.
 uploads/fotos/*
 uploads/logos/*
 uploads/curriculos/*
 !uploads/fotos/.gitkeep
 !uploads/logos/.gitkeep
 !uploads/curriculos/.gitkeep
-uploads/curriculos~*
 
 # =========================
 # Logs e arquivos temporários

@@ -54,6 +54,7 @@ TAGS_METADATA = [
 async def lifespan(app: FastAPI):
     await init_pool()
     await contato.garantir_schema_contato()
+    await curriculo.garantir_schema_curriculo_importacoes()
     try:
         yield
     finally:

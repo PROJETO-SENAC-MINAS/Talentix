@@ -278,31 +278,166 @@ document.addEventListener('DOMContentLoaded', () => {
      CURRÍCULO (arquivo) + EXPERIÊNCIAS
      ============================================================ */
 
-    async function carregarCurriculos() {
+  let curriculosEmCache = [];
+
+  function rotuloStatusImportacao(status) {
+    return {
+      1: 'Na fila',
+      2: 'Analisando',
+      3: 'Pronto para revisar',
+      4: 'Falha na análise',
+    }[Number(status)] || 'Não analisado';
+  }
+
+  function atualizarEstadoImportacao(curriculos) {
+    const container = $('#curriculoImportacaoEstado');
+    if (!container) return;
+    const analisados = curriculos.filter((c) => Number(c.ImportacaoStatus) === 3);
+    const falhos = curriculos.filter((c) => Number(c.ImportacaoStatus) === 4);
+
+    if (analisados.length) {
+      const atual = analisados[0];
+      container.innerHTML = `
+        <div class="list-item">
+          <div class="list-item__main">
+            <p class="list-item__title">Dados identificados em ${escapeHtml(atual.Titulo)}</p>
+            <p class="list-item__sub">Revise as sugestões antes de atualizar seu perfil.</p>
+          </div>
+          <div class="list-item__actions">
+            <button type="button" class="btn btn-primary" data-revisar-importacao="${escapeHtml(atual.ID_Curriculos)}">Revisar e importar</button>
+          </div>
+        </div>
+      `;
+      return;
+    }
+
+    if (falhos.length) {
+      container.innerHTML = `<p class="empty-state">${escapeHtml(falhos[0].ImportacaoErro || 'Não foi possível analisar o currículo.')}</p>`;
+      return;
+    }
+
+    container.innerHTML = '<p class="empty-state">Envie um PDF ou DOCX. O Talentix tentará identificar as informações automaticamente.</p>';
+  }
+
+  async function carregarCurriculos() {
     const container = $('#listaCurriculos');
     try {
       const curriculos = await api(`/candidatos/${idCandidato}/curriculos`);
+      curriculosEmCache = curriculos;
+      atualizarEstadoImportacao(curriculos);
+
       if (curriculos.length === 0) {
         container.innerHTML = '<p class="empty-state">Nenhum currículo enviado ainda.</p>';
         return;
       }
+
       container.innerHTML = curriculos.map((c) => {
         const tamanhoKb = c.ArquivoTamanhoBytes ? (Number(c.ArquivoTamanhoBytes) / 1024).toFixed(0) : '—';
+        const extensao = String(c.ArquivoUrl || '').split('.').pop().toLowerCase();
+        const statusImportacao = Number(c.ImportacaoStatus || 0);
+        const podeAnalisar = ['pdf', 'docx'].includes(extensao);
+        let acaoImportacao = '';
+
+        if (statusImportacao === 3) {
+          acaoImportacao = `<button type="button" class="btn btn-primary" data-revisar-importacao="${escapeHtml(c.ID_Curriculos)}">Revisar dados</button>`;
+        } else if (statusImportacao === 2 || statusImportacao === 1) {
+          acaoImportacao = '<span class="badge badge--muted">Analisando…</span>';
+        } else if (podeAnalisar) {
+          acaoImportacao = `<button type="button" class="btn btn-secondary" data-analisar-curriculo="${escapeHtml(c.ID_Curriculos)}">Analisar currículo</button>`;
+        } else {
+          acaoImportacao = '<span class="badge badge--muted">Importação: somente PDF/DOCX</span>';
+        }
+
         return `
           <div class="list-item">
             <div class="list-item__main">
               <p class="list-item__title">${escapeHtml(c.Titulo)} ${c.Principal ? '<span class="badge">Principal</span>' : ''}</p>
               <p class="list-item__sub">${tamanhoKb} KB · ${escapeHtml(c.ArquivoTipoMime || '')}</p>
+              <p class="list-item__meta">Preenchimento inteligente: ${escapeHtml(rotuloStatusImportacao(c.ImportacaoStatus))}</p>
+              ${c.ImportacaoErro ? `<p class="list-item__meta">${escapeHtml(c.ImportacaoErro)}</p>` : ''}
             </div>
             <div class="list-item__actions">
               <a class="btn btn-secondary" style="text-decoration:none;padding:7px 12px;font-size:12.5px;" href="${API_BASE_URL}${c.ArquivoUrl}" target="_blank" rel="noopener">Abrir</a>
-              <button type="button" class="btn-danger-ghost" data-remover-curriculo="${c.ID_Curriculos}">Remover</button>
+              ${acaoImportacao}
+              <button type="button" class="btn-danger-ghost" data-remover-curriculo="${escapeHtml(c.ID_Curriculos)}">Remover</button>
             </div>
           </div>
         `;
       }).join('');
     } catch (erro) {
       container.innerHTML = `<p class="empty-state">${escapeHtml(erro.message)}</p>`;
+    }
+  }
+
+  function listaPreview(titulo, itens, renderItem) {
+    if (!itens?.length) {
+      return `<section><h3>${escapeHtml(titulo)}</h3><p class="curriculum-import-empty">Nada identificado.</p></section>`;
+    }
+    return `
+      <section>
+        <h3>${escapeHtml(titulo)}</h3>
+        <ul>${itens.map((item) => `<li>${renderItem(item)}</li>`).join('')}</ul>
+      </section>
+    `;
+  }
+
+  function renderizarPreviewImportacao(dados) {
+    const perfil = dados?.perfil || {};
+    const camposPerfil = [
+      ['Título', perfil.titulo_profissional],
+      ['Resumo', perfil.resumo],
+      ['Localização', [perfil.cidade, perfil.estado].filter(Boolean).join(' - ')],
+      ['LinkedIn', perfil.linkedin_url],
+      ['GitHub', perfil.github_url],
+      ['Portfólio', perfil.portfolio_url],
+      ['Experiência estimada', Number.isFinite(perfil.experiencia_anos) ? `${perfil.experiencia_anos} ano(s)` : null],
+    ].filter(([, valor]) => valor);
+
+    $('#curriculoImportacaoResumo').innerHTML = `
+      <div class="curriculum-import-preview">
+        <section>
+          <h3>Perfil</h3>
+          ${camposPerfil.length
+            ? camposPerfil.map(([nome, valor]) => `<p><strong>${escapeHtml(nome)}:</strong> ${escapeHtml(String(valor))}</p>`).join('')
+            : '<p class="curriculum-import-empty">Nenhum dado de perfil identificado.</p>'}
+        </section>
+        ${listaPreview('Experiências', dados?.experiencias, (item) =>
+          `${escapeHtml(item.cargo || '')} · ${escapeHtml(item.empresa || '')} ${item.data_inicio ? `(${escapeHtml(item.data_inicio.slice(0, 4))}${item.atual ? ' — atual' : item.data_fim ? ` — ${escapeHtml(item.data_fim.slice(0, 4))}` : ''})` : ''}`
+        )}
+        ${listaPreview('Formação e certificados', dados?.formacoes, (item) =>
+          `${escapeHtml(item.curso || '')} · ${escapeHtml(item.instituicao || '')}${item.nivel ? ` — ${escapeHtml(item.nivel)}` : ''}`
+        )}
+        ${listaPreview('Habilidades', dados?.habilidades, (item) => escapeHtml(item.nome || ''))}
+        ${listaPreview('Idiomas', dados?.idiomas, (item) =>
+          `${escapeHtml(item.idioma || '')}${item.nivel ? ` — ${escapeHtml(item.nivel)}` : ''}`
+        )}
+      </div>
+    `;
+  }
+
+  async function abrirImportacaoCurriculo(idCurriculo) {
+    const importacao = await api(`/curriculos/${idCurriculo}/importacao`);
+    if (Number(importacao.ID_Status_Processamento_IA) !== 3 || !importacao.DadosExtraidos) {
+      throw new Error(importacao.ErroProcessamento || 'A análise ainda não está pronta.');
+    }
+    $('#curriculoImportacaoId').value = idCurriculo;
+    renderizarPreviewImportacao(importacao.DadosExtraidos);
+    $('#modalImportarCurriculo').showModal();
+  }
+
+  async function analisarCurriculoSelecionado(idCurriculo, botao) {
+    botao?.setAttribute('data-loading', 'true');
+    if (botao) botao.disabled = true;
+    try {
+      const importacao = await api(`/curriculos/${idCurriculo}/analisar`, { method: 'POST' });
+      mostrarToast('Currículo analisado. Revise os dados antes de importar.');
+      await carregarCurriculos();
+      renderizarPreviewImportacao(importacao.DadosExtraidos);
+      $('#curriculoImportacaoId').value = idCurriculo;
+      $('#modalImportarCurriculo').showModal();
+    } finally {
+      botao?.removeAttribute('data-loading');
+      if (botao) botao.disabled = false;
     }
   }
 
@@ -317,13 +452,24 @@ document.addEventListener('DOMContentLoaded', () => {
     const formData = new FormData();
     formData.append('titulo', $('#cvTitulo').value.trim());
     formData.append('principal', $('#cvPrincipal').checked);
+    formData.append('analisar', true);
     formData.append('arquivo', arquivo);
 
     try {
-      await api(`/candidatos/${idCandidato}/curriculos`, { method: 'POST', body: formData });
-      mostrarToast('Currículo enviado com sucesso.');
+      const curriculo = await api(`/candidatos/${idCandidato}/curriculos`, { method: 'POST', body: formData });
       $('#formCurriculo').reset();
-      carregarCurriculos();
+      await carregarCurriculos();
+
+      if (Number(curriculo.importacao?.ID_Status_Processamento_IA) === 3 && curriculo.importacao?.DadosExtraidos) {
+        mostrarToast('Currículo enviado e analisado. Revise as sugestões.');
+        $('#curriculoImportacaoId').value = curriculo.ID_Curriculos;
+        renderizarPreviewImportacao(curriculo.importacao.DadosExtraidos);
+        $('#modalImportarCurriculo').showModal();
+      } else if (curriculo.importacao?.ErroProcessamento) {
+        mostrarToast(`Currículo salvo. ${curriculo.importacao.ErroProcessamento}`, 'error');
+      } else {
+        mostrarToast('Currículo enviado com sucesso.');
+      }
     } catch (erro) {
       mostrarToast(erro.message, 'error');
     } finally {
@@ -332,15 +478,91 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   $('#listaCurriculos')?.addEventListener('click', async (e) => {
-    const id = e.target.getAttribute('data-remover-curriculo');
-    if (!id) return;
-    if (!confirm('Remover este currículo?')) return;
+    const botao = e.target.closest('button');
+    if (!botao) return;
+
+    const idRemover = botao.getAttribute('data-remover-curriculo');
+    const idAnalisar = botao.getAttribute('data-analisar-curriculo');
+    const idRevisar = botao.getAttribute('data-revisar-importacao');
+
     try {
-      await api(`/curriculos/${id}`, { method: 'DELETE' });
+      if (idAnalisar) {
+        await analisarCurriculoSelecionado(idAnalisar, botao);
+        return;
+      }
+      if (idRevisar) {
+        await abrirImportacaoCurriculo(idRevisar);
+        return;
+      }
+      if (!idRemover) return;
+      if (!confirm('Remover este currículo?')) return;
+
+      await api(`/curriculos/${idRemover}`, { method: 'DELETE' });
       mostrarToast('Currículo removido.');
-      carregarCurriculos();
+      await carregarCurriculos();
     } catch (erro) {
       mostrarToast(erro.message, 'error');
+    }
+  });
+
+  $('#curriculoImportacaoEstado')?.addEventListener('click', async (e) => {
+    const botao = e.target.closest('[data-revisar-importacao]');
+    if (!botao) return;
+    try {
+      await abrirImportacaoCurriculo(botao.dataset.revisarImportacao);
+    } catch (erro) {
+      mostrarToast(erro.message, 'error');
+    }
+  });
+
+  function fecharImportacaoCurriculo() {
+    $('#modalImportarCurriculo')?.close();
+  }
+
+  $('#fecharImportacaoCurriculo')?.addEventListener('click', fecharImportacaoCurriculo);
+  $('#cancelarImportacaoCurriculo')?.addEventListener('click', fecharImportacaoCurriculo);
+
+  $('#formAplicarCurriculo')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const botao = $('#btnAplicarCurriculo');
+    botao.disabled = true;
+    botao.setAttribute('data-loading', 'true');
+
+    const payload = {
+      importar_perfil: $('#impPerfil').checked,
+      importar_experiencias: $('#impExperiencias').checked,
+      importar_formacoes: $('#impFormacoes').checked,
+      importar_habilidades: $('#impHabilidades').checked,
+      importar_idiomas: $('#impIdiomas').checked,
+      sobrescrever_perfil: $('#impSobrescrever').checked,
+    };
+
+    try {
+      const idCurriculo = $('#curriculoImportacaoId').value;
+      const resultado = await api(`/curriculos/${idCurriculo}/importacao/aplicar`, {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      });
+      fecharImportacaoCurriculo();
+
+      const meu = await api('/candidatos/me');
+      preencherFormPerfil(meu);
+      await Promise.all([
+        carregarCurriculos(),
+        carregarHabilidades(),
+        carregarExperiencias(),
+        carregarFormacoes(),
+      ]);
+
+      const total = Object.values(resultado.importados || {}).reduce((soma, valor) => soma + Number(valor || 0), 0);
+      mostrarToast(total
+        ? `Currículo importado: ${total} informação(ões) adicionada(s).`
+        : 'Importação concluída. Os dados identificados já estavam no seu perfil.');
+    } catch (erro) {
+      mostrarToast(erro.message, 'error');
+    } finally {
+      botao.disabled = false;
+      botao.removeAttribute('data-loading');
     }
   });
 

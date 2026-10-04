@@ -160,6 +160,19 @@
               <button type="submit" class="btn btn-primary" id="btnEnviarCurriculo" style="align-self:flex-start;">Enviar currículo</button>
             </form>
           </div>
+          <div class="card curriculum-import-card">
+            <div class="curriculum-import-card__header">
+              <div>
+                <h3>Preenchimento inteligente</h3>
+                <p class="content__sub">PDF e DOCX podem ser analisados para sugerir dados do perfil, experiências, formação, habilidades e idiomas. Nada é aplicado sem sua confirmação.</p>
+              </div>
+              <span class="badge badge--muted">Revisão obrigatória</span>
+            </div>
+            <div id="curriculoImportacaoEstado" class="curriculum-import-state">
+              <p class="empty-state">Envie ou selecione um currículo para analisar.</p>
+            </div>
+          </div>
+
           <div class="card">
             <h3>Currículos enviados</h3>
             <div class="list" id="listaCurriculos">
@@ -389,6 +402,32 @@
           <textarea id="candidaturaCarta" rows="4" maxlength="20000"></textarea>
         </div>
         <button class="btn btn-primary" type="submit">Enviar candidatura</button>
+      </form>
+    </dialog>
+    <dialog id="modalImportarCurriculo" class="curriculum-import-dialog">
+      <div class="dialog-header">
+        <div>
+          <h2>Revisar dados do currículo</h2>
+          <p class="content__sub">Confira o que foi identificado antes de atualizar seu perfil.</p>
+        </div>
+        <button id="fecharImportacaoCurriculo" type="button" aria-label="Fechar revisão">×</button>
+      </div>
+      <div id="curriculoImportacaoResumo"></div>
+      <form id="formAplicarCurriculo">
+        <input type="hidden" id="curriculoImportacaoId">
+        <fieldset class="import-options">
+          <legend>O que deseja importar?</legend>
+          <label class="checkbox-line"><input type="checkbox" id="impPerfil" checked> Dados do perfil</label>
+          <label class="checkbox-line"><input type="checkbox" id="impExperiencias" checked> Experiências</label>
+          <label class="checkbox-line"><input type="checkbox" id="impFormacoes" checked> Formação e certificados</label>
+          <label class="checkbox-line"><input type="checkbox" id="impHabilidades" checked> Habilidades</label>
+          <label class="checkbox-line"><input type="checkbox" id="impIdiomas" checked> Idiomas</label>
+          <label class="checkbox-line import-overwrite"><input type="checkbox" id="impSobrescrever"> Substituir dados de perfil já preenchidos</label>
+        </fieldset>
+        <div class="dialog-actions">
+          <button type="button" class="btn btn-secondary" id="cancelarImportacaoCurriculo">Cancelar</button>
+          <button type="submit" class="btn btn-primary" id="btnAplicarCurriculo">Importar para meu perfil</button>
+        </div>
       </form>
     </dialog>
     <dialog id="modalAcompanhamento">
