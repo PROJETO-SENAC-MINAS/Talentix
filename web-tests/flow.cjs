@@ -66,6 +66,32 @@ async function test(name,fn) {
       await candidate.locator('#hNome').fill('Python');await candidate.locator('#hNivel').selectOption('3');
       await submit(candidate,'#formHabilidade button[type="submit"]','/candidatos/');await candidate.locator('#listaHabilidades').filter({hasText:'Python'}).waitFor();
     });
+    await test('perfil 2.0 tem preferencias, foto e completude automatica',async()=> {
+      await candidate.locator('#completudeTexto').filter({hasText:'%'}).waitFor();
+      const before=await candidate.locator('#completudeBarra').getAttribute('value');
+      await candidate.locator('[name="pModalidade"][value="remoto"]').check();await candidate.locator('[name="pContrato"][value="CLT"]').check();
+      await candidate.locator('#pSoftSkills').fill('Comunicação, Colaboração');await candidate.locator('#pPreferencias').fill('Tecnologia e trabalho remoto');await candidate.locator('#pResumo').fill('Apresentação profissional revisada pelo candidato.');
+      await submit(candidate,'#btnSalvarPerfil','/candidatos/','PUT');
+      const image=spawnSync(process.env.TEST_PYTHON || 'python',['-c','from PIL import Image; from io import BytesIO; import sys; b=BytesIO(); Image.new("RGB",(20,20),"blue").save(b,"PNG"); sys.stdout.buffer.write(b.getvalue())']);assert.equal(image.status,0);
+      await candidate.locator('#fotoArquivo').setInputFiles({name:'foto.png',mimeType:'image/png',buffer:image.stdout});await submit(candidate,'#formFoto button','/foto-perfil');
+      await candidate.locator('#fotoProfissional').waitFor({state:'visible'});await candidate.waitForFunction(old=>Number(document.querySelector('#completudeBarra').value)>Number(old),before);
+      assert.ok(await candidate.locator('#tab-perfil #formExperiencia').isVisible());assert.ok(await candidate.locator('#tab-perfil #formFormacao').isVisible());
+    });
+    await test('cursos projetos e idiomas editaveis na mesma tela',async()=> {
+      await candidate.locator('#itemTitulo').fill('Projeto de testes acessíveis');await candidate.locator('#itemUrl').fill('https://example.com/projeto');await submit(candidate,'#formItemProfissional button[type="submit"]','/itens');
+      await candidate.locator('#listaItensProfissionais [data-editar-item]').first().click();await candidate.locator('#itemTitulo').fill('Projeto revisado');await submit(candidate,'#formItemProfissional button[type="submit"]','/itens-profissionais/','PUT');
+      await candidate.locator('#listaItensProfissionais').filter({hasText:'Projeto revisado'}).waitFor();
+      const language=await candidate.locator('#idiomaCatalogo option').nth(1).getAttribute('value');await candidate.locator('#idiomaCatalogo').selectOption(language);await candidate.locator('#idiomaNivel').selectOption('fluente');await submit(candidate,'#formIdioma button','/idiomas');
+      await candidate.locator('#listaIdiomasProfissionais').filter({hasText:'fluente'}).waitFor();
+    });
+    await test('curriculo PDF Talentix gerado e importacao exige selecao manual',async()=> {
+      await tab(candidate,'curriculo');const cv=await submit(candidate,'#gerarCurriculoTalentix','/curriculo-talentix');
+      await candidate.locator(`[data-analisar-curriculo="${cv.ID_Curriculos}"]`).waitFor();await submit(candidate,`[data-analisar-curriculo="${cv.ID_Curriculos}"]`,'/analisar');
+      const result=spawnSync(process.env.TEST_PYTHON || 'python',['-m','app.worker_profissional','--once'],{cwd:path.join(__dirname,'../python'),env:process.env,encoding:'utf8',timeout:120000});assert.equal(result.status,0,result.stderr);
+      await candidate.locator(`#listaCurriculos [data-revisar-importacao="${cv.ID_Curriculos}"]`).waitFor({timeout:15000});await candidate.locator(`#listaCurriculos [data-revisar-importacao="${cv.ID_Curriculos}"]`).click();
+      await candidate.locator('#modalImportarCurriculo[open]').waitFor();assert.equal(await candidate.locator('#curriculoImportacaoResumo input:checked').count(),0);await audit(candidate,'curriculo-importacao-seletiva');
+      const checkbox=candidate.locator('#curriculoImportacaoResumo input[data-secao="perfil"]').first();await checkbox.check();await submit(candidate,'#btnAplicarCurriculo','/importacao/aplicar');await candidate.locator('#modalImportarCurriculo').waitFor({state:'hidden'});
+    });
     let cvUrl;
     await test('upload retorna curriculo real no isolamento padrao',async()=> {
       await tab(candidate,'curriculo');await candidate.locator('#cvTitulo').fill('Currículo da apresentação');await candidate.locator('#cvPrincipal').check();await candidate.locator('#cvArquivo').setInputFiles({name:'curriculo.pdf',mimeType:'application/pdf',buffer:Buffer.from('%PDF-1.4\n% Documento ficticio para teste de transporte\n%%EOF\n')});
@@ -76,6 +102,14 @@ async function test(name,fn) {
       await tab(candidate,'vagas');await candidate.locator('#fvTitulo').fill('Vaga navegador '+nonce);await candidate.locator('#formFiltroVagas button').click();await candidate.locator(`[data-candidatar="${jobId}"]`).waitFor();await candidate.locator(`[data-candidatar="${jobId}"]`).click();
       await candidate.locator('#modalCandidatura[open]').waitFor();await audit(candidate,'candidatura-dialog');assert.equal(await candidate.locator('#candidaturaCurriculo').inputValue(),cvUrl);await candidate.locator('#candidaturaCarta').fill('Estou interessado nesta oportunidade.');
       const application=await submit(candidate,'#formCandidatura button[type="submit"]','/candidaturas');assert.equal(application.CurriculoUrl,cvUrl);applicationId=application.ID_Candidaturas;
+    });
+    await test('filtros URL buscas salvas historico e autocomplete persistem',async()=> {
+      await tab(candidate,'vagas');await candidate.locator('#fvTitulo').fill('Vaga navegador '+nonce);await candidate.locator('#fvModalidade').selectOption('Remoto');
+      await submit(candidate,'#formFiltroVagas button[type="submit"]','/buscas-historico');await candidate.locator(`[data-ver-vaga="${jobId}"]`).waitFor();
+      assert.ok(new URL(candidate.url()).searchParams.get('cargo').includes(nonce));
+      await candidate.locator('#nomeBusca').fill('Minha oportunidade');await candidate.locator('#alertaBusca').check();await submit(candidate,'#formSalvarBusca button','/buscas');await candidate.locator('#buscasSalvas').filter({hasText:'Alertas ativos'}).waitFor();
+      await submit(candidate,'#buscasSalvas [data-alerta-busca]','/buscas/','PUT');await candidate.locator('#buscasSalvas').filter({hasText:'Alertas desativados'}).waitFor();
+      await candidate.reload();await candidate.waitForLoadState('networkidle');assert.equal(await candidate.locator('#fvModalidade').inputValue(),'Remoto');await candidate.locator(`[data-ver-vaga="${jobId}"]`).waitFor();await audit(candidate,'busca-avancada-persistente');
     });
     await test('empresa ve inscricao e abre somente o curriculo anexado',async()=> {
       await tab(company,'candidaturas');const link=company.locator('#listaCandidaturasEmpresa a').filter({hasText:'Abrir currículo anexado'});await link.waitFor();assert.ok((await link.getAttribute('href')).endsWith(cvUrl));const response=await company.context().request.get(API+cvUrl);assert.equal(response.status(),200);assert.ok((await response.body()).toString().startsWith('%PDF'));

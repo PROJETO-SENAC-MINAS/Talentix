@@ -68,6 +68,15 @@
             </div>
           </header>
           <div class="card">
+            <h2 class="section-subtitle">Perfil profissional 2.0</h2>
+            <p id="completudeTexto" role="status">Calculando completude do perfil…</p>
+            <progress id="completudeBarra" max="100" value="0" aria-label="Completude do perfil"></progress>
+            <ul id="perfilFaltantes"></ul>
+            <form id="formFoto" class="inline-form-stack">
+              <img id="fotoProfissional" alt="Sua foto de perfil" width="96" height="96" hidden>
+              <div class="field"><label for="fotoArquivo">Foto (JPG, PNG ou WebP; até 5 MB e 16 megapixels)</label><input id="fotoArquivo" type="file" accept="image/jpeg,image/png,image/webp" required></div>
+              <button class="btn btn-secondary" type="submit">Atualizar foto</button>
+            </form>
             <form id="formPerfil">
               <div class="grid-2">
                 <div class="field">
@@ -115,6 +124,21 @@
                 <input type="checkbox" id="pDisponivel">
                 Estou disponível para novas oportunidades agora
               </label>
+              <fieldset><legend>Modalidades desejadas</legend>
+                <label><input type="checkbox" name="pModalidade" value="presencial"> Presencial</label>
+                <label><input type="checkbox" name="pModalidade" value="hibrido"> Híbrida</label>
+                <label><input type="checkbox" name="pModalidade" value="remoto"> Remota</label>
+              </fieldset>
+              <fieldset><legend>Tipos de contrato</legend>
+                <label><input type="checkbox" name="pContrato" value="CLT"> CLT</label>
+                <label><input type="checkbox" name="pContrato" value="PJ"> PJ</label>
+                <label><input type="checkbox" name="pContrato" value="estagio"> Estágio</label>
+                <label><input type="checkbox" name="pContrato" value="temporario"> Temporário</label>
+                <label><input type="checkbox" name="pContrato" value="aprendiz"> Aprendiz</label>
+                <label><input type="checkbox" name="pContrato" value="freelancer"> Freelancer</label>
+              </fieldset>
+              <div class="field"><label for="pSoftSkills">Habilidades comportamentais (separadas por vírgula)</label><input id="pSoftSkills" maxlength="3000" placeholder="Comunicação, colaboração"></div>
+              <div class="field"><label for="pPreferencias">Preferências profissionais</label><textarea id="pPreferencias" maxlength="3000" rows="3" placeholder="Áreas de interesse, horários e objetivos"></textarea></div>
               <div class="form-actions">
                 <button type="submit" class="btn btn-primary" id="btnSalvarPerfil">Salvar alterações</button>
               </div>
@@ -132,6 +156,20 @@
             </form>
             <ul class="chip-list" id="listaHabilidades"></ul>
           </div>
+          <div class="card"><h2 class="section-subtitle">Idiomas</h2>
+            <form id="formIdioma" class="inline-form"><select id="idiomaCatalogo" aria-label="Idioma" required><option value="">Selecione um idioma</option></select><select id="idiomaNivel" aria-label="Proficiência" required><option value="basico">Básico</option><option value="intermediario">Intermediário</option><option value="avancado">Avançado</option><option value="fluente">Fluente</option><option value="nativo">Nativo</option></select><button class="btn btn-secondary" type="submit">Salvar idioma</button></form><div id="listaIdiomasProfissionais" class="list"></div>
+          </div>
+          <div class="card"><h2 class="section-subtitle">Cursos e projetos</h2>
+            <form id="formItemProfissional" class="inline-form-stack">
+              <input id="itemId" type="hidden">
+              <div class="field"><label for="itemTipo">Tipo</label><select id="itemTipo"><option value="projeto">Projeto</option><option value="curso">Curso</option></select></div>
+              <div class="grid-2"><div class="field"><label for="itemTitulo">Título</label><input id="itemTitulo" maxlength="200" required></div><div class="field"><label for="itemInstituicao">Instituição ou organização</label><input id="itemInstituicao" maxlength="200"></div></div>
+              <div class="field"><label for="itemDescricao">Descrição</label><textarea id="itemDescricao" maxlength="5000" rows="3"></textarea></div>
+              <div class="field"><label for="itemUrl">Link do curso ou projeto</label><input id="itemUrl" type="url" maxlength="300" pattern="https?://.*"></div>
+              <div class="grid-2"><div class="field"><label for="itemInicio">Data inicial</label><input id="itemInicio" type="date"></div><div class="field"><label for="itemFim">Data final</label><input id="itemFim" type="date"></div></div>
+              <div><button class="btn btn-primary" type="submit">Salvar item</button><button class="btn btn-secondary" id="cancelarItem" type="button">Cancelar edição</button></div>
+            </form><div id="listaItensProfissionais" class="list"></div>
+          </div>
         </section>
 
         <!-- ---------- CURRÍCULO (arquivo) ---------- -->
@@ -144,6 +182,7 @@
             </div>
           </header>
           <div class="card">
+            <button type="button" id="gerarCurriculoTalentix" class="btn btn-secondary">Gerar PDF Talentix com meu perfil</button>
             <form id="formCurriculo" class="inline-form-stack">
               <div class="field">
                 <label for="cvTitulo">Nome do arquivo</label>
@@ -303,7 +342,8 @@
           </header>
           <div class="card">
             <form id="formFiltroVagas" class="filter-bar">
-              <input type="text" id="fvTitulo" aria-label="Cargo ou palavra-chave" placeholder="Cargo, palavra-chave...">
+              <input type="text" id="fvTitulo" aria-label="Cargo" placeholder="Cargo" maxlength="200" list="cargosSugeridos"><datalist id="cargosSugeridos"></datalist>
+              <input id="fvPalavra" aria-label="Palavra-chave" placeholder="Palavra-chave" maxlength="200">
               <input type="text" id="fvLocalizacao" aria-label="Localização" placeholder="Localização">
               <select id="fvModalidade" aria-label="Modalidade">
                 <option value="">Modalidade</option> <option value="Remoto">Remoto</option> <option value="Híbrido">Híbrido</option> <option value="Presencial">Presencial</option>
@@ -312,11 +352,24 @@
                 <option value="">Nível</option> <option value="Estágio">Estágio</option> <option value="Júnior">Júnior</option> <option value="Pleno">Pleno</option> <option value="Sênior">Sênior</option>
               </select>
               <button type="submit" class="btn btn-secondary">Buscar</button>
+              <input id="fvSalarioMin" type="number" min="0" max="99999999" step="0.01" aria-label="Salário mínimo" placeholder="Salário mínimo">
+              <input id="fvSalarioMax" type="number" min="0" max="99999999" step="0.01" aria-label="Salário máximo" placeholder="Salário máximo">
+              <input id="fvContrato" maxlength="50" aria-label="Tipo de contrato" placeholder="CLT, PJ…">
+              <input id="fvEmpresa" maxlength="200" aria-label="Empresa" placeholder="Empresa">
+              <select id="fvDias" aria-label="Data de publicação"><option value="">Qualquer data</option><option value="1">Últimas 24 horas</option><option value="7">Últimos 7 dias</option><option value="30">Últimos 30 dias</option></select>
+              <input id="fvHabilidades" maxlength="500" aria-label="Habilidades exigidas" placeholder="Python, SQL…">
+              <input id="fvArea" maxlength="100" aria-label="Área profissional" placeholder="Área profissional">
+              <select id="fvOrdenar" aria-label="Ordenação"><option value="relevancia">Relevância</option><option value="data">Mais recentes</option><option value="salario">Maior salário</option></select>
             </form>
+            <form id="formSalvarBusca" class="filter-bar"><input id="nomeBusca" maxlength="100" required aria-label="Nome da busca salva" placeholder="Nome da busca"><label><input id="alertaBusca" type="checkbox"> Receber alertas de novas vagas</label><button type="submit" class="btn btn-secondary">Salvar busca</button></form>
+            <div id="buscasSalvas" class="list"></div>
+            <details><summary>Histórico de pesquisas</summary><div id="historicoBuscas"></div></details>
           </div>
+          <p id="resumoBusca" role="status"></p>
           <div class="list" id="listaVagas">
             <p class="empty-state">Buscando vagas…</p>
           </div>
+          <nav aria-label="Páginas de vagas"><button id="paginaAnterior" type="button" class="btn btn-secondary" disabled>Anterior</button><span id="paginaAtual"></span><button id="paginaProxima" type="button" class="btn btn-secondary" disabled>Próxima</button></nav>
         </section>
 
         <!-- ---------- MINHAS CANDIDATURAS ---------- -->
@@ -437,6 +490,6 @@
       </div>
       <div id="acompanhamentoConteudo"></div>
     </dialog>
-    <script src="../js/config.js"></script> <script src="../js/painel-comum.js"></script> <script src="../js/dashboard-candidato.js"></script> <script src="../js/seguranca-conta.js"></script> <script src="../js/acessibilidade.js"></script>
+    <script src="../js/config.js"></script> <script src="../js/painel-comum.js"></script> <script src="../js/dashboard-candidato.js"></script> <script src="../js/perfil-profissional.js"></script> <script src="../js/seguranca-conta.js"></script> <script src="../js/acessibilidade.js"></script>
   </body>
 </html>

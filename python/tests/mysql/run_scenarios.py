@@ -190,11 +190,14 @@ try:
     call("download curriculo empresa sem candidatura", "e1", "GET", CVURL, 404, kind="seguranca")
     call("upload extensao proibida", "c1", "POST", f"/candidatos/{C1}/curriculos", 400, kind="validacao", data={"titulo":"Invalido"}, files={"arquivo":("teste.exe",b"MZ","application/octet-stream")})
     call("upload maior que limite", "c1", "POST", f"/candidatos/{C1}/curriculos", 413, kind="validacao", data={"titulo":"Invalido"}, files={"arquivo":("grande.pdf",b"x"*(1024*1024+1),"application/pdf")})
-    png = bytes.fromhex("89504e470d0a1a0a") + b"imagem ficticia para testar transporte"
+    from io import BytesIO
+    from PIL import Image
+    image_buffer=BytesIO();Image.new('RGB',(16,16),'blue').save(image_buffer,'PNG');png=image_buffer.getvalue()
     photo = call("upload foto", "c1", "POST", "/uploads/foto-perfil", files={"arquivo":("foto.png",png,"image/png")})
-    call("foto publica", "anon", "GET", ident(photo,"url"), check=lambda b,r: r.content==png)
+    call("foto protegida", "anon", "GET", ident(photo,"url"), 401, kind="seguranca")
+    call("foto do dono", "c1", "GET", ident(photo,"url"), check=lambda b,r: r.content.startswith(b'\x89PNG') and 'no-store' in r.headers.get('cache-control',''))
     logo = call("upload logo", "e1", "POST", f"/uploads/logo-empresa/{E1}", files={"arquivo":("logo.png",png,"image/png")})
-    call("logo publica", "anon", "GET", ident(logo,"url"), check=lambda b,r: r.content==png)
+    call("logo publica", "anon", "GET", ident(logo,"url"), check=lambda b,r: r.content.startswith(b'\x89PNG'))
     call("logo svg bloqueado", "e1", "POST", f"/uploads/logo-empresa/{E1}", 400, kind="seguranca", files={"arquivo":("logo.svg",b"<svg/>","image/svg+xml")})
     VP = {"id_empresa":E1,"titulo":"Desenvolvedor Python","descricao":"Vaga ficticia","modalidade":"Remoto","nivel":"Júnior","salario_min":2000,"salario_max":3000,"localizacao":"Belo Horizonte"}
     V = ident(call("criar vaga principal", "e1", "POST", "/vagas", 201, json=VP), "ID_Vagas")

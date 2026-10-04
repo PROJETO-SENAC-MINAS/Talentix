@@ -172,3 +172,14 @@ async def remover_idioma_candidato(id_candidato: str, id_candidato_idioma: str, 
         (id_candidato_idioma, id_candidato),
     )
     return {"mensagem": "Idioma removido do perfil."}
+
+
+@router.put("/candidatos/{id_candidato}/idiomas/{id_candidato_idioma}", tags=["Idiomas"])
+async def editar_idioma_candidato(id_candidato: str, id_candidato_idioma: str, dados: CandidatoIdiomaCreate, sessao=Depends(usuario_atual)):
+    await _checar_dono_candidato(id_candidato, sessao)
+    if not await fetch_one("SELECT ID_Idiomas FROM Idiomas WHERE ID_Idiomas=%s", (dados.id_idioma,)):
+        raise HTTPException(422, "Idioma não cadastrado no catálogo.")
+    if not await fetch_one("SELECT ID_Candidato_Idiomas FROM Candidato_Idiomas WHERE ID_Candidato_Idiomas=%s AND ID_Candidatos=%s", (id_candidato_idioma, id_candidato)):
+        raise HTTPException(404, "Idioma não encontrado no perfil.")
+    await execute("UPDATE Candidato_Idiomas SET ID_Idiomas=%s,Nivel=%s WHERE ID_Candidato_Idiomas=%s AND ID_Candidatos=%s", (dados.id_idioma, dados.nivel, id_candidato_idioma, id_candidato))
+    return {"mensagem": "Idioma atualizado."}

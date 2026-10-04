@@ -5,12 +5,36 @@ import hashlib
 import os
 import re
 import zipfile
+import asyncio
+import warnings
+import tempfile
 from io import BytesIO
 from pathlib import Path
 
 from fastapi import UploadFile, HTTPException, status
 
 from app.core.config import settings
+from PIL import Image, ImageOps, UnidentifiedImageError
+
+
+def _sanitizar_imagem(conteudo, extensao):
+    """Decodifica pixels, limita dimensões e elimina EXIF/metadados/polyglots."""
+    try:
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", Image.DecompressionBombWarning)
+            with Image.open(BytesIO(conteudo)) as original:
+                expected = {".jpg": "JPEG", ".jpeg": "JPEG", ".png": "PNG", ".webp": "WEBP"}[extensao]
+                if original.format != expected or original.width * original.height > 16_000_000:
+                    raise ValueError("Imagem inválida ou muito grande.")
+                original.load()
+                image = ImageOps.exif_transpose(original).convert("RGB")
+                image.thumbnail((1200, 1200))
+                image.info.clear()
+                output = BytesIO()
+                image.save(output, format="PNG", exif=b"", icc_profile=None)
+                return output.getvalue()
+    except (ValueError, OSError, UnidentifiedImageError, Image.DecompressionBombError, Image.DecompressionBombWarning) as exc:
+        raise HTTPException(400, "Imagem inválida. Use JPG, PNG ou WebP com até 16 megapixels.") from exc
 
 EXTENSOES_PERMITIDAS = {
     "fotos": {".jpg", ".jpeg", ".png", ".webp"},
@@ -82,7 +106,7 @@ async def salvar_arquivo(arquivo: UploadFile, categoria: str) -> dict:
             f"Permitidas: {', '.join(sorted(EXTENSOES_PERMITIDAS[categoria]))}",
         )
 
-    max_bytes = settings.MAX_UPLOAD_SIZE_MB * 1024 * 1024
+    max_bytes = min(settings.MAX_UPLOAD_SIZE_MB, 5) * 1024 * 1024 if categoria in {"fotos", "logos"} else settings.MAX_UPLOAD_SIZE_MB * 1024 * 1024
     conteudo = await arquivo.read(max_bytes + 1)
     tamanho_bytes = len(conteudo)
 
@@ -95,6 +119,10 @@ async def salvar_arquivo(arquivo: UploadFile, categoria: str) -> dict:
         )
 
     _validar_assinatura(conteudo, extensao, categoria)
+    if categoria in {"fotos", "logos"}:
+        conteudo = await asyncio.to_thread(_sanitizar_imagem, conteudo, extensao)
+        extensao = ".png"
+        tamanho_bytes = len(conteudo)
 
     sha256_hash = hashlib.sha256(conteudo).hexdigest()
     nome_arquivo = f"{sha256_hash}{extensao}"
@@ -109,8 +137,19 @@ async def salvar_arquivo(arquivo: UploadFile, categoria: str) -> dict:
 
     # Escrita idempotente: o mesmo hash representa exatamente os mesmos bytes.
     if not caminho_completo.exists():
-        with open(caminho_completo, "wb") as f:
-            f.write(conteudo)
+        temporario = None
+        try:
+            with tempfile.NamedTemporaryFile(dir=diretorio, delete=False) as f:
+                temporario = f.name
+                f.write(conteudo)
+                f.flush()
+                os.fsync(f.fileno())
+            os.link(temporario, caminho_completo)
+        except FileExistsError:
+            pass
+        finally:
+            if temporario:
+                os.unlink(temporario)
 
     url_relativa = f"/uploads/{categoria}/{nome_arquivo}"
     return {

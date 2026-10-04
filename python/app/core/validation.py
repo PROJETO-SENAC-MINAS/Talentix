@@ -1,6 +1,7 @@
 """Tipos de entrada compatíveis com limites e regras de persistência."""
 from decimal import Decimal
 from typing import Annotated
+from urllib.parse import urlsplit
 from pydantic import AfterValidator, Field
 
 
@@ -13,6 +14,15 @@ def password_bytes(value: str) -> str:
 Password = Annotated[str, Field(min_length=10, max_length=72), AfterValidator(password_bytes)]
 Money = Annotated[Decimal, Field(ge=0, max_digits=10, decimal_places=2)]
 PositiveMoney = Annotated[Decimal, Field(gt=0, max_digits=10, decimal_places=2)]
+
+
+def safe_url(value: str | None) -> str | None:
+    if not value:
+        return None
+    parsed = urlsplit(value)
+    if parsed.scheme not in {"https", "http"} or not parsed.hostname or parsed.username or parsed.password or any(c.isspace() for c in value):
+        raise ValueError("Informe uma URL http(s) válida, sem credenciais.")
+    return value
 
 
 def normalize_state(value: str | None) -> str | None:

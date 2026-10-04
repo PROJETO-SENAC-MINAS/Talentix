@@ -217,7 +217,7 @@ try:
         with tempfile.TemporaryDirectory() as tmp:
             directory=Path(tmp)
             for source in migrate.discover_migrations():shutil.copy(source,directory/source.name)
-            future=directory/'005_future_test.sql'
+            future=directory/'900_future_test.sql'
             future.write_text("CREATE TABLE IF NOT EXISTS Future_Test (id INT PRIMARY KEY, value VARCHAR(50)); INSERT INTO Future_Test VALUES (1, 'texto; preservado');")
             check('migration futura descoberta sem editar runner',migrate.migrate(migration_conn,directory))
             check('SQL respeita ponto e virgula em strings',scalar('SELECT value FROM Future_Test WHERE id=1',connection=migration_conn)=='texto; preservado')
@@ -229,14 +229,14 @@ try:
             except RuntimeError:
                 check('checksum rejeita migration alterada',True)
             future.unlink()
-            failed=directory/'006_failure_test.sql'
+            failed=directory/'901_failure_test.sql'
             failed.write_text('CREATE TABLE IF NOT EXISTS Retry_Test(id INT); INVALID SQL;')
             try:
                 migrate.migrate(migration_conn,directory)
                 check('migration falha propaga erro',False)
             except pymysql.Error:
                 check('migration falha propaga erro',True)
-            check('migration falha nao registrada',scalar("SELECT COUNT(*) FROM Schema_Migrations WHERE Versao='006_failure_test'",connection=migration_conn)==0)
+            check('migration falha nao registrada',scalar("SELECT COUNT(*) FROM Schema_Migrations WHERE Versao='901_failure_test'",connection=migration_conn)==0)
             failed.write_text('CREATE TABLE IF NOT EXISTS Retry_Test(id INT);')
             check('migration interrompida pode ser retomada',migrate.migrate(migration_conn,directory))
 

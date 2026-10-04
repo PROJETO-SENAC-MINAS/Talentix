@@ -51,6 +51,13 @@ def enviar_email(destinatario: str, assunto: str, corpo_html: str) -> bool:
 # Templates de e-mail para cada evento do sistema (espelham as Notificacoes)
 # ============================================================================
 
+
+def email_alerta_busca(destinatario: str, nome_busca: str, titulo_vaga: str) -> bool:
+    subject = ("Nova vaga: " + titulo_vaga).replace("\r", "").replace("\n", " ")
+    return enviar_email(destinatario, subject,
+        f"<p>Uma nova vaga corresponde à busca <strong>{escape_html(nome_busca)}</strong>:</p>"
+        f"<p>{escape_html(titulo_vaga)}</p><p>Acesse seu painel Talentix. Você pode pausar o alerta em Buscas salvas.</p>")
+
 def email_nova_candidatura(destinatario: str, nome_empresa: str, titulo_vaga: str, nome_candidato: str) -> bool:
     assunto = f"Nova candidatura recebida: {titulo_vaga}"
     corpo = f"""

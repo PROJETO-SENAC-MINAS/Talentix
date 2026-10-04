@@ -1,6 +1,7 @@
 """Testes HTTP com sessões reais e banco isolado; não usam SMTP nem o MySQL local."""
 import importlib
 from datetime import datetime, date
+from decimal import Decimal
 import os
 from pathlib import Path
 import sqlite3
@@ -49,6 +50,8 @@ CREATE TABLE IF NOT EXISTS Curriculo_Importacoes (
                ID_Curriculos CHAR(36) NOT NULL UNIQUE,
                ID_Status_Processamento_IA INTEGER NOT NULL DEFAULT 1,
                DadosExtraidos TEXT NULL,
+               TextoExtraido TEXT NULL,
+               DadosConfirmados TEXT NULL,
                TextoCaracteres INTEGER NULL,
                ErroProcessamento VARCHAR(500) NULL,
                ProcessamentoIniciadoEm DATETIME NULL,
@@ -61,13 +64,17 @@ CREATE TABLE IF NOT EXISTS Curriculo_Importacoes (
 CREATE TABLE Usuarios (ID_Usuarios TEXT PRIMARY KEY, Nome TEXT, Email TEXT, EmailConfirmadoEm TEXT,
   SenhaHash TEXT, TentativasLogin INTEGER DEFAULT 0, BloqueadoAte TEXT, UltimoLoginEm TEXT,
   TwoFactorAtivo INTEGER DEFAULT 0, TwoFactorSecretEnc TEXT,
-  Telefone TEXT, FotoUrl TEXT, Ativo INTEGER DEFAULT 1, CriadoEm TEXT DEFAULT CURRENT_TIMESTAMP);
+  Telefone TEXT, FotoUrl TEXT, FotoTamanhoBytes INTEGER,FotoTipoMime TEXT,FotoHash TEXT, Ativo INTEGER DEFAULT 1, CriadoEm TEXT DEFAULT CURRENT_TIMESTAMP);
 CREATE TABLE Candidatos (ID_Candidatos TEXT PRIMARY KEY, ID_Usuarios TEXT, Ativo INTEGER DEFAULT 1,
-  Cidade TEXT, Disponivel INTEGER DEFAULT 1, CriadoEm TEXT DEFAULT CURRENT_TIMESTAMP);
-CREATE TABLE Empresas (ID_Empresas TEXT PRIMARY KEY, ID_Usuarios TEXT, NomeFantasia TEXT, Ativo INTEGER DEFAULT 1);
+  Cidade TEXT,Estado TEXT,TituloProfissional TEXT,Resumo TEXT,LinkedinUrl TEXT,GithubUrl TEXT,PortfolioUrl TEXT,
+  ExperienciaAnos INTEGER,PretensaoSalarial REAL,Modalidades TEXT,TiposContrato TEXT,Preferencias TEXT,HabilidadesComportamentais TEXT,
+  Disponivel INTEGER DEFAULT 1, CriadoEm TEXT DEFAULT CURRENT_TIMESTAMP);
+CREATE TABLE Empresas (ID_Empresas TEXT PRIMARY KEY, ID_Usuarios TEXT, NomeFantasia TEXT,RazaoSocial TEXT,Descricao TEXT,Setor TEXT,Porte TEXT,LogoUrl TEXT,SiteUrl TEXT,Verificada INTEGER,CriadoEm TEXT DEFAULT CURRENT_TIMESTAMP, Ativo INTEGER DEFAULT 1);
 CREATE TABLE Administradores (ID_Administradores TEXT PRIMARY KEY, ID_Usuarios TEXT, Ativo INTEGER DEFAULT 1);
 CREATE TABLE Vagas (ID_Vagas TEXT PRIMARY KEY, ID_Empresas TEXT, Titulo TEXT, Localizacao TEXT,
-  Modalidade TEXT, ID_Status_Vaga INTEGER DEFAULT 2, Ativo INTEGER DEFAULT 1);
+  Modalidade TEXT,Descricao TEXT,Nivel TEXT,TipoContrato TEXT,SalarioMin REAL,SalarioMax REAL,SalarioConfidencial INTEGER DEFAULT 0,
+  AreaProfissional TEXT,PublicadaEm TEXT DEFAULT CURRENT_TIMESTAMP,CriadoEm TEXT DEFAULT CURRENT_TIMESTAMP,
+  ID_Status_Vaga INTEGER DEFAULT 2, Ativo INTEGER DEFAULT 1);
 CREATE TABLE Candidaturas (ID_Candidaturas TEXT PRIMARY KEY, ID_Candidatos TEXT, ID_Vagas TEXT,
   ID_Status_Candidatura INTEGER DEFAULT 1, CurriculoUrl TEXT, CartaApresentacao TEXT,
   Ativo INTEGER DEFAULT 1, CriadaEm TEXT DEFAULT CURRENT_TIMESTAMP);
@@ -79,14 +86,19 @@ CREATE TABLE Recrutadores (ID_Recrutadores TEXT PRIMARY KEY, ID_Empresas TEXT, I
   Ativo INTEGER DEFAULT 1, DeletadoEm TEXT);
 CREATE TABLE Curriculos (ID_Curriculos TEXT PRIMARY KEY, ID_Candidatos TEXT, Titulo TEXT,
   ArquivoUrl TEXT, ArquivoTamanhoBytes INTEGER, ArquivoTipoMime TEXT, ArquivoHash TEXT,
-  Principal INTEGER DEFAULT 0, Ativo INTEGER DEFAULT 1, AtualizadoEm TEXT DEFAULT CURRENT_TIMESTAMP);
-CREATE TABLE Experiencias (ID_Experiencias TEXT PRIMARY KEY, ID_Candidatos TEXT, Empresa TEXT, Cargo TEXT, DataInicio TEXT);
-CREATE TABLE Formacoes (ID_Formacoes TEXT PRIMARY KEY, ID_Candidatos TEXT, Instituicao TEXT, Curso TEXT, DataInicio TEXT);
+  Principal INTEGER DEFAULT 0, Versao INTEGER DEFAULT 1,Origem TEXT DEFAULT 'upload', DeletadoEm TEXT,
+  Ativo INTEGER DEFAULT 1, AtualizadoEm TEXT DEFAULT CURRENT_TIMESTAMP);
+CREATE TABLE Experiencias (ID_Experiencias TEXT PRIMARY KEY, ID_Candidatos TEXT, Empresa TEXT, Cargo TEXT, DataInicio TEXT,DataFim TEXT,Descricao TEXT,Atual INTEGER);
+CREATE TABLE Formacoes (ID_Formacoes TEXT PRIMARY KEY, ID_Candidatos TEXT, Instituicao TEXT, Curso TEXT, DataInicio TEXT,DataConclusao TEXT,Nivel TEXT,Status TEXT);
 CREATE TABLE Habilidades (ID_Habilidades TEXT PRIMARY KEY, Nome TEXT, Categoria TEXT, Ativo INTEGER DEFAULT 1);
-CREATE TABLE Candidato_Habilidades (ID_Candidato_Habilidades TEXT PRIMARY KEY, ID_Candidatos TEXT, ID_Habilidades TEXT);
+CREATE TABLE Candidato_Habilidades (ID_Candidato_Habilidades TEXT PRIMARY KEY, ID_Candidatos TEXT, ID_Habilidades TEXT,Nivel INTEGER,AnosExperiencia INTEGER);
 CREATE TABLE Idiomas (ID_Idiomas TEXT PRIMARY KEY, Nome TEXT);
-CREATE TABLE Candidato_Idiomas (ID_Candidato_Idiomas TEXT PRIMARY KEY, ID_Candidatos TEXT, ID_Idiomas TEXT);
-CREATE TABLE Vaga_Habilidades (ID_Vaga_Habilidades TEXT PRIMARY KEY, ID_Vagas TEXT);
+CREATE TABLE Candidato_Idiomas (ID_Candidato_Idiomas TEXT PRIMARY KEY, ID_Candidatos TEXT, ID_Idiomas TEXT,Nivel TEXT);
+CREATE TABLE Vaga_Habilidades (ID_Vaga_Habilidades TEXT PRIMARY KEY, ID_Vagas TEXT,ID_Habilidades TEXT,NivelMinimo INTEGER,Obrigatoria INTEGER);
+CREATE TABLE Candidato_Itens(ID_Item TEXT PRIMARY KEY,ID_Candidatos TEXT,Tipo TEXT,Titulo TEXT,Instituicao TEXT,Descricao TEXT,Url TEXT,DataInicio TEXT,DataFim TEXT,CriadoEm TEXT DEFAULT CURRENT_TIMESTAMP);
+CREATE TABLE Buscas_Salvas(ID_Busca TEXT PRIMARY KEY,ID_Usuarios TEXT,Nome TEXT,Filtros TEXT,Ativa INTEGER DEFAULT 0,CriadoEm TEXT DEFAULT CURRENT_TIMESTAMP);
+CREATE TABLE Historico_Buscas(ID_Historico TEXT PRIMARY KEY,ID_Usuarios TEXT,Filtros TEXT,CriadoEm TEXT DEFAULT CURRENT_TIMESTAMP);
+CREATE TABLE Alertas_Busca(ID_Busca TEXT,ID_Vagas TEXT,CriadoEm TEXT DEFAULT CURRENT_TIMESTAMP,PRIMARY KEY(ID_Busca,ID_Vagas));
 CREATE TABLE Analises_IA (ID_Analises_IA TEXT PRIMARY KEY, ID_Candidatos TEXT, ID_Vagas TEXT,
   ID_Candidaturas TEXT, ID_Status_Processamento_IA INTEGER DEFAULT 1, ScoreCompatibilidade INTEGER,
   PontosFortes TEXT, Lacunas TEXT, Justificativa TEXT, ModeloIA TEXT, AnalisadaEm TEXT,
@@ -113,6 +125,7 @@ CREATE TABLE Audit_Logs (ID_Audit_Logs TEXT PRIMARY KEY, ID_Usuarios TEXT, Acao 
 def ambiente(monkeypatch, tmp_path):
     sqlite3.register_adapter(datetime, lambda value: value.isoformat())
     sqlite3.register_adapter(date, lambda value: value.isoformat())
+    sqlite3.register_adapter(Decimal, str)
     conn = sqlite3.connect(":memory:", check_same_thread=False)
     conn.row_factory = sqlite3.Row
     conn.executescript(SCHEMA)
@@ -140,10 +153,10 @@ def ambiente(monkeypatch, tmp_path):
     conn.execute("INSERT INTO Cursos VALUES ('curso', 'Python', 'Escola', 'https://example.com')")
     conn.execute("INSERT INTO Recomendacoes_Curso(ID_Recomendacoes_Curso, ID_Candidatos, ID_Cursos) VALUES ('rc2', 'c2', 'curso')")
     conn.execute("INSERT INTO Habilidades(ID_Habilidades, Nome) VALUES ('h', 'Python')")
-    conn.execute("INSERT INTO Candidato_Habilidades VALUES ('ch2', 'c2', 'h')")
+    conn.execute("INSERT INTO Candidato_Habilidades(ID_Candidato_Habilidades,ID_Candidatos,ID_Habilidades) VALUES ('ch2', 'c2', 'h')")
     conn.execute("INSERT INTO Idiomas VALUES ('i', 'Inglês')")
-    conn.execute("INSERT INTO Candidato_Idiomas VALUES ('ci2', 'c2', 'i')")
-    conn.execute("INSERT INTO Vaga_Habilidades VALUES ('vh2', 'v2')")
+    conn.execute("INSERT INTO Candidato_Idiomas(ID_Candidato_Idiomas,ID_Candidatos,ID_Idiomas) VALUES ('ci2', 'c2', 'i')")
+    conn.execute("INSERT INTO Vaga_Habilidades(ID_Vaga_Habilidades,ID_Vagas) VALUES ('vh2', 'v2')")
     conn.execute("INSERT INTO Assinaturas VALUES ('s1', 'e1', 1, 'basico', 100, '2026-01-01', NULL, CURRENT_TIMESTAMP)")
     conn.execute("INSERT INTO Pagamentos(ID_Pagamentos, ID_Assinaturas, Valor) VALUES ('p1', 's1', 100)")
     conn.commit()

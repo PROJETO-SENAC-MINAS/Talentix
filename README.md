@@ -184,6 +184,11 @@ callback usam tokens isolados e não movimentam dinheiro.
 
 ## Execução com Docker Compose
 
+Updates 4–6 (perfil profissional, currículo inteligente e busca profissional):
+consulte [o contrato das APIs e a atualização segura](docs/updates_novembro.md).
+O Compose inicia também o `worker-profissional` e aplica a migration 005 sem
+apagar os dados existentes.
+
 O ambiente local usa Docker Compose v2 com MySQL 8.4, bootstrap, FastAPI e frontend.
 Na raiz, faça a configuração inicial uma única vez:
 

@@ -6,11 +6,14 @@ from app.core.routes import AtomicRouter as APIRouter
 import asyncio
 import json
 import re
+import sys
 from datetime import date
 from pathlib import Path
+from io import BytesIO
+from copy import deepcopy
 
 from fastapi import Depends, HTTPException, status, UploadFile, File, Form
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator, ValidationError
 
 from app.db.database import fetch_one, fetch_all, execute
 from app.core.security import novo_uuid
@@ -19,6 +22,7 @@ from app.core.access import checar_leitura_candidato, checar_dono_candidato
 from app.core.upload import salvar_arquivo
 from app.core.config import settings
 from app.core.resume_parser import extrair_texto_curriculo, analisar_curriculo
+from app.routers.perfis import CandidatoUpdate
 
 router = APIRouter(tags=["Currículo"])
 
@@ -73,26 +77,8 @@ async def _processar_importacao(curriculo: dict) -> dict:
     extensao = Path(curriculo["ArquivoUrl"]).suffix.lower()
     id_curriculo = curriculo["ID_Curriculos"]
 
-    existente = await fetch_one(
-        """SELECT * FROM Curriculo_Importacoes
-           WHERE ID_Curriculos=%s AND ID_Status_Processamento_IA=3""",
-        (id_curriculo,),
-    )
-    if existente and existente.get("DadosExtraidos"):
-        existente["DadosExtraidos"] = _json_importacao(existente["DadosExtraidos"])
-        return existente
-
-    id_importacao = existente["ID_Curriculo_Importacoes"] if existente else novo_uuid()
-    await execute(
-        """INSERT INTO Curriculo_Importacoes
-           (ID_Curriculo_Importacoes, ID_Curriculos, ID_Status_Processamento_IA, ProcessamentoIniciadoEm)
-           VALUES (%s,%s,%s,NOW())
-           ON DUPLICATE KEY UPDATE
-             ID_Status_Processamento_IA=VALUES(ID_Status_Processamento_IA),
-             ProcessamentoIniciadoEm=NOW(), ProcessadoEm=NULL,
-             ErroProcessamento=NULL, DadosExtraidos=NULL""",
-        (id_importacao, id_curriculo, _STATUS_PROCESSANDO),
-    )
+    # Executado somente pelo worker após claim durável; nunca pela requisição HTTP.
+    lease = curriculo["ProcessamentoIniciadoEm"]
 
     if extensao == ".doc":
         mensagem = "O currículo .doc foi salvo, mas a importação automática aceita PDF ou DOCX."
@@ -109,7 +95,18 @@ async def _processar_importacao(curriculo: dict) -> dict:
         habilidades = await fetch_all("SELECT Nome FROM Habilidades WHERE Ativo=1 ORDER BY Nome")
         idiomas = await fetch_all("SELECT Nome FROM Idiomas ORDER BY Nome")
 
-        texto = await asyncio.to_thread(extrair_texto_curriculo, caminho)
+        process = await asyncio.create_subprocess_exec(sys.executable, "-m", "app.core.resume_extract", str(caminho.resolve()),
+            stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.DEVNULL)
+        try:
+            stdout, _ = await asyncio.wait_for(process.communicate(), timeout=45)
+            if process.returncode != 0:
+                raise ValueError("Documento ilegível.")
+            texto = json.loads(stdout)
+        except BaseException:
+            if process.returncode is None:
+                process.kill()
+                await process.wait()
+            raise
         dados = await asyncio.to_thread(
             analisar_curriculo,
             texto,
@@ -119,28 +116,40 @@ async def _processar_importacao(curriculo: dict) -> dict:
         dados_json = json.dumps(dados, ensure_ascii=False)
         await execute(
             """UPDATE Curriculo_Importacoes
-               SET ID_Status_Processamento_IA=%s, DadosExtraidos=%s, TextoCaracteres=%s,
+               SET ID_Status_Processamento_IA=%s, DadosExtraidos=%s, TextoCaracteres=%s, TextoExtraido=%s,
                    ErroProcessamento=NULL, ProcessadoEm=NOW()
-               WHERE ID_Curriculos=%s""",
-            (_STATUS_CONCLUIDO, dados_json, len(texto), id_curriculo),
+               WHERE ID_Curriculos=%s AND ID_Status_Processamento_IA=2 AND ProcessamentoIniciadoEm=%s""",
+            (_STATUS_CONCLUIDO, dados_json, len(texto), texto, id_curriculo, lease),
         )
-    except HTTPException:
-        raise
     except Exception as exc:
-        mensagem = str(exc)[:500] or "Falha ao interpretar o currículo."
+        mensagem = "Não foi possível ler este documento. Envie um PDF com texto selecionável, sem senha, ou DOCX válido."
         await execute(
             """UPDATE Curriculo_Importacoes
                SET ID_Status_Processamento_IA=%s, ErroProcessamento=%s, ProcessadoEm=NOW()
-               WHERE ID_Curriculos=%s""",
-            (_STATUS_FALHOU, mensagem, id_curriculo),
+               WHERE ID_Curriculos=%s AND ID_Status_Processamento_IA=2 AND ProcessamentoIniciadoEm=%s""",
+            (_STATUS_FALHOU, mensagem, id_curriculo, lease),
         )
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, mensagem) from exc
+        return {"ID_Status_Processamento_IA": 4, "ErroProcessamento": mensagem}
 
     resultado = await fetch_one(
         "SELECT * FROM Curriculo_Importacoes WHERE ID_Curriculos=%s", (id_curriculo,)
     )
     resultado["DadosExtraidos"] = _json_importacao(resultado["DadosExtraidos"])
     return resultado
+
+
+async def _enfileirar(curriculo):
+    if Path(curriculo["ArquivoUrl"]).suffix.lower() not in {".pdf", ".docx"}:
+        raise HTTPException(422, "A análise aceita somente PDF com texto ou DOCX. O original permanece salvo.")
+    existente = await fetch_one("SELECT * FROM Curriculo_Importacoes WHERE ID_Curriculos=%s", (curriculo["ID_Curriculos"],))
+    if existente and existente["ID_Status_Processamento_IA"] in (1, 2, 3):
+        existente["DadosExtraidos"] = _json_importacao(existente.get("DadosExtraidos"))
+        return existente
+    if existente:
+        await execute("UPDATE Curriculo_Importacoes SET ID_Status_Processamento_IA=1,ErroProcessamento=NULL WHERE ID_Curriculos=%s", (curriculo["ID_Curriculos"],))
+    else:
+        await execute("INSERT INTO Curriculo_Importacoes(ID_Curriculo_Importacoes,ID_Curriculos) VALUES (%s,%s)", (novo_uuid(), curriculo["ID_Curriculos"]))
+    return {"ID_Status_Processamento_IA": 1, "mensagem": "Aguardando análise. Nenhum dado foi aplicado ao perfil."}
 
 
 # ==================== CURRÍCULOS (arquivo) ====================
@@ -155,6 +164,7 @@ async def enviar_curriculo(
     sessao: dict = Depends(usuario_atual),
 ):
     await _checar_dono_candidato(id_candidato, sessao)
+    await fetch_one("SELECT ID_Candidatos FROM Candidatos WHERE ID_Candidatos=%s FOR UPDATE", (id_candidato,))
     info = await salvar_arquivo(arquivo, "curriculos")
 
     # Evita duplicar o mesmo documento para o mesmo candidato.
@@ -165,19 +175,24 @@ async def enviar_curriculo(
     )
     if existente:
         curriculo = existente
+        if principal:
+            await execute("UPDATE Curriculos SET Principal=0 WHERE ID_Candidatos=%s", (id_candidato,))
+            await execute("UPDATE Curriculos SET Principal=1 WHERE ID_Curriculos=%s", (curriculo["ID_Curriculos"],))
+            curriculo["Principal"] = True
     else:
         if principal:
             await execute("UPDATE Curriculos SET Principal=0 WHERE ID_Candidatos=%s", (id_candidato,))
 
         id_curriculo = novo_uuid()
+        versao = await fetch_one("SELECT COALESCE(MAX(Versao),0)+1 AS proxima FROM Curriculos WHERE ID_Candidatos=%s", (id_candidato,))
         await execute(
             """INSERT INTO Curriculos
                (ID_Curriculos, ID_Candidatos, Titulo, ArquivoUrl, ArquivoTamanhoBytes,
-                ArquivoTipoMime, ArquivoHash, Principal)
-               VALUES (%s, %s, %s, %s, %s, %s, %s, %s)""",
+                ArquivoTipoMime, ArquivoHash, Principal, Versao)
+               VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)""",
             (
                 id_curriculo, id_candidato, titulo, info["url"], info["tamanho_bytes"],
-                info["tipo_mime"], info["hash"], principal,
+                info["tipo_mime"], info["hash"], principal, versao["proxima"],
             ),
         )
         curriculo = await fetch_one(
@@ -186,13 +201,7 @@ async def enviar_curriculo(
 
     resposta = dict(curriculo)
     if analisar and Path(curriculo["ArquivoUrl"]).suffix.lower() in {".pdf", ".docx"}:
-        try:
-            resposta["importacao"] = await _processar_importacao(curriculo)
-        except HTTPException as exc:
-            resposta["importacao"] = {
-                "ID_Status_Processamento_IA": _STATUS_FALHOU,
-                "ErroProcessamento": exc.detail,
-            }
+        resposta["importacao"] = await _enfileirar(curriculo)
     return resposta
 
 
@@ -205,7 +214,7 @@ async def listar_curriculos(id_candidato: str, sessao: dict = Depends(usuario_at
            FROM Curriculos c
            LEFT JOIN Curriculo_Importacoes ci ON ci.ID_Curriculos=c.ID_Curriculos
            WHERE c.ID_Candidatos=%s AND c.Ativo=1
-           ORDER BY c.Principal DESC, c.AtualizadoEm DESC""",
+           ORDER BY c.Principal DESC, c.Versao DESC""",
         (id_candidato,),
     )
 
@@ -225,7 +234,7 @@ async def excluir_curriculo(id_curriculo: str, sessao: dict = Depends(usuario_at
 @router.post("/curriculos/{id_curriculo}/analisar", tags=["Currículos"])
 async def analisar_curriculo_enviado(id_curriculo: str, sessao: dict = Depends(usuario_atual)):
     curriculo = await _curriculo_do_dono(id_curriculo, sessao)
-    return await _processar_importacao(curriculo)
+    return await _enfileirar(curriculo)
 
 
 @router.get("/curriculos/{id_curriculo}/importacao", tags=["Currículos"])
@@ -247,6 +256,16 @@ class CurriculoImportacaoAplicar(BaseModel):
     importar_habilidades: bool = True
     importar_idiomas: bool = True
     sobrescrever_perfil: bool = False
+    # Índices escolhidos na prévia, e nomes de campos do perfil. Ausente mantém
+    # compatibilidade com clientes anteriores que aprovam explicitamente categorias.
+    selecionados: dict[str, list[int | str]] | None = None
+
+    @model_validator(mode="after")
+    def selecao(self):
+        if self.selecionados is not None:
+            if set(self.selecionados) - {"perfil", "experiencias", "formacoes", "habilidades", "idiomas"} or any(len(v)>50 for v in self.selecionados.values()):
+                raise ValueError("Seleção de dados inválida.")
+        return self
 
 
 @router.post("/curriculos/{id_curriculo}/importacao/aplicar", tags=["Currículos"])
@@ -269,10 +288,19 @@ async def aplicar_importacao_curriculo(
         )
 
     dados = _json_importacao(importacao["DadosExtraidos"]) or {}
+    dados = deepcopy(dados)
+    if opcoes.selecionados is not None:
+        for secao in ("experiencias", "formacoes", "habilidades", "idiomas"):
+            indices = opcoes.selecionados.get(secao, [])
+            dados[secao] = [v for i, v in enumerate(dados.get(secao, [])) if i in indices]
+        dados["perfil"] = {k: v for k, v in dados.get("perfil", {}).items() if k in opcoes.selecionados.get("perfil", [])}
     contadores = {"perfil": 0, "experiencias": 0, "formacoes": 0, "habilidades": 0, "idiomas": 0}
 
     if opcoes.importar_perfil:
-        perfil = dados.get("perfil") or {}
+        try:
+            perfil = CandidatoUpdate(**(dados.get("perfil") or {})).model_dump(exclude_unset=True)
+        except ValidationError as exc:
+            raise HTTPException(422, "Um campo identificado é inválido. Desmarque-o e corrija no perfil.") from exc
         atual = await fetch_one("SELECT * FROM Candidatos WHERE ID_Candidatos=%s", (id_candidato,))
         mapa = {
             "titulo_profissional": "TituloProfissional",
@@ -305,6 +333,10 @@ async def aplicar_importacao_curriculo(
         for exp in dados.get("experiencias") or []:
             if not exp.get("empresa") or not exp.get("cargo") or not exp.get("data_inicio"):
                 continue
+            try:
+                exp = ExperienciaCreate(**exp).model_dump(mode="json")
+            except ValidationError as exc:
+                raise HTTPException(422, "Revise a experiência identificada ou desmarque-a antes de confirmar.") from exc
             duplicada = await fetch_one(
                 """SELECT ID_Experiencias FROM Experiencias
                    WHERE ID_Candidatos=%s AND Empresa=%s AND Cargo=%s AND DataInicio=%s LIMIT 1""",
@@ -328,6 +360,10 @@ async def aplicar_importacao_curriculo(
         for formacao in dados.get("formacoes") or []:
             if not formacao.get("instituicao") or not formacao.get("curso"):
                 continue
+            try:
+                FormacaoCreate(**{**formacao, "status_formacao": formacao.get("status")})
+            except ValidationError as exc:
+                raise HTTPException(422, "Revise a formação identificada ou desmarque-a antes de confirmar.") from exc
             duplicada = await fetch_one(
                 """SELECT ID_Formacoes FROM Formacoes
                    WHERE ID_Candidatos=%s AND Instituicao=%s AND Curso=%s LIMIT 1""",
@@ -412,8 +448,8 @@ async def aplicar_importacao_curriculo(
             contadores["idiomas"] += 1
 
     await execute(
-        "UPDATE Curriculo_Importacoes SET AplicadoEm=NOW() WHERE ID_Curriculos=%s",
-        (id_curriculo,),
+        "UPDATE Curriculo_Importacoes SET AplicadoEm=NOW(),DadosConfirmados=%s WHERE ID_Curriculos=%s",
+        (json.dumps({"selecionados": dados, "opcoes": opcoes.model_dump()}, ensure_ascii=False), id_curriculo),
     )
     return {
         "mensagem": "Dados do currículo importados para o perfil.",
@@ -426,10 +462,16 @@ async def aplicar_importacao_curriculo(
 class ExperienciaCreate(BaseModel):
     empresa: str = Field(min_length=1, max_length=150)
     cargo: str = Field(min_length=1, max_length=150)
-    descricao: str | None = None
+    descricao: str | None = Field(None, max_length=5000)
     data_inicio: date
     data_fim: date | None = None
     atual: bool = False
+
+    @model_validator(mode="after")
+    def datas(self):
+        if self.data_fim and (self.data_fim < self.data_inicio or self.atual):
+            raise ValueError("Revise as datas: término anterior ao início ou experiência atual com término.")
+        return self
 
 
 @router.post("/candidatos/{id_candidato}/experiencias", status_code=201, tags=["Experiências"])
@@ -487,6 +529,43 @@ class FormacaoCreate(BaseModel):
     data_inicio: date | None = None
     data_conclusao: date | None = None
     status_formacao: str | None = Field(default=None, max_length=50)
+
+    @model_validator(mode="after")
+    def datas(self):
+        if self.data_inicio and self.data_conclusao and self.data_conclusao < self.data_inicio:
+            raise ValueError("A conclusão não pode anteceder o início.")
+        return self
+
+
+class CurriculoEdicao(BaseModel):
+    titulo: str = Field(min_length=1, max_length=150)
+    principal: bool = False
+
+
+@router.put("/curriculos/{id_curriculo}", tags=["Currículos"])
+async def editar_curriculo(id_curriculo: str, dados: CurriculoEdicao, sessao=Depends(usuario_atual)):
+    cv = await _curriculo_do_dono(id_curriculo, sessao)
+    await fetch_one("SELECT ID_Candidatos FROM Candidatos WHERE ID_Candidatos=%s FOR UPDATE", (cv["ID_Candidatos"],))
+    if dados.principal:
+        await execute("UPDATE Curriculos SET Principal=0 WHERE ID_Candidatos=%s", (cv["ID_Candidatos"],))
+    await execute("UPDATE Curriculos SET Titulo=%s,Principal=%s WHERE ID_Curriculos=%s", (dados.titulo, dados.principal, id_curriculo))
+    return await fetch_one("SELECT * FROM Curriculos WHERE ID_Curriculos=%s", (id_curriculo,))
+
+
+@router.post("/candidatos/{id_candidato}/curriculo-talentix", status_code=201, tags=["Currículos"])
+async def gerar_curriculo(id_candidato: str, sessao=Depends(usuario_atual)):
+    from app.routers.profissional import perfil_completo
+    from app.core.resume_pdf import gerar_pdf
+    from starlette.datastructures import UploadFile as StarletteUploadFile
+    await _checar_dono_candidato(id_candidato, sessao)
+    dados = await perfil_completo(id_candidato)
+    contato = await fetch_one("SELECT Nome,Email,Telefone FROM Usuarios WHERE ID_Usuarios=%s", (dados["perfil"]["ID_Usuarios"],))
+    pdf = await asyncio.to_thread(gerar_pdf, dados, contato)
+    result = await enviar_curriculo(id_candidato, titulo="Currículo Talentix", principal=False, analisar=False,
+        arquivo=StarletteUploadFile(BytesIO(pdf), filename="talentix.pdf"), sessao=sessao)
+    await execute("UPDATE Curriculos SET Origem='talentix' WHERE ID_Curriculos=%s", (result["ID_Curriculos"],))
+    result["Origem"] = "talentix"
+    return result
 
 
 @router.post("/candidatos/{id_candidato}/formacoes", status_code=201, tags=["Formações"])

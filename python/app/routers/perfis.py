@@ -3,6 +3,8 @@ CRUD de perfis: Candidatos, Empresas, Administradores, Recrutadores.
 (Usuarios em si não tem rota de criação direta — isso acontece via /auth/cadastro/*)
 """
 from app.core.routes import AtomicRouter as APIRouter
+import json
+from typing import Annotated, Literal
 
 from fastapi import Depends, HTTPException, status
 from pydantic import BaseModel, Field, field_validator
@@ -11,7 +13,7 @@ from app.db.database import fetch_one, fetch_all, execute
 from app.core.security import novo_uuid
 from app.core.deps import usuario_atual, exigir_tipo
 from app.core.access import checar_leitura_candidato, checar_dono_candidato, checar_empresa, empresa_da_sessao
-from app.core.validation import Money, normalize_state
+from app.core.validation import Money, normalize_state, safe_url
 
 router = APIRouter(tags=["Perfis"])
 
@@ -20,7 +22,7 @@ router = APIRouter(tags=["Perfis"])
 
 class CandidatoUpdate(BaseModel):
     titulo_profissional: str | None = Field(default=None, max_length=150)
-    resumo: str | None = None
+    resumo: str | None = Field(None, max_length=5000)
     cidade: str | None = Field(default=None, max_length=100)
     estado: str | None = Field(default=None, max_length=2)
     linkedin_url: str | None = Field(default=None, max_length=300)
@@ -29,8 +31,13 @@ class CandidatoUpdate(BaseModel):
     experiencia_anos: int | None = Field(default=None, ge=0, le=80)
     pretensao_salarial: Money | None = None
     disponivel: bool | None = None
+    modalidades: list[Literal["presencial", "hibrido", "remoto"]] = Field(default_factory=list, max_length=3)
+    tipos_contrato: list[Literal["CLT", "PJ", "estagio", "temporario", "aprendiz", "freelancer"]] = Field(default_factory=list, max_length=6)
+    preferencias: str | None = Field(None, max_length=3000)
+    habilidades_comportamentais: list[Annotated[str, Field(min_length=1, max_length=100)]] = Field(default_factory=list, max_length=30)
 
     _uf = field_validator("estado", mode="before")(normalize_state)
+    _urls = field_validator("linkedin_url", "github_url", "portfolio_url")(safe_url)
 
 
 @router.get("/candidatos", tags=["Candidatos"])
@@ -95,9 +102,11 @@ async def atualizar_candidato(
         "estado": "Estado", "linkedin_url": "LinkedinUrl", "github_url": "GithubUrl",
         "portfolio_url": "PortfolioUrl", "experiencia_anos": "ExperienciaAnos",
         "pretensao_salarial": "PretensaoSalarial", "disponivel": "Disponivel",
+        "modalidades": "Modalidades", "tipos_contrato": "TiposContrato",
+        "preferencias": "Preferencias", "habilidades_comportamentais": "HabilidadesComportamentais",
     }
     set_clauses = [f"{mapa_colunas[k]}=%s" for k in campos]
-    valores = list(campos.values()) + [id_candidato]
+    valores = [json.dumps(v, ensure_ascii=False) if isinstance(v, list) else v for v in campos.values()] + [id_candidato]
     await execute(f"UPDATE Candidatos SET {', '.join(set_clauses)} WHERE ID_Candidatos=%s", tuple(valores))
 
     return await fetch_one("SELECT * FROM Candidatos WHERE ID_Candidatos=%s", (id_candidato,))
@@ -129,7 +138,7 @@ class EmpresaUpdate(BaseModel):
 
 @router.get("/empresas", tags=["Empresas"])
 async def listar_empresas(setor: str | None = None):
-    query = "SELECT * FROM Empresas WHERE Ativo=1"
+    query = "SELECT ID_Empresas,NomeFantasia,Descricao,Setor,Porte,LogoUrl,SiteUrl,Verificada FROM Empresas WHERE Ativo=1"
     params: list = []
     if setor:
         query += " AND Setor=%s"
@@ -145,7 +154,7 @@ async def minha_empresa(sessao: dict = Depends(exigir_tipo("empresa", "recrutado
 
 @router.get("/empresas/{id_empresa}", tags=["Empresas"])
 async def obter_empresa(id_empresa: str):
-    empresa = await fetch_one("SELECT * FROM Empresas WHERE ID_Empresas=%s AND Ativo=1", (id_empresa,))
+    empresa = await fetch_one("SELECT ID_Empresas,NomeFantasia,Descricao,Setor,Porte,LogoUrl,SiteUrl,Verificada FROM Empresas WHERE ID_Empresas=%s AND Ativo=1", (id_empresa,))
     if not empresa:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Empresa não encontrada.")
     return empresa

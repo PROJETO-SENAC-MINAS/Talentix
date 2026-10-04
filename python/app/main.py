@@ -34,6 +34,8 @@ from app.routers import (
     mensagens,
     notificacoes,
     perfis,
+    profissional,
+    busca,
     uploads,
     vagas,
 )
@@ -56,6 +58,7 @@ async def lifespan(app: FastAPI):
     try:
         await contato.garantir_schema_contato()
         await curriculo.garantir_schema_curriculo_importacoes()
+        await profissional.garantir_schema()
         yield
     finally:
         await close_pool()
@@ -64,7 +67,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="Talentix API",
     description="API REST da plataforma de recrutamento Talentix.",
-    version="1.1.0",
+    version="1.2.0",
     lifespan=lifespan,
     openapi_tags=TAGS_METADATA,
     docs_url="/docs" if settings.API_DOCS_ENABLED else None,
@@ -126,7 +129,7 @@ app.add_middleware(
 
 for categoria in ("fotos", "logos", "curriculos"):
     (Path(settings.UPLOAD_DIR) / categoria).mkdir(parents=True, exist_ok=True)
-for categoria in ("fotos", "logos"):
+for categoria in ("logos",):
     app.mount(
         f"/uploads/{categoria}",
         StaticFiles(directory=Path(settings.UPLOAD_DIR) / categoria),
@@ -137,6 +140,8 @@ for router in (
     auth.router,
     dominios.router,
     perfis.router,
+    profissional.router,
+    busca.router,
     vagas.router,
     curriculo.router,
     habilidades.router,

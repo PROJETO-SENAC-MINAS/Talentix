@@ -22,6 +22,7 @@ _ID_STATUS_ENCERRADA = 4
 
 
 class VagaCreate(BaseModel):
+    area_profissional: str | None = Field(None, max_length=100)
     id_empresa: str
     titulo: str = Field(min_length=1, max_length=200)
     descricao: str = Field(min_length=1, max_length=20000)
@@ -41,6 +42,7 @@ class VagaCreate(BaseModel):
 
 
 class VagaUpdate(BaseModel):
+    area_profissional: str | None = Field(None, max_length=100)
     titulo: str | None = Field(default=None, min_length=1, max_length=200)
     descricao: str | None = Field(default=None, min_length=1, max_length=20000)
     modalidade: str | None = Field(default=None, max_length=50)
@@ -73,6 +75,7 @@ async def criar_vaga(dados: VagaCreate, sessao: dict = Depends(exigir_tipo("empr
          dados.modalidade, dados.nivel, dados.tipo_contrato, dados.salario_min,
          dados.salario_max, dados.localizacao, dados.salario_confidencial),
     )
+    await execute("UPDATE Vagas SET AreaProfissional=%s WHERE ID_Vagas=%s", (dados.area_profissional, id_vaga))
     return await fetch_one("SELECT * FROM Vagas WHERE ID_Vagas=%s", (id_vaga,))
 
 
@@ -160,6 +163,7 @@ async def atualizar_vaga(id_vaga: str, dados: VagaUpdate, sessao: dict = Depends
         return await fetch_one("SELECT * FROM Vagas WHERE ID_Vagas=%s", (id_vaga,))
 
     mapa_colunas = {
+        "area_profissional": "AreaProfissional",
         "titulo": "Titulo", "descricao": "Descricao", "modalidade": "Modalidade",
         "nivel": "Nivel", "tipo_contrato": "TipoContrato", "salario_min": "SalarioMin",
         "salario_max": "SalarioMax", "localizacao": "Localizacao",

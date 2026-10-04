@@ -355,6 +355,11 @@ def analisar_curriculo(
 
     dados = {
         "versao": 1,
+        "contato": {
+            "nome": cabecalho[0][:150] if cabecalho and "@" not in cabecalho[0] else None,
+            "email": (re.search(r"[\w.+-]+@[\w.-]+\.[a-zA-Z]{2,}", texto).group(0) if re.search(r"[\w.+-]+@[\w.-]+\.[a-zA-Z]{2,}", texto) else None),
+            "telefone": (re.search(r"(?:\+55\s*)?\(?\d{2}\)?[\s.-]*\d{4,5}[\s.-]*\d{4}", texto).group(0) if re.search(r"(?:\+55\s*)?\(?\d{2}\)?[\s.-]*\d{4,5}[\s.-]*\d{4}", texto) else None),
+        },
         "perfil": {
             "titulo_profissional": titulo[:150] if titulo else None,
             "resumo": resumo,

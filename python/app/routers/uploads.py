@@ -8,17 +8,47 @@ from fastapi.responses import FileResponse
 from pathlib import Path
 import re
 
-from app.db.database import fetch_one, execute
+from app.db.database import fetch_one, fetch_all, execute
 from app.core.deps import usuario_atual
 from app.core.access import empresa_da_sessao
+from app.core.access import checar_leitura_candidato
 from app.core.upload import salvar_arquivo
 from app.core.config import settings
 
 router = APIRouter(prefix="/uploads", tags=["Uploads"])
 
 
+@router.get("/fotos/{nome_arquivo}")
+async def foto_privada(nome_arquivo: str, sessao: dict = Depends(usuario_atual)):
+    if not re.fullmatch(r"[a-f0-9]{64}\.(jpg|jpeg|png|webp)", nome_arquivo):
+        raise HTTPException(404, "Foto não encontrada.")
+    url = f"/uploads/fotos/{nome_arquivo}"
+    usuario = await fetch_one("SELECT ID_Usuarios FROM Usuarios WHERE FotoUrl=%s AND Ativo=1 AND ID_Usuarios=%s", (url, sessao["id_usuario"]))
+    if not usuario:
+        # Arquivos deduplicados podem ser referenciados por vários proprietários.
+        owners = await fetch_all("SELECT ID_Usuarios FROM Usuarios WHERE FotoUrl=%s AND Ativo=1", (url,))
+        for owner in owners:
+            if sessao["tipo_usuario"] == "administrador":
+                usuario = owner
+                break
+            candidato = await fetch_one("SELECT ID_Candidatos FROM Candidatos WHERE ID_Usuarios=%s AND Ativo=1", (owner["ID_Usuarios"],))
+            if candidato:
+                try:
+                    await checar_leitura_candidato(candidato["ID_Candidatos"], sessao)
+                    usuario = owner
+                    break
+                except HTTPException:
+                    continue
+    if not usuario:
+        raise HTTPException(404, "Foto não encontrada.")
+    caminho = Path(settings.UPLOAD_DIR) / "fotos" / nome_arquivo
+    if not caminho.is_file():
+        raise HTTPException(404, "Foto não encontrada.")
+    return FileResponse(caminho, headers={"Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff"})
+
+
 @router.get("/curriculos/{nome_arquivo}")
-async def baixar_curriculo(nome_arquivo: str, sessao: dict = Depends(usuario_atual)):
+async def baixar_curriculo(nome_arquivo: str, preview: bool = False, sessao: dict = Depends(usuario_atual)):
     if not re.fullmatch(r"[a-f0-9]{64}\.(pdf|doc|docx)", nome_arquivo):
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Currículo não encontrado.")
 
@@ -56,7 +86,8 @@ async def baixar_curriculo(nome_arquivo: str, sessao: dict = Depends(usuario_atu
     return FileResponse(
         caminho,
         filename=nome_arquivo,
-        headers={"Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff"},
+        content_disposition_type="inline" if preview and nome_arquivo.endswith(".pdf") else "attachment",
+        headers={"Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff", "Content-Security-Policy": "sandbox"},
     )
 
 

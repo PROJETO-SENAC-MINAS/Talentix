@@ -43,7 +43,7 @@ services:
       dockerfile: python/Dockerfile
     restart: unless-stopped
     env_file: ./python/.env
-    environment:
+    environment: &runtime-environment
       APP_ENV: development
       DB_HOST: db
       DB_PORT: 3306
@@ -66,6 +66,20 @@ services:
       interval: 5s
       timeout: 3s
       retries: 30
+
+  worker-profissional:
+    build:
+      context: .
+      dockerfile: python/Dockerfile
+    restart: unless-stopped
+    env_file: ./python/.env
+    environment: *runtime-environment
+    command: ["python", "-m", "app.worker_profissional"]
+    volumes:
+      - talentix_uploads:/app/uploads
+    depends_on:
+      api:
+        condition: service_healthy
 
   frontend:
     image: python:3.12-alpine

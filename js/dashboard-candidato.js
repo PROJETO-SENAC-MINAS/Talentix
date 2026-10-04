@@ -55,6 +55,7 @@ document.addEventListener('DOMContentLoaded', () => {
       throw new Error(msg);
     }
 
+    if (options.method && /candidatos|experiencias|formacoes|curriculos|foto-perfil/.test(path)) document.dispatchEvent(new Event('perfil:alterado'));
     return corpo;
   }
 
@@ -144,6 +145,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const meu = await api('/candidatos/me');
       idCandidato = meu.ID_Candidatos;
       preencherFormPerfil(meu);
+      document.dispatchEvent(new CustomEvent('perfil:pronto', {detail: meu.ID_Candidatos}));
     } catch (erro) {
       mostrarToast(erro.message, 'error');
       return;
@@ -179,6 +181,11 @@ document.addEventListener('DOMContentLoaded', () => {
     $('#pGithub').value = c.GithubUrl || '';
     $('#pPortfolio').value = c.PortfolioUrl || '';
     $('#pDisponivel').checked = !!c.Disponivel;
+    const lista = v => typeof v === 'string' ? JSON.parse(v) : (v || []);
+    $all('[name="pModalidade"]').forEach(el => {el.checked = lista(c.Modalidades).includes(el.value);});
+    $all('[name="pContrato"]').forEach(el => {el.checked = lista(c.TiposContrato).includes(el.value);});
+    $('#pSoftSkills').value = lista(c.HabilidadesComportamentais).join(', ');
+    $('#pPreferencias').value = c.Preferencias || '';
   }
 
   $('#formPerfil')?.addEventListener('submit', async (e) => {
@@ -197,6 +204,10 @@ document.addEventListener('DOMContentLoaded', () => {
       github_url: $('#pGithub').value.trim() || null,
       portfolio_url: $('#pPortfolio').value.trim() || null,
       disponivel: $('#pDisponivel').checked,
+      modalidades: [...$all('[name="pModalidade"]:checked')].map(el => el.value),
+      tipos_contrato: [...$all('[name="pContrato"]:checked')].map(el => el.value),
+      habilidades_comportamentais: $('#pSoftSkills').value.split(',').map(s => s.trim()).filter(Boolean),
+      preferencias: $('#pPreferencias').value.trim() || null,
     };
 
     try {
@@ -284,6 +295,8 @@ document.addEventListener('DOMContentLoaded', () => {
      ============================================================ */
 
   let curriculosEmCache = [];
+  let timerCurriculos;
+  document.addEventListener('curriculos:atualizar', carregarCurriculos);
 
   function rotuloStatusImportacao(status) {
     return {
@@ -329,6 +342,8 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       const curriculos = await api(`/candidatos/${idCandidato}/curriculos`);
       curriculosEmCache = curriculos;
+      clearTimeout(timerCurriculos);
+      if (curriculos.some(c => [1, 2].includes(Number(c.ImportacaoStatus)))) timerCurriculos = setTimeout(carregarCurriculos, 4000);
       atualizarEstadoImportacao(curriculos);
 
       if (curriculos.length === 0) {
@@ -357,13 +372,15 @@ document.addEventListener('DOMContentLoaded', () => {
           <div class="list-item">
             <div class="list-item__main">
               <p class="list-item__title">${escapeHtml(c.Titulo)} ${c.Principal ? '<span class="badge">Principal</span>' : ''}</p>
-              <p class="list-item__sub">${tamanhoKb} KB · ${escapeHtml(c.ArquivoTipoMime || '')}</p>
+              <p class="list-item__sub">Versão ${Number(c.Versao || 1)} · ${tamanhoKb} KB · ${escapeHtml(c.ArquivoTipoMime || '')}</p>
               <p class="list-item__meta">Preenchimento inteligente: ${escapeHtml(rotuloStatusImportacao(c.ImportacaoStatus))}</p>
               ${c.ImportacaoErro ? `<p class="list-item__meta">${escapeHtml(c.ImportacaoErro)}</p>` : ''}
             </div>
             <div class="list-item__actions">
-              <a class="btn btn-secondary" style="text-decoration:none;padding:7px 12px;font-size:12.5px;" href="${API_BASE_URL}${c.ArquivoUrl}" target="_blank" rel="noopener">Abrir</a>
+              <a class="btn btn-secondary" style="text-decoration:none;padding:7px 12px;font-size:12.5px;" href="${API_BASE_URL}${c.ArquivoUrl}?preview=true" target="_blank" rel="noopener">Prévia</a>
+              <a class="btn btn-secondary" href="${API_BASE_URL}${c.ArquivoUrl}" target="_blank" rel="noopener">Baixar</a>
               ${acaoImportacao}
+              ${!c.Principal ? `<button type="button" class="btn btn-secondary" data-principal-curriculo="${escapeHtml(c.ID_Curriculos)}">Tornar principal</button>` : ''}
               <button type="button" class="btn-danger-ghost" data-remover-curriculo="${escapeHtml(c.ID_Curriculos)}">Remover</button>
             </div>
           </div>
@@ -374,14 +391,14 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  function listaPreview(titulo, itens, renderItem) {
+  function listaPreview(titulo, itens, renderItem, secao) {
     if (!itens?.length) {
       return `<section><h3>${escapeHtml(titulo)}</h3><p class="curriculum-import-empty">Nada identificado.</p></section>`;
     }
     return `
       <section>
         <h3>${escapeHtml(titulo)}</h3>
-        <ul>${itens.map((item) => `<li>${renderItem(item)}</li>`).join('')}</ul>
+        <ul>${itens.map((item, i) => `<li><label><input type="checkbox" data-secao="${secao}" data-indice="${i}"> ${renderItem(item)}</label></li>`).join('')}</ul>
       </section>
     `;
   }
@@ -389,13 +406,13 @@ document.addEventListener('DOMContentLoaded', () => {
   function renderizarPreviewImportacao(dados) {
     const perfil = dados?.perfil || {};
     const camposPerfil = [
-      ['Título', perfil.titulo_profissional],
-      ['Resumo', perfil.resumo],
-      ['Localização', [perfil.cidade, perfil.estado].filter(Boolean).join(' - ')],
-      ['LinkedIn', perfil.linkedin_url],
-      ['GitHub', perfil.github_url],
-      ['Portfólio', perfil.portfolio_url],
-      ['Experiência estimada', Number.isFinite(perfil.experiencia_anos) ? `${perfil.experiencia_anos} ano(s)` : null],
+      ['Título', perfil.titulo_profissional, 'titulo_profissional'],
+      ['Resumo', perfil.resumo, 'resumo'],
+      ['Cidade', perfil.cidade, 'cidade'], ['Estado', perfil.estado, 'estado'],
+      ['LinkedIn', perfil.linkedin_url, 'linkedin_url'],
+      ['GitHub', perfil.github_url, 'github_url'],
+      ['Portfólio', perfil.portfolio_url, 'portfolio_url'],
+      ['Experiência estimada', Number.isFinite(perfil.experiencia_anos) ? `${perfil.experiencia_anos} ano(s)` : null, 'experiencia_anos'],
     ].filter(([, valor]) => valor);
 
     $('#curriculoImportacaoResumo').innerHTML = `
@@ -403,19 +420,20 @@ document.addEventListener('DOMContentLoaded', () => {
         <section>
           <h3>Perfil</h3>
           ${camposPerfil.length
-            ? camposPerfil.map(([nome, valor]) => `<p><strong>${escapeHtml(nome)}:</strong> ${escapeHtml(String(valor))}</p>`).join('')
+            ? camposPerfil.map(([nome, valor, chave]) => `<p><label><input type="checkbox" data-secao="perfil" data-campo="${chave}"> <strong>${escapeHtml(nome)}:</strong> ${escapeHtml(String(valor))}</label></p>`).join('')
             : '<p class="curriculum-import-empty">Nenhum dado de perfil identificado.</p>'}
         </section>
+        <section><h3>Contato identificado</h3><p>${escapeHtml(dados?.contato?.nome || '')} · ${escapeHtml(dados?.contato?.email || '')} · ${escapeHtml(dados?.contato?.telefone || '')}</p><p>Revise seu contato nas configurações da conta. O e-mail de acesso não é alterado por importação.</p></section>
         ${listaPreview('Experiências', dados?.experiencias, (item) =>
           `${escapeHtml(item.cargo || '')} · ${escapeHtml(item.empresa || '')} ${item.data_inicio ? `(${escapeHtml(item.data_inicio.slice(0, 4))}${item.atual ? ' — atual' : item.data_fim ? ` — ${escapeHtml(item.data_fim.slice(0, 4))}` : ''})` : ''}`
-        )}
+        , 'experiencias')}
         ${listaPreview('Formação e certificados', dados?.formacoes, (item) =>
           `${escapeHtml(item.curso || '')} · ${escapeHtml(item.instituicao || '')}${item.nivel ? ` — ${escapeHtml(item.nivel)}` : ''}`
-        )}
-        ${listaPreview('Habilidades', dados?.habilidades, (item) => escapeHtml(item.nome || ''))}
+        , 'formacoes')}
+        ${listaPreview('Habilidades', dados?.habilidades, (item) => escapeHtml(item.nome || ''), 'habilidades')}
         ${listaPreview('Idiomas', dados?.idiomas, (item) =>
           `${escapeHtml(item.idioma || '')}${item.nivel ? ` — ${escapeHtml(item.nivel)}` : ''}`
-        )}
+        , 'idiomas')}
       </div>
     `;
   }
@@ -435,6 +453,9 @@ document.addEventListener('DOMContentLoaded', () => {
     if (botao) botao.disabled = true;
     try {
       const importacao = await api(`/curriculos/${idCurriculo}/analisar`, { method: 'POST' });
+      if (Number(importacao.ID_Status_Processamento_IA) !== 3) {
+        mostrarToast('Currículo na fila de análise. O resultado será atualizado automaticamente.'); await carregarCurriculos(); return;
+      }
       mostrarToast('Currículo analisado. Revise os dados antes de importar.');
       await carregarCurriculos();
       renderizarPreviewImportacao(importacao.DadosExtraidos);
@@ -491,6 +512,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const idRevisar = botao.getAttribute('data-revisar-importacao');
 
     try {
+      if (botao.dataset.principalCurriculo) {
+        const cv = curriculosEmCache.find(c => c.ID_Curriculos === botao.dataset.principalCurriculo);
+        await api(`/curriculos/${cv.ID_Curriculos}`, {method:'PUT', body:JSON.stringify({titulo:cv.Titulo, principal:true})});
+        await carregarCurriculos(); return;
+      }
       if (idAnalisar) {
         await analisarCurriculoSelecionado(idAnalisar, botao);
         return;
@@ -534,6 +560,7 @@ document.addEventListener('DOMContentLoaded', () => {
     botao.setAttribute('data-loading', 'true');
 
     const payload = {
+      selecionados: {perfil:[], experiencias:[], formacoes:[], habilidades:[], idiomas:[]},
       importar_perfil: $('#impPerfil').checked,
       importar_experiencias: $('#impExperiencias').checked,
       importar_formacoes: $('#impFormacoes').checked,
@@ -541,6 +568,7 @@ document.addEventListener('DOMContentLoaded', () => {
       importar_idiomas: $('#impIdiomas').checked,
       sobrescrever_perfil: $('#impSobrescrever').checked,
     };
+    $all('#curriculoImportacaoResumo input:checked').forEach(el => payload.selecionados[el.dataset.secao].push(el.dataset.campo || Number(el.dataset.indice)));
 
     try {
       const idCurriculo = $('#curriculoImportacaoId').value;
@@ -571,10 +599,12 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
+  let experienciasEmCache = [], formacoesEmCache = [];
   async function carregarExperiencias() {
     const container = $('#listaExperiencias');
     try {
       const experiencias = await api(`/candidatos/${idCandidato}/experiencias`);
+      experienciasEmCache = experiencias;
       if (experiencias.length === 0) {
         container.innerHTML = '<p class="empty-state">Nenhuma experiência cadastrada ainda.</p>';
         return;
@@ -587,6 +617,7 @@ document.addEventListener('DOMContentLoaded', () => {
             <p class="list-item__meta">${formatarData(exp.DataInicio)} — ${exp.Atual ? 'atual' : formatarData(exp.DataFim) || '—'}</p>
           </div>
           <div class="list-item__actions">
+            <button type="button" class="btn btn-secondary" data-editar-experiencia="${exp.ID_Experiencias}">Editar experiência</button>
             <button type="button" class="btn-danger-ghost" data-remover-experiencia="${exp.ID_Experiencias}">Remover</button>
           </div>
         </div>
@@ -612,9 +643,12 @@ document.addEventListener('DOMContentLoaded', () => {
       atual: $('#expAtual').checked,
     };
     try {
-      await api(`/candidatos/${idCandidato}/experiencias`, { method: 'POST', body: JSON.stringify(payload) });
+      if(payload.data_fim && payload.data_inicio>payload.data_fim) throw new Error('O término não pode anteceder o início.');
+      const editando = $('#formExperiencia').dataset.editando;
+      await api(editando ? `/experiencias/${editando}` : `/candidatos/${idCandidato}/experiencias`, { method: editando ? 'PUT':'POST', body: JSON.stringify(payload) });
       mostrarToast('Experiência adicionada.');
       $('#formExperiencia').reset();
+      delete $('#formExperiencia').dataset.editando; $('#expFim').disabled=false;
       carregarExperiencias();
     } catch (erro) {
       mostrarToast(erro.message, 'error');
@@ -622,6 +656,12 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   $('#listaExperiencias')?.addEventListener('click', async (e) => {
+    if(e.target.dataset.editarExperiencia) {
+      const exp=experienciasEmCache.find(v=>v.ID_Experiencias===e.target.dataset.editarExperiencia);
+      $('#formExperiencia').dataset.editando=exp.ID_Experiencias;
+      for(const [id,key] of Object.entries({expEmpresa:'Empresa',expCargo:'Cargo',expDescricao:'Descricao',expInicio:'DataInicio',expFim:'DataFim'})) $('#'+id).value=exp[key] || '';
+      $('#expAtual').checked=!!exp.Atual; $('#expFim').disabled=!!exp.Atual; $('#expEmpresa').focus(); return;
+    }
     const id = e.target.getAttribute('data-remover-experiencia');
     if (!id) return;
     try {
@@ -653,6 +693,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const containerCertificados = $('#listaCertificados');
     try {
       const formacoes = await api(`/candidatos/${idCandidato}/formacoes`);
+      formacoesEmCache = formacoes;
 
       const academicas = formacoes.filter((f) => f.Nivel !== 'Certificado');
       const certificados = formacoes.filter((f) => f.Nivel === 'Certificado');
@@ -683,6 +724,7 @@ document.addEventListener('DOMContentLoaded', () => {
           <p class="list-item__meta">${escapeHtml(periodo)}</p>
         </div>
         <div class="list-item__actions">
+          <button type="button" class="btn btn-secondary" data-editar-formacao="${f.ID_Formacoes}">Editar ${ehCertificado ? 'certificado':'formação'}</button>
           <button type="button" class="btn-danger-ghost" data-remover-formacao="${f.ID_Formacoes}">Remover</button>
         </div>
       </div>
@@ -708,9 +750,12 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     try {
-      await api(`/candidatos/${idCandidato}/formacoes`, { method: 'POST', body: JSON.stringify(payload) });
+      if(payload.data_inicio && payload.data_conclusao && payload.data_inicio>payload.data_conclusao) throw new Error('A conclusão não pode anteceder o início.');
+      const editando = $('#formFormacao').dataset.editando;
+      await api(editando ? `/formacoes/${editando}` : `/candidatos/${idCandidato}/formacoes`, { method: editando ? 'PUT':'POST', body: JSON.stringify(payload) });
       mostrarToast(ehCertificado ? 'Certificado adicionado.' : 'Formação adicionada.');
       $('#formFormacao').reset();
+      delete $('#formFormacao').dataset.editando;
       atualizarCamposFormacao();
       carregarFormacoes();
     } catch (erro) {
@@ -720,6 +765,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
   $all('#listaFormacoes, #listaCertificados').forEach((lista) => {
     lista.addEventListener('click', async (e) => {
+      if(e.target.dataset.editarFormacao) {
+        const f=formacoesEmCache.find(v=>v.ID_Formacoes===e.target.dataset.editarFormacao);
+        $('#formFormacao').dataset.editando=f.ID_Formacoes; $('#fTipo').value=f.Nivel==='Certificado' ? 'certificado':'formacao'; atualizarCamposFormacao();
+        for(const [id,key] of Object.entries({fInstituicao:'Instituicao',fCurso:'Curso',fNivel:'Nivel',fInicio:'DataInicio',fConclusao:'DataConclusao',fStatus:'Status'})) $('#'+id).value=f[key] || '';
+        $('#fInstituicao').focus(); return;
+      }
       const id = e.target.getAttribute('data-remover-formacao');
       if (!id) return;
       try {
@@ -738,30 +789,45 @@ document.addEventListener('DOMContentLoaded', () => {
   let listaVagasCarregada = false;
   let vagasEmCache = [];
   let idsVagasCandidatadas = new Set();
+  let paginaBusca = 1;
+  let geracaoBusca = 0;
+  const camposBusca = {cargo:'fvTitulo',palavra_chave:'fvPalavra',localizacao:'fvLocalizacao',modalidade:'fvModalidade',nivel:'fvNivel',salario_min:'fvSalarioMin',salario_max:'fvSalarioMax',tipo_contrato:'fvContrato',empresa:'fvEmpresa',dias:'fvDias',habilidades:'fvHabilidades',area:'fvArea',ordenar:'fvOrdenar'};
+  const queryInicial = new URLSearchParams(location.search);
+  for (const [key,id] of Object.entries(camposBusca)) if(queryInicial.has(key)) $('#'+id).value = queryInicial.get(key);
+  function filtrosAtuais() {
+    const f = {};
+    for (const [key,id] of Object.entries(camposBusca)) if ($('#'+id).value.trim()) f[key] = ['salario_min','salario_max','dias'].includes(key) ? Number($('#'+id).value) : $('#'+id).value.trim();
+    return f;
+  }
 
-  async function carregarVagas(filtros = {}) {
+  async function carregarVagas(filtros = null, pagina = 1) {
+    const geracao = ++geracaoBusca;
     const container = $('#listaVagas');
     container.innerHTML = '<p class="empty-state">Buscando vagas…</p>';
 
-    const params = new URLSearchParams({ apenas_publicadas: 'true' });
-    if (filtros.titulo) params.set('titulo', filtros.titulo);
-    if (filtros.localizacao) params.set('localizacao', filtros.localizacao);
-    if (filtros.modalidade) params.set('modalidade', filtros.modalidade);
-    if (filtros.nivel) params.set('nivel', filtros.nivel);
+    filtros = filtros || filtrosAtuais();
+    const params = new URLSearchParams({...filtros, pagina, por_pagina:20});
+    const url = new URL(location.href); url.search = params.toString(); history.replaceState(null,'',url);
+    paginaBusca = pagina;
 
     try {
-      const [vagas, minhasCandidaturas] = await Promise.all([
-        api(`/vagas?${params.toString()}`),
+      const [resultado, minhasCandidaturas] = await Promise.all([
+        api(`/vagas/busca?${params.toString()}`),
         api(`/candidaturas?id_candidato=${idCandidato}`).catch(() => []),
       ]);
-
+      if(geracao !== geracaoBusca) return;
+      const vagas = resultado.resultados;
+      $('#resumoBusca').textContent = `${resultado.total} vaga(s) encontrada(s). Compatibilidade calculada pelas habilidades e níveis cadastrados.`;
+      $('#paginaAtual').textContent = ` Página ${pagina} de ${Math.max(1,Math.ceil(resultado.total/resultado.por_pagina))} `;
+      $('#paginaAnterior').disabled = pagina <= 1;
+      $('#paginaProxima').disabled = pagina * resultado.por_pagina >= resultado.total;
       vagasEmCache = vagas;
       idsVagasCandidatadas = new Set(minhasCandidaturas.map((c) => c.ID_Vagas));
       listaVagasCarregada = true;
 
       renderizarVagas(vagas);
     } catch (erro) {
-      container.innerHTML = `<p class="empty-state">${escapeHtml(erro.message)}</p>`;
+      if(geracao === geracaoBusca) container.innerHTML = `<p class="empty-state">${escapeHtml(erro.message)}</p>`;
     }
   }
 
@@ -784,12 +850,15 @@ document.addEventListener('DOMContentLoaded', () => {
         <div class="list-item">
           <div class="list-item__main">
             <p class="list-item__title">${escapeHtml(v.Titulo)}</p>
-            <p class="list-item__sub">${[v.Modalidade, v.Nivel, v.Localizacao].filter(Boolean).map(escapeHtml).join(' · ')}</p>
+            <p class="list-item__sub">${[v.NomeEmpresa, v.Modalidade, v.Nivel, v.Localizacao].filter(Boolean).map(escapeHtml).join(' · ')}</p>
+            <p class="list-item__meta">Habilidades: ${(v.habilidades || []).map(h => escapeHtml(h.Nome)).join(', ') || 'Não informadas'}</p>
+            ${v.compatibilidade != null ? `<p>Compatibilidade de habilidades: ${v.compatibilidade}%</p>` : ''}
             ${faixaSalarial ? `<p class="list-item__meta">${escapeHtml(faixaSalarial)}</p>` : ''}
           </div>
           <div class="list-item__actions">
             <button type="button" class="btn btn-secondary" data-favoritar="${v.ID_Vagas}">Favoritar</button>
             <button type="button" class="btn btn-secondary" data-ver-vaga="${v.ID_Vagas}">Ver detalhes</button>
+            <button type="button" class="btn btn-secondary" data-compartilhar="${v.ID_Vagas}">Compartilhar</button>
             ${jaCandidatado
               ? '<span class="badge">Já candidatado</span>'
               : `<button type="button" class="btn btn-primary" data-candidatar="${v.ID_Vagas}">Candidatar-se</button>`}
@@ -801,18 +870,53 @@ document.addEventListener('DOMContentLoaded', () => {
 
   $('#formFiltroVagas')?.addEventListener('submit', (e) => {
     e.preventDefault();
-    carregarVagas({
-      titulo: $('#fvTitulo').value.trim(),
-      localizacao: $('#fvLocalizacao').value.trim(),
-      modalidade: $('#fvModalidade').value,
-      nivel: $('#fvNivel').value,
-    });
+    if ($('#fvSalarioMin').value && $('#fvSalarioMax').value && Number($('#fvSalarioMin').value)>Number($('#fvSalarioMax').value)) {mostrarToast('Revise a faixa salarial.', 'error'); return;}
+    const filtros = filtrosAtuais(); carregarVagas(filtros);
+    api('/buscas-historico',{method:'POST',body:JSON.stringify(filtros)}).then(carregarBuscas).catch(e => mostrarToast(e.message,'error'));
+  });
+  $('#paginaAnterior').addEventListener('click', () => carregarVagas(null,paginaBusca-1));
+  $('#paginaProxima').addEventListener('click', () => carregarVagas(null,paginaBusca+1));
+  let autocompleteTimer;
+  $('#fvTitulo').addEventListener('input', () => {
+    clearTimeout(autocompleteTimer);
+    const term = $('#fvTitulo').value.trim();
+    if (term.length<2) {$('#cargosSugeridos').replaceChildren(); return;}
+    autocompleteTimer=setTimeout(async () => {
+      try {const rows=await api(`/vagas/autocomplete?q=${encodeURIComponent(term)}`); if($('#fvTitulo').value.trim()===term) $('#cargosSugeridos').innerHTML=rows.map(r=>`<option value="${escapeHtml(r.Titulo)}"></option>`).join('');} catch {$('#cargosSugeridos').replaceChildren();}
+    },300);
+  });
+  let buscasSalvas = [], historicoBuscas = [];
+  async function carregarBuscas() {
+    [buscasSalvas,historicoBuscas] = await Promise.all([api('/buscas'),api('/buscas-historico')]);
+    $('#buscasSalvas').innerHTML = buscasSalvas.map(b=>`<div class="list-item"><p>${escapeHtml(b.Nome)} · Alertas ${b.Ativa ? 'ativos':'desativados'}</p><button type="button" class="btn btn-secondary" data-usar-busca="${escapeHtml(b.ID_Busca)}">Usar busca</button><button type="button" class="btn btn-secondary" data-alerta-busca="${escapeHtml(b.ID_Busca)}">${b.Ativa ? 'Pausar':'Ativar'} alertas</button><button type="button" class="btn-danger-ghost" data-excluir-busca="${escapeHtml(b.ID_Busca)}">Excluir busca</button></div>`).join('') || '<p>Nenhuma busca salva.</p>';
+    $('#historicoBuscas').innerHTML=historicoBuscas.map((b,i)=>`<button type="button" class="btn btn-secondary" data-historico="${i}">${escapeHtml(b.Filtros.cargo || b.Filtros.palavra_chave || 'Todas as vagas')} · ${escapeHtml(b.CriadoEm)}</button>`).join('') || '<p>Nenhuma pesquisa registrada.</p>';
+  }
+  function usarFiltros(f) {for (const [key,id] of Object.entries(camposBusca)) $('#'+id).value = f[key] ?? (key==='ordenar' ? 'relevancia':''); carregarVagas();}
+  $('#formSalvarBusca').addEventListener('submit', async e=> {
+    e.preventDefault(); try {await api('/buscas',{method:'POST',body:JSON.stringify({nome:$('#nomeBusca').value.trim(),filtros:filtrosAtuais(),ativa:$('#alertaBusca').checked})}); await carregarBuscas(); mostrarToast('Busca salva. Alertas ativos aparecem nas notificações.');} catch(error) {mostrarToast(error.message,'error');}
+  });
+  $('#buscasSalvas').addEventListener('click',async e=> {
+    const id=e.target.dataset.usarBusca || e.target.dataset.alertaBusca || e.target.dataset.excluirBusca; if(!id)return;
+    const b=buscasSalvas.find(b=>b.ID_Busca===id);
+    try {if(e.target.dataset.usarBusca) usarFiltros(b.Filtros); else if(e.target.dataset.excluirBusca) await api(`/buscas/${id}`,{method:'DELETE'}); else await api(`/buscas/${id}`,{method:'PUT',body:JSON.stringify({nome:b.Nome,filtros:b.Filtros,ativa:!b.Ativa})}); await carregarBuscas();} catch(error) {mostrarToast(error.message,'error');}
+  });
+  $('#historicoBuscas').addEventListener('click',e=> {if(e.target.dataset.historico)usarFiltros(historicoBuscas[Number(e.target.dataset.historico)].Filtros);});
+  document.addEventListener('perfil:pronto',()=> {
+    carregarBuscas().catch(e=>mostrarToast(e.message,'error'));
+    if(queryInicial.has('cargo') || queryInicial.has('vaga')) {
+      document.querySelector('[data-tab="vagas"]').click();
+      if(queryInicial.has('vaga')) api(`/vagas/${encodeURIComponent(queryInicial.get('vaga'))}`).then(v=>{vagasEmCache.push(v); abrirDetalheVaga(v.ID_Vagas);}).catch(e=>mostrarToast(e.message,'error'));
+    }
   });
 
   $('#listaVagas')?.addEventListener('click', async (e) => {
     const idVer = e.target.getAttribute('data-ver-vaga');
     const idCandidatar = e.target.getAttribute('data-candidatar');
     const idFavoritar = e.target.getAttribute('data-favoritar');
+    if (e.target.dataset.compartilhar) {
+      const url = new URL(location.href); url.search = new URLSearchParams({vaga:e.target.dataset.compartilhar}).toString();
+      try {if(navigator.share) await navigator.share({title:'Vaga no Talentix',url:url.href}); else {await navigator.clipboard.writeText(url.href); mostrarToast('Link da vaga copiado.');}} catch(error) {if(error.name!=='AbortError')mostrarToast('Não foi possível copiar. Use o endereço da página.','error');}
+    }
     if (idFavoritar) { try { await api('/favoritos', {method:'POST',body:JSON.stringify({id_vaga:idFavoritar})}); mostrarToast('Vaga adicionada aos favoritos.'); } catch(error) { mostrarToast(error.message,'error'); } }
 
     if (idVer) {
