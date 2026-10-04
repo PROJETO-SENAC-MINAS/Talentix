@@ -92,7 +92,8 @@ async function test(name,fn) {
     await test('curriculo PDF Talentix gera pre-visao e aguarda confirmacao manual',async()=> {
       await tab(candidate,'perfil');await candidate.locator('#secaoCurriculos').scrollIntoViewIfNeeded();const cv=await submit(candidate,'#gerarCurriculoTalentix','/curriculo-talentix');
       const saved=await candidate.context().request.get(API+`/candidatos/${cv.ID_Candidatos}/curriculos`);
-      assert.ok((await saved.json()).some(item=>item.ID_Curriculos===cv.ID_Curriculos),'PDF Talentix deve ficar persistido no histórico do candidato.');
+      const savedItems=await saved.json();assert.ok(saved.ok(),`GET currículo: HTTP ${saved.status()} ${JSON.stringify(savedItems)}`);
+      assert.ok(Array.isArray(savedItems)&&savedItems.some(item=>item.ID_Curriculos===cv.ID_Curriculos),`PDF Talentix deve ficar persistido no histórico: ${JSON.stringify(savedItems)}`);
       await candidate.reload();await candidate.waitForLoadState('networkidle');await candidate.locator(`[data-analisar-curriculo="${cv.ID_Curriculos}"]`).waitFor();await submit(candidate,`[data-analisar-curriculo="${cv.ID_Curriculos}"]`,'/analisar');
       const result=spawnSync(process.env.TEST_PYTHON || 'python',['-m','app.worker_profissional','--once'],{cwd:path.join(__dirname,'../python'),env:process.env,encoding:'utf8',timeout:120000});assert.equal(result.status,0,result.stderr);
       await candidate.locator(`#listaCurriculos [data-revisar-importacao="${cv.ID_Curriculos}"]`).waitFor({timeout:15000});
