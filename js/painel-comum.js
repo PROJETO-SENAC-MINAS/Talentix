@@ -7,10 +7,15 @@ window.Talentix = (() => {
     catch { return '#'; }
   };
   async function api(path, options = {}) {
-    const response = await fetch(`${API_BASE_URL}${path}`, {
-      credentials: 'include', ...options,
-      headers: options.body instanceof FormData ? options.headers : {'Content-Type':'application/json', ...options.headers},
-    });
+    let response;
+    try {
+      response = await fetch(`${API_BASE_URL}${path}`, {
+        credentials: 'include', ...options,
+        headers: options.body instanceof FormData ? options.headers : {'Content-Type':'application/json', ...options.headers},
+      });
+    } catch {
+      throw new Error(`Não foi possível conectar à API em ${API_BASE_URL}. Verifique se o FastAPI está em execução e recarregue a página.`);
+    }
     const body = await response.json().catch(() => null);
     if (response.status === 401) { window.location.assign('login.html'); throw new Error('Sessão encerrada.'); }
     if (!response.ok) throw new Error(Array.isArray(body?.detail) ? body.detail.map(d => d.msg).join(' ') : body?.detail || 'Não foi possível concluir a operação.');

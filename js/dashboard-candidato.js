@@ -28,13 +28,18 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   async function api(path, options = {}) {
-    const resposta = await fetch(`${API_BASE_URL}${path}`, {
-      credentials: 'include',
-      headers: options.body instanceof FormData
-        ? undefined
-        : { 'Content-Type': 'application/json' },
-      ...options,
-    });
+    let resposta;
+    try {
+      resposta = await fetch(`${API_BASE_URL}${path}`, {
+        credentials: 'include',
+        headers: options.body instanceof FormData
+          ? undefined
+          : { 'Content-Type': 'application/json' },
+        ...options,
+      });
+    } catch {
+      throw new Error(`Não foi possível conectar à API em ${API_BASE_URL}. Verifique se o FastAPI está em execução e recarregue a página.`);
+    }
 
     if (resposta.status === 401) {
       window.location.href = 'login.html';

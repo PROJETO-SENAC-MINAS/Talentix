@@ -63,7 +63,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         const linked = await api(`/vagas/${saved.ID_Vagas}/habilidades`, {method:'POST',body:JSON.stringify({id_habilidade:skill.ID_Habilidades,obrigatoria:true,peso:1})});
         editedSkills.push({...linked,NomeHabilidade:skill.Nome});
       }
-      $('#modalVagaEmpresa').close(); await Promise.all([loadJobs(),loadMetrics()]); toast('Vaga salva.');
+      if (!id) {
+        await api(`/vagas/${saved.ID_Vagas}/publicar`, {method:'PATCH'});
+      }
+      $('#modalVagaEmpresa').close();
+      await Promise.all([loadJobs(),loadMetrics()]);
+      toast(id ? 'Vaga salva.' : 'Vaga criada e publicada para os candidatos.');
     } finally { button.disabled = false; }
   }));
   $('#listaVagasEmpresa').addEventListener('click', run(async event => {

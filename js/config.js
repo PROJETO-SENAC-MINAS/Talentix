@@ -1,12 +1,13 @@
-/* ============================================================
-   TALENTIX — config.js
-   Configuração compartilhada de acesso à API.
-   Ajuste API_BASE_URL se a API rodar em outra porta/host.
-   ============================================================ */
+/* TALENTIX — configuração compartilhada de acesso à API. */
+const API_BASE_URL = (() => {
+  const definida = String(window.TALENTIX_API_BASE_URL || '').trim().replace(/\/$/, '');
+  if (definida) return definida;
+  const host = window.location.hostname;
+  if (host === 'localhost' || host === '127.0.0.1') return 'http://' + host + ':8000';
+  if (window.location.protocol === 'file:' || !host) return 'http://127.0.0.1:8000';
+  return window.location.origin;
+})();
 
-const API_BASE_URL = 'http://127.0.0.1:8000';
-
-/* Segurança compartilhada do cliente: anexa CSRF automaticamente às mutações. */
 (function configurarFetchSeguro() {
   const fetchOriginal = window.fetch.bind(window);
   const metodosMutaveis = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
@@ -29,7 +30,6 @@ const API_BASE_URL = 'http://127.0.0.1:8000';
   window.fetch = function talentixFetch(input, init = {}) {
     const opcoes = { ...init };
     const metodo = String(opcoes.method || 'GET').toUpperCase();
-
     if (mesmaApi(input)) {
       opcoes.credentials = 'include';
       if (metodosMutaveis.has(metodo)) {

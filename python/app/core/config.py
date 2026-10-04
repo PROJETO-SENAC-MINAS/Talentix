@@ -70,7 +70,16 @@ class Settings(BaseSettings):
 
     @property
     def cors_origins(self) -> list[str]:
-        return [x.strip() for x in self.FRONTEND_ORIGIN.split(",") if x.strip()]
+        origins = [x.strip().rstrip("/") for x in self.FRONTEND_ORIGIN.split(",") if x.strip()]
+        if self.APP_ENV != "production":
+            # WAMP/Live Server podem alternar entre localhost e 127.0.0.1.
+            # Mantemos credenciais com uma lista explícita, nunca wildcard.
+            for host in ("127.0.0.1", "localhost"):
+                for port in ("", ":5500", ":3000", ":8080"):
+                    origin = f"http://{host}{port}"
+                    if origin not in origins:
+                        origins.append(origin)
+        return origins
 
     @property
     def cors_methods(self) -> list[str]:
