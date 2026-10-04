@@ -85,7 +85,7 @@
     text.setAttribute('aria-label', 'Alternar texto ampliado');
 
     bar.append(contrast, text);
-    d.body.appendChild(bar);
+    (d.querySelector('.candidate-dashboard .sidebar__footer') || d.body).appendChild(bar);
 
     contrast.onclick = () => {
       const on = d.documentElement.dataset.a11yContrast !== 'high';

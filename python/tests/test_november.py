@@ -99,6 +99,49 @@ def test_confirmacao_seletiva_e_dados_separados(ambiente,autenticar):
     autenticar(c,'uc2','candidato');assert c.post('/curriculos/cr1/importacao/aplicar',json={}).status_code==403
 
 
+@pytest.mark.parametrize('indices', [[0, 1], [1]])
+def test_importacao_grupos_e_itens_confirmados_juntos(ambiente, autenticar, indices):
+    c, conn = ambiente
+    autenticar(c, 'uc1', 'candidato')
+    dados = {
+        'perfil': {'titulo_profissional': 'Título aprovado', 'resumo': 'Não aprovado'},
+        'experiencias': [
+            {'empresa': 'Empresa A', 'cargo': 'Assistente', 'data_inicio': '2025-01-01'},
+            {'empresa': 'Empresa B', 'cargo': 'Analista', 'data_inicio': '2026-01-01'},
+        ],
+        'formacoes': [
+            {'instituicao': 'Escola A', 'curso': 'Sistemas'},
+            {'instituicao': 'Escola B', 'curso': 'Testes'},
+        ],
+        'habilidades': [{'nome': 'Python'}, {'nome': 'SQL'}],
+        'idiomas': [{'idioma': 'Inglês', 'nivel': 'fluente'}, {'idioma': 'Espanhol', 'nivel': 'basico'}],
+    }
+    conn.execute("INSERT INTO Curriculo_Importacoes(ID_Curriculo_Importacoes,ID_Curriculos,ID_Status_Processamento_IA,DadosExtraidos) VALUES ('imp','cr1',3,?)", (json.dumps(dados),))
+    conn.commit()
+    selecionados = {secao: indices for secao in ('experiencias', 'formacoes', 'habilidades', 'idiomas')}
+    selecionados['perfil'] = ['titulo_profissional']
+    payload = {**{'importar_' + secao: True for secao in selecionados}, 'selecionados': selecionados}
+    resposta = c.post('/curriculos/cr1/importacao/aplicar', json=payload)
+    assert resposta.status_code == 200, resposta.text
+    assert resposta.json()['importados'] == {'perfil': 1, **{secao: len(indices) for secao in selecionados if secao != 'perfil'}}
+    perfil = c.get('/candidatos/c1').json()
+    assert perfil['TituloProfissional'] == 'Título aprovado' and perfil['Resumo'] is None
+    experiencias = c.get('/candidatos/c1/experiencias').json()
+    assert {e['Empresa'] for e in experiencias} == {dados['experiencias'][i]['empresa'] for i in indices}
+    formacoes = c.get('/candidatos/c1/formacoes').json()
+    assert {f['Curso'] for f in formacoes} == {dados['formacoes'][i]['curso'] for i in indices}
+    habilidades = c.get('/candidatos/c1/habilidades').json()
+    assert {h['NomeHabilidade'] for h in habilidades} == {dados['habilidades'][i]['nome'] for i in indices}
+    idiomas = c.get('/candidatos/c1/idiomas').json()
+    assert {i['NomeIdioma'] for i in idiomas} == {dados['idiomas'][i]['idioma'] for i in indices}
+    # Repetir a confirmação não duplica as coleções, nem altera a extração original.
+    repetida = c.post('/curriculos/cr1/importacao/aplicar', json=payload)
+    assert repetida.status_code == 200
+    assert repetida.json()['importados'] == dict.fromkeys(selecionados, 0)
+    assert c.get('/curriculos/cr1/importacao').json()['DadosExtraidos'] == dados
+    assert conn.execute("SELECT COUNT(*) FROM Experiencias WHERE ID_Candidatos='c2'").fetchone()[0] == 0
+
+
 def test_erro_parser_compreensivel(ambiente):
     _,conn=ambiente
     conn.execute("INSERT INTO Curriculo_Importacoes(ID_Curriculo_Importacoes,ID_Curriculos,ID_Status_Processamento_IA,ProcessamentoIniciadoEm) VALUES ('imp','cr1',2,'2026-10-01')");conn.commit()

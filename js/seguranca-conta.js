@@ -111,7 +111,7 @@ document.addEventListener('DOMContentLoaded', () => {
       <div class="list" id="securitySessions"></div>
     </div>
   `;
-  main.appendChild(section);
+  main.insertBefore(section, main.querySelector('.page-footer'));
 
   let me = null;
   const fmt = value => value ? new Date(value).toLocaleString('pt-BR') : '—';

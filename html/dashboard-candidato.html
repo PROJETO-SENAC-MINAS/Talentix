@@ -8,10 +8,11 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="../css/painel.css">
+    <link rel="stylesheet" href="../css/perfil-profissional.css">
     <link rel="stylesheet" href="../css/acessibilidade.css">
   </head>
 
-  <body>
+  <body class="candidate-dashboard">
     <div class="app">
 
       <!-- ===================== SIDEBAR ===================== -->
@@ -61,15 +62,61 @@
               <p class="content__sub">Essas informações aparecem para as empresas quando você se candidata.</p>
             </div>
           </header>
+          <div class="card profile-resume-card" id="secaoCurriculos">
+            <header class="curriculum-import-card__header">
+              <div>
+                <h2 class="section-subtitle">Comece pelo seu currículo</h2>
+                <p class="content__sub">Envie seu arquivo para preencher o perfil com mais facilidade. Você revisa e confirma os dados antes de importar.</p>
+              </div>
+            </header>
+            <ol class="resume-steps" aria-label="Como importar seu currículo">
+              <li>Envie o arquivo</li><li>Revise os dados</li><li>Confirme a importação</li>
+            </ol>
+            <form id="formCurriculo" class="inline-form-stack">
+              <div class="grid-2">
+                <div class="field">
+                  <label for="cvTitulo">Nome do currículo</label>
+                  <input type="text" id="cvTitulo" placeholder="Ex: Meu currículo atualizado" required>
+                </div>
+                <div class="field">
+                  <label for="cvArquivo">Arquivo do currículo</label>
+                  <input type="file" id="cvArquivo" accept=".pdf,.doc,.docx" aria-describedby="cvArquivoAjuda" required>
+                  <small class="hint" id="cvArquivoAjuda">PDF ou DOCX para importar dados. DOC pode ser enviado para candidaturas.</small>
+                </div>
+              </div>
+              <label class="checkbox-line"><input type="checkbox" id="cvPrincipal"> Usar como currículo principal nas candidaturas</label>
+              <div class="form-actions form-actions--start">
+                <button type="submit" class="btn btn-primary" id="btnEnviarCurriculo">Enviar currículo</button>
+              </div>
+            </form>
+            <section class="curriculum-import-state" aria-labelledby="curriculoEstadoTitulo">
+              <h3 id="curriculoEstadoTitulo">Revisar e importar</h3>
+              <div id="curriculoImportacaoEstado"><p class="empty-state">Envie um currículo para começar.</p></div>
+            </section>
+          </div>
+          <div class="card curriculum-history-card">
+            <div class="curriculum-import-card__header">
+              <h2 class="section-subtitle">Seus currículos</h2>
+              <button type="button" id="gerarCurriculoTalentix" class="btn btn-secondary">Gerar PDF com meu perfil</button>
+            </div>
+            <div class="list" id="listaCurriculos"><p class="empty-state">Nenhum currículo enviado ainda.</p></div>
+          </div>
           <div class="card">
-            <h2 class="section-subtitle">Perfil profissional 2.0</h2>
+            <h2 class="section-subtitle">Seu perfil profissional</h2>
             <p id="completudeTexto" role="status">Calculando completude do perfil…</p>
             <progress id="completudeBarra" max="100" value="0" aria-label="Completude do perfil"></progress>
-            <ul id="perfilFaltantes"></ul>
-            <form id="formFoto" class="inline-form-stack">
-              <img id="fotoProfissional" alt="Sua foto de perfil" width="96" height="96" hidden>
-              <div class="field"><label for="fotoArquivo">Foto (JPG, PNG ou WebP; até 5 MB e 16 megapixels)</label><input id="fotoArquivo" type="file" accept="image/jpeg,image/png,image/webp" required></div>
-              <button class="btn btn-secondary" type="submit">Atualizar foto</button>
+            <ul id="perfilFaltantes" class="profile-completion-tasks" aria-label="Sugestões para completar seu perfil"></ul>
+            <form id="formFoto" class="profile-photo-form">
+              <h3>Sua foto de perfil</h3>
+              <div class="profile-photo-fields">
+                <img id="fotoProfissional" alt="Sua foto de perfil" width="96" height="96" hidden>
+                <div class="field">
+                  <label for="fotoArquivo">Escolher uma foto</label>
+                  <input id="fotoArquivo" type="file" accept="image/jpeg,image/png,image/webp" aria-describedby="fotoArquivoAjuda" required>
+                  <small class="hint" id="fotoArquivoAjuda">JPG, PNG ou WebP; até 5 MB e 16 megapixels.</small>
+                </div>
+              </div>
+              <div class="form-actions form-actions--start"><button class="btn btn-secondary" type="submit">Atualizar foto</button></div>
             </form>
             <form id="formPerfil">
               <div class="grid-2">
@@ -118,19 +165,19 @@
                 <input type="checkbox" id="pDisponivel">
                 Estou disponível para novas oportunidades agora
               </label>
-              <fieldset><legend>Modalidades desejadas</legend>
+              <fieldset class="choice-fieldset"><legend>Modalidades desejadas</legend><div class="choice-options">
                 <label><input type="checkbox" name="pModalidade" value="presencial"> Presencial</label>
                 <label><input type="checkbox" name="pModalidade" value="hibrido"> Híbrida</label>
                 <label><input type="checkbox" name="pModalidade" value="remoto"> Remota</label>
-              </fieldset>
-              <fieldset><legend>Tipos de contrato</legend>
+              </div></fieldset>
+              <fieldset class="choice-fieldset"><legend>Tipos de contrato</legend><div class="choice-options">
                 <label><input type="checkbox" name="pContrato" value="CLT"> CLT</label>
                 <label><input type="checkbox" name="pContrato" value="PJ"> PJ</label>
                 <label><input type="checkbox" name="pContrato" value="estagio"> Estágio</label>
                 <label><input type="checkbox" name="pContrato" value="temporario"> Temporário</label>
                 <label><input type="checkbox" name="pContrato" value="aprendiz"> Aprendiz</label>
                 <label><input type="checkbox" name="pContrato" value="freelancer"> Freelancer</label>
-              </fieldset>
+              </div></fieldset>
               <div class="field"><label for="pSoftSkills">Habilidades comportamentais (separadas por vírgula)</label><input id="pSoftSkills" maxlength="3000" placeholder="Comunicação, colaboração"></div>
               <div class="field"><label for="pPreferencias">Preferências profissionais</label><textarea id="pPreferencias" maxlength="3000" rows="3" placeholder="Áreas de interesse, horários e objetivos"></textarea></div>
               <div class="form-actions">
@@ -161,56 +208,8 @@
               <div class="field"><label for="itemDescricao">Descrição</label><textarea id="itemDescricao" maxlength="5000" rows="3"></textarea></div>
               <div class="field"><label for="itemUrl">Link do curso ou projeto</label><input id="itemUrl" type="url" maxlength="300" pattern="https?://.*"></div>
               <div class="grid-2"><div class="field"><label for="itemInicio">Data inicial</label><input id="itemInicio" type="date"></div><div class="field"><label for="itemFim">Data final</label><input id="itemFim" type="date"></div></div>
-              <div><button class="btn btn-primary" type="submit">Salvar item</button><button class="btn btn-secondary" id="cancelarItem" type="button">Cancelar edição</button></div>
+              <div class="form-actions form-actions--start"><button class="btn btn-primary" type="submit">Salvar item</button><button class="btn btn-secondary" id="cancelarItem" type="button">Cancelar edição</button></div>
             </form><div id="listaItensProfissionais" class="list"></div>
-          </div>
-        </section>
-
-        <!-- ---------- CURRÍCULO (arquivo) ---------- -->
-
-        <section class="tab-panel" id="tab-curriculo" hidden>
-          <header class="content__header">
-            <div>
-              <h1>Currículo</h1>
-              <p class="content__sub">Envie o arquivo do seu currículo. Você pode manter mais de um e marcar o principal.</p>
-            </div>
-          </header>
-          <div class="card" id="secaoCurriculos">
-            <button type="button" id="gerarCurriculoTalentix" class="btn btn-secondary">Gerar PDF Talentix com meu perfil</button>
-            <form id="formCurriculo" class="inline-form-stack">
-              <div class="field">
-                <label for="cvTitulo">Nome do arquivo</label>
-                <input type="text" id="cvTitulo" placeholder="Ex: Currículo 2026 — Atualizado" required>
-              </div>
-              <div class="field">
-                <label for="cvArquivo">Arquivo (PDF, DOC ou DOCX)</label>
-                <input type="file" id="cvArquivo" accept=".pdf,.doc,.docx" required>
-              </div>
-              <label class="checkbox-line">
-                <input type="checkbox" id="cvPrincipal">
-                Marcar como currículo principal
-              </label>
-              <button type="submit" class="btn btn-primary" id="btnEnviarCurriculo" style="align-self:flex-start;">Enviar currículo</button>
-            </form>
-          </div>
-          <div class="card curriculum-import-card">
-            <div class="curriculum-import-card__header">
-              <div>
-                <h2 class="section-subtitle">Preenchimento inteligente</h2>
-                <p class="content__sub">PDF e DOCX podem ser analisados para sugerir dados do perfil, experiências, formação, habilidades e idiomas. Nada é aplicado sem sua confirmação.</p>
-              </div>
-              <span class="badge badge--muted">Revisão obrigatória</span>
-            </div>
-            <div id="curriculoImportacaoEstado" class="curriculum-import-state">
-              <p class="empty-state">Envie ou selecione um currículo para analisar.</p>
-            </div>
-          </div>
-
-          <div class="card">
-            <h2 class="section-subtitle">Currículos enviados</h2>
-            <div class="list" id="listaCurriculos">
-              <p class="empty-state">Nenhum currículo enviado ainda.</p>
-            </div>
           </div>
           <div class="card">
             <h2 class="section-subtitle">Experiências profissionais</h2>
@@ -251,17 +250,7 @@
               <p class="empty-state">Nenhuma experiência cadastrada ainda.</p>
             </div>
           </div>
-        </section>
-
-        <!-- ---------- FORMAÇÃO E CERTIFICADOS ---------- -->
-
-        <section class="tab-panel" id="tab-formacao" hidden>
-          <header class="content__header">
-            <div>
-              <h1>Formação e certificados</h1>
-              <p class="content__sub">Escolas, cursos e certificados que você já concluiu ou está cursando.</p>
-            </div>
-          </header>
+          <header class="profile-section-heading"><h2>Formação e certificados</h2><p>Complete ou revise seus estudos e certificações.</p></header>
           <div class="card">
             <form id="formFormacao" class="inline-form-stack">
               <div class="field">
@@ -467,22 +456,18 @@
       <div class="dialog-header">
         <div>
           <h2 id="modalImportarCurriculoTitulo">Revisar dados do currículo</h2>
-          <p class="content__sub">Confira as sugestões identificadas. Desmarque o que não quiser; nada será salvo no perfil até você confirmar a importação.</p>
+          <p class="content__sub">Marque os dados que deseja importar. Use “Selecionar todos” para marcar uma seção inteira. Seu perfil só muda ao confirmar.</p>
         </div>
         <button id="fecharImportacaoCurriculo" type="button" aria-label="Fechar revisão">×</button>
       </div>
-      <div id="curriculoImportacaoResumo"></div>
       <form id="formAplicarCurriculo">
         <input type="hidden" id="curriculoImportacaoId">
-        <fieldset class="import-options">
-          <legend>O que deseja importar?</legend>
-          <label class="checkbox-line"><input type="checkbox" id="impPerfil" checked> Dados do perfil</label>
-          <label class="checkbox-line"><input type="checkbox" id="impExperiencias" checked> Experiências</label>
-          <label class="checkbox-line"><input type="checkbox" id="impFormacoes" checked> Formação e certificados</label>
-          <label class="checkbox-line"><input type="checkbox" id="impHabilidades" checked> Habilidades</label>
-          <label class="checkbox-line"><input type="checkbox" id="impIdiomas" checked> Idiomas</label>
-          <label class="checkbox-line import-overwrite"><input type="checkbox" id="impSobrescrever"> Substituir dados de perfil já preenchidos</label>
-        </fieldset>
+        <div class="curriculum-import-body">
+          <p id="curriculoSelecaoResumo" role="status"></p>
+          <div id="curriculoImportacaoResumo"></div>
+          <label class="checkbox-line import-overwrite"><input type="checkbox" id="impSobrescrever"><span>Substituir também dados do perfil que já estão preenchidos.<small class="hint">Sem esta opção, suas informações atuais são preservadas.</small></span></label>
+          <p id="curriculoImportacaoErro" class="import-error" role="alert" hidden></p>
+        </div>
         <div class="dialog-actions">
           <button type="button" class="btn btn-secondary" id="cancelarImportacaoCurriculo">Cancelar</button>
           <button type="submit" class="btn btn-primary" id="btnAplicarCurriculo">Importar para meu perfil</button>

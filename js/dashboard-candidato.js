@@ -406,19 +406,61 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  const gruposImportacao = {
+    perfil: {id: 'impPerfil', nome: 'dados do perfil'},
+    experiencias: {id: 'impExperiencias', nome: 'experiências'},
+    formacoes: {id: 'impFormacoes', nome: 'formação e certificados'},
+    habilidades: {id: 'impHabilidades', nome: 'habilidades'},
+    idiomas: {id: 'impIdiomas', nome: 'idiomas'},
+  };
+
+  function cabecalhoSecaoImportacao(titulo, secao) {
+    const grupo = gruposImportacao[secao];
+    return `<div class="import-section-header"><h3>${escapeHtml(titulo)}</h3><label class="checkbox-line"><input type="checkbox" id="${grupo.id}" data-importar-secao="${secao}" aria-label="Selecionar todos: ${escapeHtml(grupo.nome)}"> Selecionar todos</label></div>`;
+  }
+
+  function sincronizarSelecaoImportacao() {
+    const itens = [...$all('#curriculoImportacaoResumo input[data-secao]')];
+    const selecionados = itens.filter(item => item.checked).length;
+    for (const [secao, grupo] of Object.entries(gruposImportacao)) {
+      const controle = $('#' + grupo.id);
+      const itensGrupo = itens.filter(item => item.dataset.secao === secao);
+      const marcados = itensGrupo.filter(item => item.checked).length;
+      controle.disabled = !itensGrupo.length;
+      controle.checked = itensGrupo.length > 0 && marcados === itensGrupo.length;
+      controle.indeterminate = marcados > 0 && marcados < itensGrupo.length;
+    }
+    $('#curriculoSelecaoResumo').textContent = `${selecionados} de ${itens.length} informações selecionadas.`;
+    $('#btnAplicarCurriculo').disabled = selecionados === 0;
+  }
+
+  $('#curriculoImportacaoResumo')?.addEventListener('change', (e) => {
+    const secao = e.target.dataset.importarSecao;
+    if (secao) {
+      $all(`#curriculoImportacaoResumo input[data-secao="${secao}"]`).forEach(item => {
+        item.checked = e.target.checked;
+      });
+    }
+    sincronizarSelecaoImportacao();
+    $('#curriculoImportacaoErro').hidden = true;
+  });
+
   function listaPreview(titulo, itens, renderItem, secao) {
     if (!itens?.length) {
-      return `<section><h3>${escapeHtml(titulo)}</h3><p class="curriculum-import-empty">Nada identificado.</p></section>`;
+      return `<section>${cabecalhoSecaoImportacao(titulo, secao)}<p class="curriculum-import-empty">Nada identificado.</p></section>`;
     }
     return `
       <section>
-        <h3>${escapeHtml(titulo)}</h3>
-        <ul>${itens.map((item, i) => `<li><label><input type="checkbox" checked data-secao="${secao}" data-indice="${i}"> ${renderItem(item)}</label></li>`).join('')}</ul>
+        ${cabecalhoSecaoImportacao(titulo, secao)}
+        <ul class="import-item-list">${itens.map((item, i) => `<li><label class="import-item"><input type="checkbox" checked data-secao="${secao}" data-indice="${i}"><span>${renderItem(item)}</span></label></li>`).join('')}</ul>
       </section>
     `;
   }
 
   function renderizarPreviewImportacao(dados) {
+    $('#impSobrescrever').checked = false;
+    $('#curriculoImportacaoErro').hidden = true;
+    $('#curriculoImportacaoErro').textContent = '';
     const perfil = dados?.perfil || {};
     const camposPerfil = [
       ['Título', perfil.titulo_profissional, 'titulo_profissional'],
@@ -433,9 +475,9 @@ document.addEventListener('DOMContentLoaded', () => {
     $('#curriculoImportacaoResumo').innerHTML = `
       <div class="curriculum-import-preview">
         <section>
-          <h3>Perfil</h3>
+          ${cabecalhoSecaoImportacao('Perfil', 'perfil')}
           ${camposPerfil.length
-            ? camposPerfil.map(([nome, valor, chave]) => `<p><label><input type="checkbox" checked data-secao="perfil" data-campo="${chave}"> <strong>${escapeHtml(nome)}:</strong> ${escapeHtml(String(valor))}</label></p>`).join('')
+            ? `<ul class="import-item-list">${camposPerfil.map(([nome, valor, chave]) => `<li><label class="import-item"><input type="checkbox" checked data-secao="perfil" data-campo="${chave}"><span><strong>${escapeHtml(nome)}:</strong> ${escapeHtml(String(valor))}</span></label></li>`).join('')}</ul>`
             : '<p class="curriculum-import-empty">Nenhum dado de perfil identificado.</p>'}
         </section>
         <section><h3>Contato identificado</h3><p>${escapeHtml(dados?.contato?.nome || '')} · ${escapeHtml(dados?.contato?.email || '')} · ${escapeHtml(dados?.contato?.telefone || '')}</p><p>Revise seu contato nas configurações da conta. O e-mail de acesso não é alterado por importação.</p></section>
@@ -451,6 +493,7 @@ document.addEventListener('DOMContentLoaded', () => {
         , 'idiomas')}
       </div>
     `;
+    sincronizarSelecaoImportacao();
   }
 
   async function abrirImportacaoCurriculo(idCurriculo) {
@@ -581,19 +624,19 @@ document.addEventListener('DOMContentLoaded', () => {
   $('#formAplicarCurriculo')?.addEventListener('submit', async (e) => {
     e.preventDefault();
     const botao = $('#btnAplicarCurriculo');
+    if (botao.disabled) return;
     botao.disabled = true;
     botao.setAttribute('data-loading', 'true');
 
     const payload = {
       selecionados: {perfil:[], experiencias:[], formacoes:[], habilidades:[], idiomas:[]},
-      importar_perfil: $('#impPerfil').checked,
-      importar_experiencias: $('#impExperiencias').checked,
-      importar_formacoes: $('#impFormacoes').checked,
-      importar_habilidades: $('#impHabilidades').checked,
-      importar_idiomas: $('#impIdiomas').checked,
       sobrescrever_perfil: $('#impSobrescrever').checked,
     };
-    $all('#curriculoImportacaoResumo input:checked').forEach(el => payload.selecionados[el.dataset.secao].push(el.dataset.campo || Number(el.dataset.indice)));
+    $all('#curriculoImportacaoResumo input[data-secao]:checked').forEach(el => payload.selecionados[el.dataset.secao].push(el.dataset.campo || Number(el.dataset.indice)));
+    for (const secao of Object.keys(gruposImportacao)) {
+      payload['importar_' + secao] = payload.selecionados[secao].length > 0;
+    }
+    $('#curriculoImportacaoErro').hidden = true;
 
     try {
       const idCurriculo = $('#curriculoImportacaoId').value;
@@ -617,10 +660,13 @@ document.addEventListener('DOMContentLoaded', () => {
         ? `Currículo importado: ${total} informação(ões) adicionada(s).`
         : 'Importação concluída. Os dados identificados já estavam no seu perfil.');
     } catch (erro) {
+      $('#curriculoImportacaoErro').textContent = erro.message;
+      $('#curriculoImportacaoErro').hidden = false;
+      $('#curriculoImportacaoErro').scrollIntoView({block: 'nearest'});
       mostrarToast(erro.message, 'error');
     } finally {
-      botao.disabled = false;
       botao.removeAttribute('data-loading');
+      sincronizarSelecaoImportacao();
     }
   });
 

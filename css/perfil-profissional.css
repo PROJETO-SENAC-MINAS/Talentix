@@ -1,0 +1,118 @@
+/* Perfil do candidato: fluxo único, formulários e revisão do currículo. */
+.candidate-dashboard { padding-bottom: 0; }
+.candidate-dashboard .app { align-items: start; }
+.candidate-dashboard .content { min-height: 0; padding-bottom: 24px; }
+.candidate-dashboard .tab-panel.active { flex: 0 0 auto; }
+.candidate-dashboard .page-footer { margin-top: 12px; }
+.candidate-dashboard .a11y-toolbar { position: static; margin-top: 12px; box-shadow: none; background: var(--navy); color: #F1EDE3; }
+.candidate-dashboard .a11y-toolbar button { background: inherit; color: inherit; }
+
+.profile-resume-card { border-color: var(--accent); }
+.profile-resume-card .content__sub { line-height: 1.6; }
+.resume-steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 28px;
+  padding-left: 22px;
+  margin: 18px 0 24px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.resume-steps li { padding-left: 4px; margin-right: 12px; }
+.profile-resume-card .curriculum-import-state {
+  border-top: 1px solid var(--border);
+  padding-top: 20px;
+  margin-top: 24px;
+}
+.curriculum-history-card .list { margin-top: 18px; }
+.candidate-dashboard .curriculum-import-card__header { align-items: center; flex-wrap: wrap; }
+.candidate-dashboard .curriculum-import-card__header .section-subtitle { margin-bottom: 8px; }
+.candidate-dashboard .form-actions { gap: 12px; flex-wrap: wrap; }
+.candidate-dashboard .form-actions--start { justify-content: flex-start; }
+
+.profile-completion-tasks {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px;
+  list-style: none;
+  padding: 0;
+  margin: 20px 0 28px;
+}
+.profile-completion-tasks li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-size: 13px;
+  line-height: 1.4;
+}
+.profile-completion-tasks strong { color: var(--accent-dark); white-space: nowrap; }
+.candidate-dashboard #completudeBarra { display: block; width: 100%; height: 10px; accent-color: var(--accent); }
+
+.profile-photo-form {
+  display: grid;
+  gap: 18px;
+  padding: 24px 0;
+  margin: 24px 0;
+  border-block: 1px solid var(--border);
+}
+.profile-photo-fields { display: flex; align-items: center; flex-wrap: wrap; gap: 20px; }
+.profile-photo-fields .field { flex: 1; min-width: 0; margin: 0; }
+.profile-photo-fields img { object-fit: cover; border-radius: 12px; }
+.candidate-dashboard .profile-photo-form h3 { margin: 0; }
+.choice-fieldset { min-width: 0; border: 1px solid var(--border); border-radius: 10px; padding: 16px; margin: 0 0 20px; }
+.choice-fieldset legend { padding: 0 6px; font-size: 14px; font-weight: 600; }
+.choice-options { display: flex; flex-wrap: wrap; gap: 12px 24px; }
+.choice-options label { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; min-height: 28px; }
+.choice-options input { width: 18px; height: 18px; margin: 0; accent-color: var(--accent); }
+.candidate-dashboard #formItemProfissional .form-actions { margin-top: 6px; }
+.candidate-dashboard #listaItensProfissionais { margin-top: 24px; }
+.candidate-dashboard #listaIdiomasProfissionais { margin-top: 20px; }
+.candidate-dashboard #listaIdiomasProfissionais .list-item p { margin: 0; }
+.candidate-dashboard #listaIdiomasProfissionais .list-item button { flex-shrink: 0; }
+
+.candidate-dashboard .curriculum-import-dialog { padding: 0; overflow: hidden; }
+.candidate-dashboard .curriculum-import-dialog[open] { display: flex; flex-direction: column; }
+.curriculum-import-dialog .dialog-header { flex-shrink: 0; padding: 24px; margin: 0; border-bottom: 1px solid var(--border); }
+.curriculum-import-dialog .dialog-header p { margin-top: 12px; line-height: 1.6; }
+.curriculum-import-dialog .dialog-header button { flex-shrink: 0; }
+.curriculum-import-dialog #formAplicarCurriculo { display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
+.curriculum-import-body { min-height: 0; padding: 20px 24px; overflow-y: auto; max-height: 55vh; }
+.curriculum-import-dialog .dialog-actions {
+  flex-shrink: 0;
+  flex-wrap: wrap;
+  padding: 18px 24px;
+  margin: 0;
+  border-top: 1px solid var(--border);
+  background: var(--panel);
+}
+.candidate-dashboard .curriculum-import-preview section { min-width: 0; }
+.candidate-dashboard .curriculum-import-preview .import-section-header { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 12px; }
+.candidate-dashboard .import-section-header h3 { flex: 1; min-width: 140px; margin: 0; }
+.import-section-header .checkbox-line { margin: 0; min-height: 32px; }
+.candidate-dashboard .curriculum-import-preview .import-item-list { list-style: none; padding: 0; margin: 0; display: grid; gap: 10px; }
+.candidate-dashboard .import-item-list li { margin: 0; }
+.import-item { display: flex; align-items: flex-start; gap: 10px; padding: 10px; border: 1px solid var(--border); border-radius: 8px; line-height: 1.55; }
+.import-item input { flex: 0 0 auto; width: 18px; height: 18px; margin: 3px 0 0; accent-color: var(--accent); }
+.import-item span { min-width: 0; overflow-wrap: anywhere; }
+.curriculum-import-dialog .import-overwrite { margin: 20px 0 0; align-items: flex-start; padding-top: 20px; }
+.import-overwrite input { flex-shrink: 0; margin-top: 3px; }
+.curriculum-import-dialog .import-error { color: var(--danger); border: 1px solid currentColor; border-radius: 8px; padding: 12px; line-height: 1.6; }
+#curriculoSelecaoResumo { margin: 0 0 18px; font-size: 14px; font-weight: 600; }
+
+@media (max-width: 650px) {
+  .candidate-dashboard .card { padding: 20px 16px; }
+  .profile-completion-tasks { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .profile-completion-tasks li { flex-direction: column; align-items: flex-start; padding: 10px; gap: 6px; }
+  .resume-steps { flex-direction: column; gap: 10px; }
+  .candidate-dashboard .curriculum-import-card__header { align-items: flex-start; }
+  .profile-photo-fields .field { flex-basis: 100%; }
+  .curriculum-import-dialog .dialog-header { padding: 18px 16px; }
+  .curriculum-import-dialog .dialog-header h2 { font-size: 20px; }
+  .curriculum-import-body { padding: 16px; max-height: 50vh; }
+  .curriculum-import-dialog .dialog-actions { padding: 14px 16px; }
+  .curriculum-import-dialog .dialog-actions .btn { flex: 1; min-width: 120px; }
+}

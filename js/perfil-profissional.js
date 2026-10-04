@@ -2,20 +2,6 @@
 document.addEventListener('DOMContentLoaded', () => {
   const {$, esc, api, toast} = Talentix;
   let candidato, itens = [], idiomas = [], atualizarTimer;
-  const painelPerfil = $('#tab-perfil');
-  function incorporarSecao(id, titulo, descricao) {
-    const painel = $('#tab-' + id);
-    if (!painel) return;
-    const heading = document.createElement('header');
-    heading.className = 'profile-section-heading';
-    heading.innerHTML = `<h2>${esc(titulo)}</h2><p>${esc(descricao)}</p>`;
-    painelPerfil.append(heading);
-    [...painel.querySelectorAll(':scope > .card')].forEach(card => painelPerfil.append(card));
-    painel.hidden = true;
-    painel.classList.remove('active');
-  }
-  incorporarSecao('curriculo', 'Currículo e experiências', 'Gerencie seus arquivos, revise sugestões e descreva sua trajetória profissional.');
-  incorporarSecao('formacao', 'Formação e certificados', 'Mantenha seus estudos e certificações em um só lugar.');
   const limites = {pTituloProfissional:150,pResumo:5000,pCidade:100,pLinkedin:300,pGithub:300,pPortfolio:300,expEmpresa:150,expCargo:150,expDescricao:5000,fInstituicao:200,fCurso:200,hNome:100,cvTitulo:150};
   for (const [id, n] of Object.entries(limites)) if ($('#'+id)) $('#'+id).maxLength = n;
   ['pLinkedin','pGithub','pPortfolio'].forEach(id => $('#'+id).pattern = 'https?://.*');
@@ -31,7 +17,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const d = await api(`/candidatos/${candidato}/profissional`);
     $('#completudeTexto').textContent = `Completude do perfil: ${d.completude}%`;
     $('#completudeBarra').value = d.completude;
-    $('#perfilFaltantes').innerHTML = d.faltantes.map(f => `<li>Adicionar ${esc(f.campo)}: +${f.peso}%</li>`).join('');
+    $('#perfilFaltantes').innerHTML = d.faltantes.map(f => `<li><span>${esc(f.campo)}</span><strong>+${esc(f.peso)}%</strong></li>`).join('');
+    $('#perfilFaltantes').hidden = !d.faltantes.length;
     $('#fotoProfissional').hidden = !d.perfil.FotoUrl;
     if (d.perfil.FotoUrl) $('#fotoProfissional').src = API_BASE_URL + d.perfil.FotoUrl;
     itens = d.itens; idiomas = d.idiomas;
