@@ -102,17 +102,17 @@ async function test(name,fn) {
     let cvUrl;
     await test('upload analisa, sugere preenchimento e só altera após confirmação',async()=> {
       await tab(candidate,'perfil');await candidate.locator('#secaoCurriculos').scrollIntoViewIfNeeded();await candidate.locator('#cvTitulo').fill('Currículo da apresentação');await candidate.locator('#cvPrincipal').check();
-      const pdf=spawnSync(process.env.TEST_PYTHON || 'python',['-c',"from io import BytesIO; from reportlab.pdfgen import canvas; import sys; out=BytesIO(); c=canvas.Canvas(out); lines=['Camila Reis','Analista de Qualidade','Contagem - MG','https://portfolio.example.com','Resumo','Profissional de QA com testes automatizados.']; [c.drawString(72,800-i*24,line) for i,line in enumerate(lines)]; c.save(); sys.stdout.buffer.write(out.getvalue())"]);assert.equal(pdf.status,0,pdf.stderr);
+      const pdf=spawnSync(process.env.TEST_PYTHON || 'python',['-c',"from io import BytesIO; from reportlab.pdfgen import canvas; import sys; out=BytesIO(); c=canvas.Canvas(out); lines=['Camila Reis','Analista de Qualidade','Contagem - MG','https://portfolio.example.com','https://github.com/camila-reis','Resumo','Profissional de QA com testes automatizados.']; [c.drawString(72,800-i*24,line) for i,line in enumerate(lines)]; c.save(); sys.stdout.buffer.write(out.getvalue())"]);assert.equal(pdf.status,0,pdf.stderr);
       await candidate.locator('#cvArquivo').setInputFiles({name:'curriculo.pdf',mimeType:'application/pdf',buffer:pdf.stdout});
       const cv=await submit(candidate,'#btnEnviarCurriculo','/curriculos');assert.ok(cv?.ID_Curriculos);cvUrl=cv.ArquivoUrl;
       const worker=spawnSync(process.env.TEST_PYTHON || 'python',['-m','app.worker_profissional','--once'],{cwd:path.join(__dirname,'../python'),env:process.env,encoding:'utf8',timeout:120000});assert.equal(worker.status,0,worker.stderr);
       await candidate.locator('#modalImportarCurriculo[open]').waitFor({timeout:20000});
       const portfolioSuggestion=candidate.locator('#curriculoImportacaoResumo input[data-campo="portfolio_url"]');assert.equal(await portfolioSuggestion.isChecked(),true);
-      const summarySuggestion=candidate.locator('#curriculoImportacaoResumo input[data-campo="resumo"]');assert.equal(await summarySuggestion.isChecked(),true);
-      assert.equal(await candidate.locator('#pResumo').inputValue(),'','O perfil não é alterado antes da confirmação do candidato.');
+      const githubSuggestion=candidate.locator('#curriculoImportacaoResumo input[data-campo="github_url"]');assert.equal(await githubSuggestion.isChecked(),true);
+      assert.equal(await candidate.locator('#pGithub').inputValue(),'','O perfil não é alterado antes da confirmação do candidato.');
       assert.equal(await candidate.locator('#pPortfolio').inputValue(),'https://example.com/projeto','Campos já preenchidos são preservados antes da confirmação.');
       await candidate.locator('#modalImportarCurriculo').evaluate(dialog=>{dialog.scrollTop=dialog.scrollHeight});await candidate.locator('#btnAplicarCurriculo').scrollIntoViewIfNeeded();
-      await submit(candidate,'#btnAplicarCurriculo','/importacao/aplicar');assert.equal(await candidate.locator('#pResumo').inputValue(),'Profissional de QA com testes automatizados.');
+      await submit(candidate,'#btnAplicarCurriculo','/importacao/aplicar');assert.equal(await candidate.locator('#pGithub').inputValue(),'https://github.com/camila-reis');
       assert.equal(await candidate.locator('#pPortfolio').inputValue(),'https://example.com/projeto','A importação padrão preserva campos que já estavam preenchidos.');
       await candidate.locator('#listaCurriculos').filter({hasText:'Currículo da apresentação'}).waitFor();
     });
