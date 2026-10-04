@@ -112,7 +112,8 @@ async function test(name,fn) {
       assert.equal(await candidate.locator('#pGithub').inputValue(),'','O perfil não é alterado antes da confirmação do candidato.');
       assert.equal(await candidate.locator('#pPortfolio').inputValue(),'https://example.com/projeto','Campos já preenchidos são preservados antes da confirmação.');
       await candidate.locator('#modalImportarCurriculo').evaluate(dialog=>{dialog.scrollTop=dialog.scrollHeight});await candidate.locator('#btnAplicarCurriculo').scrollIntoViewIfNeeded();
-      await submit(candidate,'#btnAplicarCurriculo','/importacao/aplicar');assert.equal(await candidate.locator('#pGithub').inputValue(),'https://github.com/camila-reis');
+      const applied=await submit(candidate,'#btnAplicarCurriculo','/importacao/aplicar');assert.ok(Number(applied.importados?.perfil)>0,'O backend deve confirmar campos aplicados ao perfil.');
+      await candidate.waitForFunction(()=>document.querySelector('#pGithub').value==='https://github.com/camila-reis');
       assert.equal(await candidate.locator('#pPortfolio').inputValue(),'https://example.com/projeto','A importação padrão preserva campos que já estavam preenchidos.');
       await candidate.locator('#listaCurriculos').filter({hasText:'Currículo da apresentação'}).waitFor();
     });
