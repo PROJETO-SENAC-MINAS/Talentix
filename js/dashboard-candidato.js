@@ -253,7 +253,7 @@ document.addEventListener('DOMContentLoaded', () => {
       try {
         habilidadeCatalogo = await api('/habilidades', {
           method: 'POST',
-          body: JSON.stringify({ nome, categoria: null }),
+          body: JSON.stringify({ nome, categoria: 'Técnica' }),
         });
       } catch {
         // Provavelmente exige admin para criar no catálogo; tenta localizar existente.
@@ -903,7 +903,7 @@ document.addEventListener('DOMContentLoaded', () => {
   $('#historicoBuscas').addEventListener('click',e=> {if(e.target.dataset.historico)usarFiltros(historicoBuscas[Number(e.target.dataset.historico)].Filtros);});
   document.addEventListener('perfil:pronto',()=> {
     carregarBuscas().catch(e=>mostrarToast(e.message,'error'));
-    if(queryInicial.has('cargo') || queryInicial.has('vaga')) {
+    if(Object.keys(camposBusca).some(key=>queryInicial.has(key)) || queryInicial.has('vaga')) {
       document.querySelector('[data-tab="vagas"]').click();
       if(queryInicial.has('vaga')) api(`/vagas/${encodeURIComponent(queryInicial.get('vaga'))}`).then(v=>{vagasEmCache.push(v); abrirDetalheVaga(v.ID_Vagas);}).catch(e=>mostrarToast(e.message,'error'));
     }

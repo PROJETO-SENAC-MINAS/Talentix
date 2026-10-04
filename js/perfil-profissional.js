@@ -13,6 +13,12 @@ document.addEventListener('DOMContentLoaded', () => {
   const limites = {pTituloProfissional:150,pResumo:5000,pCidade:100,pLinkedin:300,pGithub:300,pPortfolio:300,expEmpresa:150,expCargo:150,expDescricao:5000,fInstituicao:200,fCurso:200,hNome:100,cvTitulo:150};
   for (const [id, n] of Object.entries(limites)) if ($('#'+id)) $('#'+id).maxLength = n;
   ['pLinkedin','pGithub','pPortfolio'].forEach(id => $('#'+id).pattern = 'https?://.*');
+  $('#pPretensaoSalarial').max = '99999999.99';
+  $('#pEstado').pattern = '[Aa][CcLlMmPp]|[Bb][Aa]|[Cc][Ee]|[Dd][Ff]|[Ee][Ss]|[Gg][Oo]|[Mm][AaGgSsTt]|[Pp][AaBbEeIiRr]|[Rr][JjNnOoRrSs]|[Ss][CcEePp]|[Tt][Oo]';
+  $('#pSoftSkills').addEventListener('input',()=> {
+    const skills=$('#pSoftSkills').value.split(',').map(s=>s.trim()).filter(Boolean);
+    $('#pSoftSkills').setCustomValidity(skills.length>30 || skills.some(s=>s.length>100) ? 'Use até 30 habilidades, com até 100 caracteres cada.' : '');
+  });
 
   async function atualizar() {
     if (!candidato) return;

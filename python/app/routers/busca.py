@@ -129,6 +129,7 @@ async def autocomplete(q: str = Query(min_length=2, max_length=100), limite: int
 
 
 class BuscaSalva(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
     nome: str = Field(min_length=1, max_length=100)
     filtros: FiltrosBusca
     ativa: bool = False

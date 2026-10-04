@@ -7,7 +7,7 @@ import json
 from typing import Annotated, Literal
 
 from fastapi import Depends, HTTPException, status
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, ConfigDict
 
 from app.db.database import fetch_one, fetch_all, execute
 from app.core.security import novo_uuid
@@ -21,6 +21,7 @@ router = APIRouter(tags=["Perfis"])
 # ==================== CANDIDATOS ====================
 
 class CandidatoUpdate(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
     titulo_profissional: str | None = Field(default=None, max_length=150)
     resumo: str | None = Field(None, max_length=5000)
     cidade: str | None = Field(default=None, max_length=100)

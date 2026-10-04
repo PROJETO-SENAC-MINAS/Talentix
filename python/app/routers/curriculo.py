@@ -7,6 +7,7 @@ import asyncio
 import json
 import re
 import sys
+import os
 from datetime import date
 from pathlib import Path
 from io import BytesIO
@@ -103,7 +104,8 @@ async def _processar_importacao(curriculo: dict) -> dict:
         idiomas = await fetch_all("SELECT Nome FROM Idiomas ORDER BY Nome")
 
         process = await asyncio.create_subprocess_exec(sys.executable, "-m", "app.core.resume_extract", str(caminho.resolve()),
-            stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.DEVNULL)
+            stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.DEVNULL,
+            env={**{key: os.environ[key] for key in ("PATH", "PYTHONPATH", "SYSTEMROOT", "WINDIR", "LD_LIBRARY_PATH") if key in os.environ}, "PYTHONIOENCODING": "utf-8"})
         try:
             stdout, _ = await asyncio.wait_for(process.communicate(), timeout=45)
             if process.returncode != 0:

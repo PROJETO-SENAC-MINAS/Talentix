@@ -4,7 +4,7 @@ from datetime import date
 from typing import Literal
 
 from fastapi import Depends, HTTPException
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, model_validator, ConfigDict
 from app.core.routes import AtomicRouter
 from app.core.access import checar_dono_candidato, checar_leitura_candidato
 from app.core.deps import usuario_atual
@@ -28,6 +28,7 @@ def decode_list(value):
 
 
 class ItemProfissional(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
     tipo: Literal["projeto", "curso"]
     titulo: str = Field(min_length=1, max_length=200)
     instituicao: str | None = Field(None, max_length=200)
@@ -77,8 +78,10 @@ async def perfil_completo(candidate_id):
         ("LinkedIn", 2, perfil.get("LinkedinUrl")), ("Portfólio", 2, perfil.get("PortfolioUrl")),
         ("Preferências profissionais", 2, perfil.get("Preferencias")),
     ]
-    return {"perfil": perfil, **colecoes, "completude": sum(p for _, p, ok in criterios if ok),
-            "faltantes": [{"campo": nome, "peso": peso} for nome, peso, ok in criterios if not ok]}
+    def preenchido(value):
+        return bool(value.strip()) if isinstance(value, str) else bool(value)
+    return {"perfil": perfil, **colecoes, "completude": sum(p for _, p, ok in criterios if preenchido(ok)),
+            "faltantes": [{"campo": nome, "peso": peso} for nome, peso, ok in criterios if not preenchido(ok)]}
 
 
 @router.get("/candidatos/{id_candidato}/profissional")

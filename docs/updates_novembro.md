@@ -96,7 +96,8 @@ continuam disponíveis e trocar o principal não altera candidaturas anteriores.
 Estados persistidos: **1 aguardando**, **2 processando**, **3 concluída**, **4
 falhou**. O worker reivindica itens com lock e retoma processamento abandonado
 após dez minutos. Extração ocorre em subprocesso descartável, com timeout de
-45 segundos e limites de CPU/memória no Linux. Texto tem limite de 100 mil
+45 segundos e limites de CPU/memória no Linux; o subprocesso não recebe os
+segredos/credenciais do banco da API. Texto tem limite de 100 mil
 caracteres e PDF de 30 páginas. O processamento não ocupa a requisição de upload.
 PDF digital e DOCX são analisados; DOC permanece apenas como arquivo legado.
 PDF escaneado sem texto/OCR, criptografado ou ilegível resulta em erro orientativo,
