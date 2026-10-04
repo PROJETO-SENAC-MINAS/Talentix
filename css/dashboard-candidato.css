@@ -318,6 +318,9 @@ input,select,textarea{font-family:inherit;}
   .job-filter-grid{grid-template-columns:repeat(2,minmax(0,1fr));}
 }
 @media(max-width:600px){
+  .list-item{flex-direction:column;}
+  .list-item__actions{flex-shrink:1;flex-wrap:wrap;max-width:100%;}
+  .list-item__actions>*{max-width:100%;overflow-wrap:anywhere;}
   .job-search-bar{grid-template-columns:minmax(0,1fr) 44px;}
   .job-search-bar input{grid-column:1/-1;}
   .job-search-bar .btn-primary{grid-column:1;grid-row:2;}
