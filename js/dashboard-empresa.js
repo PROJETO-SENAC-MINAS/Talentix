@@ -36,7 +36,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (job.ID_Vagas) job = await api(`/vagas/${job.ID_Vagas}`);
     editedSkills = job.habilidades || [];
     $('#formVagaEmpresa').reset(); $('#vagaId').value = job.ID_Vagas || ''; $('#tituloModalVaga').textContent = job.ID_Vagas ? 'Editar vaga' : 'Criar vaga';
-    for (const [input, key] of [['vagaTitulo','Titulo'],['vagaDescricao','Descricao'],['vagaModalidade','Modalidade'],['vagaNivel','Nivel'],['vagaContrato','TipoContrato'],['vagaLocal','Localizacao'],['vagaSalarioMin','SalarioMin'],['vagaSalarioMax','SalarioMax']]) if (job[key] != null) $(`#${input}`).value = job[key];
+    for (const [input, key] of [['vagaTitulo','Titulo'],['vagaDescricao','Descricao'],['vagaModalidade','Modalidade'],['vagaNivel','Nivel'],['vagaContrato','TipoContrato'],['vagaLocal','Localizacao'],['vagaArea','AreaProfissional'],['vagaSalarioMin','SalarioMin'],['vagaSalarioMax','SalarioMax']]) if (job[key] != null) $(`#${input}`).value = job[key];
     $('#vagaHabilidades').value = editedSkills.map(h=>h.NomeHabilidade).join(', ');
     $('#vagaConfidencial').checked = Boolean(job.SalarioConfidencial); $('#modalVagaEmpresa').showModal();
   }
@@ -45,7 +45,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   $('#formVagaEmpresa').addEventListener('submit', run(async event => {
     event.preventDefault(); const button = event.submitter; button.disabled = true;
     try {
-      const data = {titulo:$('#vagaTitulo').value.trim(),descricao:$('#vagaDescricao').value.trim(),modalidade:$('#vagaModalidade').value,nivel:$('#vagaNivel').value,tipo_contrato:$('#vagaContrato').value || null,localizacao:$('#vagaLocal').value || null,salario_min:$('#vagaSalarioMin').value || null,salario_max:$('#vagaSalarioMax').value || null,salario_confidencial:$('#vagaConfidencial').checked};
+      const data = {titulo:$('#vagaTitulo').value.trim(),descricao:$('#vagaDescricao').value.trim(),modalidade:$('#vagaModalidade').value,nivel:$('#vagaNivel').value,tipo_contrato:$('#vagaContrato').value || null,localizacao:$('#vagaLocal').value || null,area_profissional:$('#vagaArea').value.trim() || null,salario_min:$('#vagaSalarioMin').value || null,salario_max:$('#vagaSalarioMax').value || null,salario_confidencial:$('#vagaConfidencial').checked};
       const id = $('#vagaId').value; if (!id) data.id_empresa = company.ID_Empresas;
       const names = [...new Map($('#vagaHabilidades').value.split(',').map(n=>n.trim()).filter(Boolean).map(n=>[n.toLowerCase(),n])).values()];
       if (names.some(n=>n.length>100) || names.length>30) throw new Error('Use até 30 habilidades, com no máximo 100 caracteres por nome.');

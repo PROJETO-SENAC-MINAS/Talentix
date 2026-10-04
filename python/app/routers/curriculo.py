@@ -41,13 +41,20 @@ async def _checar_dono_candidato(id_candidato: str, sessao: dict) -> None:
     await checar_dono_candidato(id_candidato, sessao)
 
 
-async def _curriculo_do_dono(id_curriculo: str, sessao: dict) -> dict:
+async def _curriculo_do_dono(id_curriculo: str, sessao: dict, bloquear: bool = False) -> dict:
     curriculo = await fetch_one(
         "SELECT * FROM Curriculos WHERE ID_Curriculos=%s AND Ativo=1", (id_curriculo,)
     )
     if not curriculo:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Currículo não encontrado.")
     await _checar_dono_candidato(curriculo["ID_Candidatos"], sessao)
+    if bloquear:
+        # Ordem consistente candidato → currículo: upload, principal, importação
+        # e remoção não podem competir produzindo duplicatas ou editar versão removida.
+        parent = await fetch_one("SELECT ID_Candidatos FROM Candidatos WHERE ID_Candidatos=%s AND Ativo=1 FOR UPDATE", (curriculo["ID_Candidatos"],))
+        curriculo = await fetch_one("SELECT * FROM Curriculos WHERE ID_Curriculos=%s AND Ativo=1 FOR UPDATE", (id_curriculo,))
+        if not parent or not curriculo:
+            raise HTTPException(404, "Currículo não encontrado.")
     return curriculo
 
 
@@ -221,10 +228,7 @@ async def listar_curriculos(id_candidato: str, sessao: dict = Depends(usuario_at
 
 @router.delete("/curriculos/{id_curriculo}", tags=["Currículos"])
 async def excluir_curriculo(id_curriculo: str, sessao: dict = Depends(usuario_atual)):
-    curriculo = await fetch_one("SELECT * FROM Curriculos WHERE ID_Curriculos=%s", (id_curriculo,))
-    if not curriculo:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Currículo não encontrado.")
-    await _checar_dono_candidato(curriculo["ID_Candidatos"], sessao)
+    await _curriculo_do_dono(id_curriculo, sessao, bloquear=True)
     await execute(
         "UPDATE Curriculos SET Ativo=0, DeletadoEm=NOW() WHERE ID_Curriculos=%s", (id_curriculo,)
     )
@@ -233,7 +237,7 @@ async def excluir_curriculo(id_curriculo: str, sessao: dict = Depends(usuario_at
 
 @router.post("/curriculos/{id_curriculo}/analisar", tags=["Currículos"])
 async def analisar_curriculo_enviado(id_curriculo: str, sessao: dict = Depends(usuario_atual)):
-    curriculo = await _curriculo_do_dono(id_curriculo, sessao)
+    curriculo = await _curriculo_do_dono(id_curriculo, sessao, bloquear=True)
     return await _enfileirar(curriculo)
 
 
@@ -274,7 +278,7 @@ async def aplicar_importacao_curriculo(
     opcoes: CurriculoImportacaoAplicar,
     sessao: dict = Depends(usuario_atual),
 ):
-    curriculo = await _curriculo_do_dono(id_curriculo, sessao)
+    curriculo = await _curriculo_do_dono(id_curriculo, sessao, bloquear=True)
     id_candidato = curriculo["ID_Candidatos"]
     importacao = await fetch_one(
         """SELECT * FROM Curriculo_Importacoes
@@ -544,8 +548,7 @@ class CurriculoEdicao(BaseModel):
 
 @router.put("/curriculos/{id_curriculo}", tags=["Currículos"])
 async def editar_curriculo(id_curriculo: str, dados: CurriculoEdicao, sessao=Depends(usuario_atual)):
-    cv = await _curriculo_do_dono(id_curriculo, sessao)
-    await fetch_one("SELECT ID_Candidatos FROM Candidatos WHERE ID_Candidatos=%s FOR UPDATE", (cv["ID_Candidatos"],))
+    cv = await _curriculo_do_dono(id_curriculo, sessao, bloquear=True)
     if dados.principal:
         await execute("UPDATE Curriculos SET Principal=0 WHERE ID_Candidatos=%s", (cv["ID_Candidatos"],))
     await execute("UPDATE Curriculos SET Titulo=%s,Principal=%s WHERE ID_Curriculos=%s", (dados.titulo, dados.principal, id_curriculo))

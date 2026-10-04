@@ -6,6 +6,7 @@ from io import BytesIO
 import subprocess
 import sys
 import uuid
+import traceback
 from concurrent.futures import ThreadPoolExecutor
 import httpx
 import pymysql
@@ -33,7 +34,7 @@ def query(sql,args=()):
 class Client(httpx.Client):
     def request(self,method,url,**kwargs):
         if method.upper() in ('POST','PUT','PATCH','DELETE') and self.cookies.get('talentix_csrf'):
-            kwargs['headers']={**kwargs.get('headers',{}),'X-CSRF-Token':self.cookies.get('talentix_csrf')}
+            kwargs['headers']={**(kwargs.get('headers') or {}),'X-CSRF-Token':self.cookies.get('talentix_csrf')}
         return super().request(method,url,**kwargs)
 
 def account(role):
@@ -136,6 +137,7 @@ try:
     check('Currículo antigo acessível',c1.get(url).status_code==200)
     item=c1.get(f'/candidatos/{p}/profissional').json()['itens'][0]['ID_Item'];check('Excluir item próprio',c1.delete('/itens-profissionais/'+item).status_code==200)
 except Exception as exc:
+    traceback.print_exc()
     failure=f'{type(exc).__name__}: {exc}'
 finally:
     summary={'cases':len(cases),'passed':sum(x['passed'] for x in cases),'execution_error':failure}
