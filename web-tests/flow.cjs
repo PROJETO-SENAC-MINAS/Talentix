@@ -110,7 +110,7 @@ async function test(name,fn) {
     });
     await test('filtros URL buscas salvas historico e autocomplete persistem',async()=> {
       await tab(candidate,'vagas');assert.equal(await candidate.locator('#painelFiltrosVagas').isVisible(),false);await candidate.locator('#btnFiltrosVagas').click();assert.equal(await candidate.locator('#btnFiltrosVagas').getAttribute('aria-expanded'),'true');await candidate.locator('#fvTitulo').fill('Vaga navegador '+nonce);await candidate.locator('#fvModalidade').selectOption('Remoto');
-      await submit(candidate,'#formFiltroVagas button[type="submit"]:first-of-type','/buscas-historico');await candidate.locator(`[data-ver-vaga="${jobId}"]`).waitFor();
+      await submit(candidate,'#formFiltroVagas button[type="submit"].btn-primary','/buscas-historico');await candidate.locator(`[data-ver-vaga="${jobId}"]`).waitFor();
       assert.ok(new URL(candidate.url()).searchParams.get('palavra_chave').includes(nonce));
       await candidate.locator('#nomeBusca').fill('Minha oportunidade');await candidate.locator('#alertaBusca').check();await submit(candidate,'#formSalvarBusca button','/buscas');await candidate.locator('#buscasSalvas').filter({hasText:'Alertas ativos'}).waitFor();
       await submit(candidate,'#buscasSalvas [data-alerta-busca]','/buscas/','PUT');await candidate.locator('#buscasSalvas').filter({hasText:'Alertas desativados'}).waitFor();
