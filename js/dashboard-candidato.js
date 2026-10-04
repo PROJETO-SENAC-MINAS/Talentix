@@ -862,7 +862,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const jaCandidatado = idsVagasCandidatadas.has(idVaga);
 
     $('#modalVagaConteudo').innerHTML = `
-      <h3>${escapeHtml(vaga.Titulo)}</h3>
+      <h2 id="modalVagaTitulo">${escapeHtml(vaga.Titulo)}</h2>
       <p class="list-item__sub" style="margin-bottom:16px;">
         ${[vaga.Modalidade, vaga.Nivel, vaga.TipoContrato, vaga.Localizacao].filter(Boolean).map(escapeHtml).join(' · ')}
       </p>
@@ -873,11 +873,11 @@ document.addEventListener('DOMContentLoaded', () => {
           : `<button type="button" class="btn btn-primary" data-candidatar="${vaga.ID_Vagas}">Candidatar-se a esta vaga</button>`}
       </div>
     `;
-    modalVaga.classList.add('show');
+    modalVaga.showModal();
   }
 
   function fecharModalVaga() {
-    modalVaga.classList.remove('show');
+    modalVaga.close();
   }
 
   $('#fecharModalVaga')?.addEventListener('click', fecharModalVaga);

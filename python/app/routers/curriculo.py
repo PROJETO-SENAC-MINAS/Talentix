@@ -29,27 +29,8 @@ _STATUS_FALHOU = 4
 
 
 async def garantir_schema_curriculo_importacoes() -> None:
-    """Compatibilidade local para bancos antigos.
-
-    A migration 004 mantém a versão completa no MySQL. Esta criação mínima é
-    propositalmente SQL-portável para também funcionar nos testes SQLite e não
-    derrubar toda a API durante o startup.
-    """
-    await execute(
-        """CREATE TABLE IF NOT EXISTS Curriculo_Importacoes (
-               ID_Curriculo_Importacoes CHAR(36) NOT NULL PRIMARY KEY,
-               ID_Curriculos CHAR(36) NOT NULL UNIQUE,
-               ID_Status_Processamento_IA INTEGER NOT NULL DEFAULT 1,
-               DadosExtraidos TEXT NULL,
-               TextoCaracteres INTEGER NULL,
-               ErroProcessamento VARCHAR(500) NULL,
-               ProcessamentoIniciadoEm DATETIME NULL,
-               ProcessadoEm DATETIME NULL,
-               AplicadoEm DATETIME NULL,
-               CriadoEm DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-               AtualizadoEm DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
-           )"""
-    )
+    """Verifica o schema sem exigir DDL da conta operacional. Execute migrate.py antes da API."""
+    await fetch_one("SELECT * FROM Curriculo_Importacoes LIMIT 0")
 
 
 async def _checar_dono_candidato(id_candidato: str, sessao: dict) -> None:

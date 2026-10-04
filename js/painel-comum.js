@@ -38,12 +38,12 @@ window.Talentix = (() => {
   async function notifications() {
     const target = $('#listaNotificacoes'); if (!target) return;
     const records = await api('/notificacoes');
-    target.innerHTML = records.length ? records.map(n => `<article class="list-item"><div class="list-item__main"><h3>${esc(n.Titulo)}</h3><p>${esc(n.Mensagem)}</p></div>${n.Lida ? '<span class="badge">Lida</span>' : `<button class="btn btn-secondary" data-notificacao="${esc(n.ID_Notificacoes)}">Marcar como lida</button>`}</article>`).join('') : '<p class="empty-state">Nenhuma notificação.</p>';
+    target.innerHTML = records.length ? records.map(n => `<article class="list-item"><div class="list-item__main"><h2 class="list-item__heading">${esc(n.Titulo)}</h2><p>${esc(n.Mensagem)}</p></div>${n.Lida ? '<span class="badge">Lida</span>' : `<button class="btn btn-secondary" data-notificacao="${esc(n.ID_Notificacoes)}">Marcar como lida</button>`}</article>`).join('') : '<p class="empty-state">Nenhuma notificação.</p>';
   }
   async function messages() {
     const target = $('#listaMensagens'); if (!target) return;
     const records = await api('/mensagens');
-    target.innerHTML = records.length ? records.map(m => `<article class="list-item"><div class="list-item__main"><h3>${esc(m.NomeRemetente || 'Mensagem recebida')}</h3><p>${esc(m.Conteudo)}</p><p>${esc(m.EnviadaEm)}</p></div><button class="btn btn-secondary" data-responder="${esc(m.ID_Remetente)}" data-contexto="${esc(m.ID_Candidaturas || '')}" data-msg="${esc(m.ID_Mensagens)}">Responder</button></article>`).join('') : '<p class="empty-state">Nenhuma mensagem recebida.</p>';
+    target.innerHTML = records.length ? records.map(m => `<article class="list-item"><div class="list-item__main"><h2 class="list-item__heading">${esc(m.NomeRemetente || 'Mensagem recebida')}</h2><p>${esc(m.Conteudo)}</p><p>${esc(m.EnviadaEm)}</p></div><button class="btn btn-secondary" data-responder="${esc(m.ID_Remetente)}" data-contexto="${esc(m.ID_Candidaturas || '')}" data-msg="${esc(m.ID_Mensagens)}">Responder</button></article>`).join('') : '<p class="empty-state">Nenhuma mensagem recebida.</p>';
   }
   async function conversation(user, context) {
     $('#msgDestinatario').value = user; $('#msgContexto').value = context || '';

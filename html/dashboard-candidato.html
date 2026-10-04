@@ -121,11 +121,11 @@
             </form>
           </div>
           <div class="card">
-            <h3>Habilidades</h3>
+            <h2 class="section-subtitle">Habilidades</h2>
             <p class="content__sub" style="margin-top:-6px;">Adicione as tecnologias e competências que você domina.</p>
             <form id="formHabilidade" class="inline-form">
-              <input type="text" id="hNome" placeholder="Ex: Python, Comunicação, Excel..." required>
-              <select id="hNivel">
+              <input type="text" id="hNome" aria-label="Nome da habilidade" placeholder="Ex: Python, Comunicação, Excel..." required>
+              <select id="hNivel" aria-label="Nível da habilidade">
                 <option value="">Nível (opcional)</option> <option value="1">Básico</option> <option value="2">Intermediário</option> <option value="3">Avançado</option> <option value="4">Especialista</option>
               </select>
               <button type="submit" class="btn btn-secondary">Adicionar</button>
@@ -163,7 +163,7 @@
           <div class="card curriculum-import-card">
             <div class="curriculum-import-card__header">
               <div>
-                <h3>Preenchimento inteligente</h3>
+                <h2 class="section-subtitle">Preenchimento inteligente</h2>
                 <p class="content__sub">PDF e DOCX podem ser analisados para sugerir dados do perfil, experiências, formação, habilidades e idiomas. Nada é aplicado sem sua confirmação.</p>
               </div>
               <span class="badge badge--muted">Revisão obrigatória</span>
@@ -174,13 +174,13 @@
           </div>
 
           <div class="card">
-            <h3>Currículos enviados</h3>
+            <h2 class="section-subtitle">Currículos enviados</h2>
             <div class="list" id="listaCurriculos">
               <p class="empty-state">Nenhum currículo enviado ainda.</p>
             </div>
           </div>
           <div class="card">
-            <h3>Experiências profissionais</h3>
+            <h2 class="section-subtitle">Experiências profissionais</h2>
             <form id="formExperiencia" class="inline-form-stack">
               <div class="grid-2">
                 <div class="field">
@@ -279,13 +279,13 @@
             </form>
           </div>
           <div class="card">
-            <h3>Formação acadêmica</h3>
+            <h2 class="section-subtitle">Formação acadêmica</h2>
             <div class="list" id="listaFormacoes">
               <p class="empty-state">Nenhuma formação cadastrada ainda.</p>
             </div>
           </div>
           <div class="card">
-            <h3>Certificados</h3>
+            <h2 class="section-subtitle">Certificados</h2>
             <div class="list" id="listaCertificados">
               <p class="empty-state">Nenhum certificado cadastrado ainda.</p>
             </div>
@@ -303,12 +303,12 @@
           </header>
           <div class="card">
             <form id="formFiltroVagas" class="filter-bar">
-              <input type="text" id="fvTitulo" placeholder="Cargo, palavra-chave...">
-              <input type="text" id="fvLocalizacao" placeholder="Localização">
-              <select id="fvModalidade">
+              <input type="text" id="fvTitulo" aria-label="Cargo ou palavra-chave" placeholder="Cargo, palavra-chave...">
+              <input type="text" id="fvLocalizacao" aria-label="Localização" placeholder="Localização">
+              <select id="fvModalidade" aria-label="Modalidade">
                 <option value="">Modalidade</option> <option value="Remoto">Remoto</option> <option value="Híbrido">Híbrido</option> <option value="Presencial">Presencial</option>
               </select>
-              <select id="fvNivel">
+              <select id="fvNivel" aria-label="Nível de experiência">
                 <option value="">Nível</option> <option value="Estágio">Estágio</option> <option value="Júnior">Júnior</option> <option value="Pleno">Pleno</option> <option value="Sênior">Sênior</option>
               </select>
               <button type="submit" class="btn btn-secondary">Buscar</button>
@@ -363,12 +363,12 @@
 
     <!-- ===================== MODAL: DETALHE DA VAGA / CANDIDATURA ===================== -->
 
-    <div class="modal-overlay" id="modalVaga">
+    <dialog class="modal-overlay" id="modalVaga" aria-labelledby="modalVagaTitulo">
       <div class="modal modal--wide">
         <button type="button" class="modal__close" id="fecharModalVaga" aria-label="Fechar">✕</button>
-        <div id="modalVagaConteudo"></div>
+        <div id="modalVagaConteudo"><h2 id="modalVagaTitulo">Detalhes da vaga</h2></div>
       </div>
-    </div>
+    </dialog>
     <dialog aria-labelledby="modalMensagemTitulo" id="modalMensagem">
       <div class="dialog-header">
         <h2 id="modalMensagemTitulo">Conversa</h2>

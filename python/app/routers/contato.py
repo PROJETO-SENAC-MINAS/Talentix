@@ -10,18 +10,8 @@ router = APIRouter(prefix="/contato", tags=["Contato"])
 
 
 async def garantir_schema_contato() -> None:
-    """Garante a tabela de contatos em instalações locais ainda sem a migration 001."""
-    await execute(
-        """CREATE TABLE IF NOT EXISTS Contatos (
-               ID_Contatos CHAR(36) NOT NULL PRIMARY KEY,
-               Nome VARCHAR(150) NOT NULL,
-               Email VARCHAR(150) NOT NULL,
-               Assunto VARCHAR(100) NOT NULL,
-               Mensagem TEXT NOT NULL,
-               Lido BOOLEAN NOT NULL DEFAULT FALSE,
-               CriadoEm DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
-           )"""
-    )
+    """Verifica o schema sem exigir DDL da conta operacional. Execute migrate.py antes da API."""
+    await fetch_one("SELECT * FROM Contatos LIMIT 0")
 
 
 class ContatoCreate(BaseModel):

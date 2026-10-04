@@ -35,6 +35,29 @@ URL_A = "/uploads/curriculos/" + ARQUIVO_A
 URL_B = "/uploads/curriculos/" + ARQUIVO_B
 
 SCHEMA = """
+CREATE TABLE IF NOT EXISTS Contatos (
+               ID_Contatos CHAR(36) NOT NULL PRIMARY KEY,
+               Nome VARCHAR(150) NOT NULL,
+               Email VARCHAR(150) NOT NULL,
+               Assunto VARCHAR(100) NOT NULL,
+               Mensagem TEXT NOT NULL,
+               Lido BOOLEAN NOT NULL DEFAULT FALSE,
+               CriadoEm DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+           );
+CREATE TABLE IF NOT EXISTS Curriculo_Importacoes (
+               ID_Curriculo_Importacoes CHAR(36) NOT NULL PRIMARY KEY,
+               ID_Curriculos CHAR(36) NOT NULL UNIQUE,
+               ID_Status_Processamento_IA INTEGER NOT NULL DEFAULT 1,
+               DadosExtraidos TEXT NULL,
+               TextoCaracteres INTEGER NULL,
+               ErroProcessamento VARCHAR(500) NULL,
+               ProcessamentoIniciadoEm DATETIME NULL,
+               ProcessadoEm DATETIME NULL,
+               AplicadoEm DATETIME NULL,
+               CriadoEm DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+               AtualizadoEm DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+           );
+
 CREATE TABLE Usuarios (ID_Usuarios TEXT PRIMARY KEY, Nome TEXT, Email TEXT, EmailConfirmadoEm TEXT,
   SenhaHash TEXT, TentativasLogin INTEGER DEFAULT 0, BloqueadoAte TEXT, UltimoLoginEm TEXT,
   TwoFactorAtivo INTEGER DEFAULT 0, TwoFactorSecretEnc TEXT,
