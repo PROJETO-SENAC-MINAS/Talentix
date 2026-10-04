@@ -24,12 +24,6 @@
           <button class="nav-item active" data-tab="perfil">
             <span class="nav-icon">◐</span> Perfil
           </button>
-          <button class="nav-item" data-tab="curriculo">
-            <span class="nav-icon">▤</span> Currículo
-          </button>
-          <button class="nav-item" data-tab="formacao">
-            <span class="nav-icon">◆</span> Formação e certificados
-          </button>
           <button class="nav-item" data-tab="vagas">
             <span class="nav-icon">▶</span> Vagas
           </button>
@@ -174,14 +168,14 @@
 
         <!-- ---------- CURRÍCULO (arquivo) ---------- -->
 
-        <section class="tab-panel" id="tab-curriculo">
+        <section class="tab-panel" id="tab-curriculo" hidden>
           <header class="content__header">
             <div>
               <h1>Currículo</h1>
               <p class="content__sub">Envie o arquivo do seu currículo. Você pode manter mais de um e marcar o principal.</p>
             </div>
           </header>
-          <div class="card">
+          <div class="card" id="secaoCurriculos">
             <button type="button" id="gerarCurriculoTalentix" class="btn btn-secondary">Gerar PDF Talentix com meu perfil</button>
             <form id="formCurriculo" class="inline-form-stack">
               <div class="field">
@@ -261,7 +255,7 @@
 
         <!-- ---------- FORMAÇÃO E CERTIFICADOS ---------- -->
 
-        <section class="tab-panel" id="tab-formacao">
+        <section class="tab-panel" id="tab-formacao" hidden>
           <header class="content__header">
             <div>
               <h1>Formação e certificados</h1>
@@ -340,30 +334,38 @@
               <p class="content__sub">Encontre oportunidades publicadas pelas empresas e candidate-se diretamente.</p>
             </div>
           </header>
-          <div class="card">
-            <form id="formFiltroVagas" class="filter-bar">
-              <input type="text" id="fvTitulo" aria-label="Cargo" placeholder="Cargo" maxlength="200" list="cargosSugeridos"><datalist id="cargosSugeridos"></datalist>
-              <input id="fvPalavra" aria-label="Palavra-chave" placeholder="Palavra-chave" maxlength="200">
-              <input type="text" id="fvLocalizacao" aria-label="Localização" placeholder="Localização">
-              <select id="fvModalidade" aria-label="Modalidade">
-                <option value="">Modalidade</option> <option value="Remoto">Remoto</option> <option value="Híbrido">Híbrido</option> <option value="Presencial">Presencial</option>
-              </select>
-              <select id="fvNivel" aria-label="Nível de experiência">
-                <option value="">Nível</option> <option value="Estágio">Estágio</option> <option value="Júnior">Júnior</option> <option value="Pleno">Pleno</option> <option value="Sênior">Sênior</option>
-              </select>
-              <button type="submit" class="btn btn-secondary">Buscar</button>
-              <input id="fvSalarioMin" type="number" min="0" max="99999999" step="0.01" aria-label="Salário mínimo" placeholder="Salário mínimo">
-              <input id="fvSalarioMax" type="number" min="0" max="99999999" step="0.01" aria-label="Salário máximo" placeholder="Salário máximo">
-              <input id="fvContrato" maxlength="50" aria-label="Tipo de contrato" placeholder="CLT, PJ…">
-              <input id="fvEmpresa" maxlength="200" aria-label="Empresa" placeholder="Empresa">
-              <select id="fvDias" aria-label="Data de publicação"><option value="">Qualquer data</option><option value="1">Últimas 24 horas</option><option value="7">Últimos 7 dias</option><option value="30">Últimos 30 dias</option></select>
-              <input id="fvHabilidades" maxlength="500" aria-label="Habilidades exigidas" placeholder="Python, SQL…">
-              <input id="fvArea" maxlength="100" aria-label="Área profissional" placeholder="Área profissional">
-              <select id="fvOrdenar" aria-label="Ordenação"><option value="relevancia">Relevância</option><option value="data">Mais recentes</option><option value="salario">Maior salário</option></select>
+          <div class="card job-search-card">
+            <form id="formFiltroVagas" class="job-search-form">
+              <div class="job-search-bar">
+                <label class="visually-hidden" for="fvTitulo">Cargo ou palavra-chave</label>
+                <input type="search" id="fvTitulo" aria-label="Cargo ou palavra-chave" placeholder="Cargo ou palavra-chave" maxlength="200" list="cargosSugeridos"><datalist id="cargosSugeridos"></datalist>
+                <button type="submit" class="btn btn-primary">Buscar vagas</button>
+                <button type="button" class="btn btn-filter-settings" id="btnFiltrosVagas" aria-label="Mostrar filtros e opções de busca" aria-expanded="false" aria-controls="painelFiltrosVagas opcoesBuscaSalva">⋯</button>
+              </div>
+              <div id="painelFiltrosVagas" class="job-search-options" hidden>
+                <h2 class="section-subtitle">Refinar resultados</h2>
+                <div class="job-filter-grid">
+                  <input type="text" id="fvCargo" aria-label="Cargo específico" placeholder="Filtrar por cargo" maxlength="200">
+                  <input type="text" id="fvLocalizacao" aria-label="Localização" placeholder="Localização">
+                  <select id="fvModalidade" aria-label="Modalidade"><option value="">Todas as modalidades</option><option value="Remoto">Remoto</option><option value="Híbrido">Híbrido</option><option value="Presencial">Presencial</option></select>
+                  <select id="fvNivel" aria-label="Nível de experiência"><option value="">Todos os níveis</option><option value="Estágio">Estágio</option><option value="Júnior">Júnior</option><option value="Pleno">Pleno</option><option value="Sênior">Sênior</option></select>
+                  <input id="fvSalarioMin" type="number" min="0" max="99999999" step="0.01" aria-label="Salário mínimo" placeholder="Salário mínimo">
+                  <input id="fvSalarioMax" type="number" min="0" max="99999999" step="0.01" aria-label="Salário máximo" placeholder="Salário máximo">
+                  <input id="fvContrato" maxlength="50" aria-label="Tipo de contrato" placeholder="Tipo de contrato (CLT, PJ…) ">
+                  <input id="fvEmpresa" maxlength="200" aria-label="Empresa" placeholder="Empresa">
+                  <select id="fvDias" aria-label="Data de publicação"><option value="">Qualquer data</option><option value="1">Últimas 24 horas</option><option value="7">Últimos 7 dias</option><option value="30">Últimos 30 dias</option></select>
+                  <input id="fvHabilidades" maxlength="500" aria-label="Habilidades exigidas" placeholder="Habilidades (Python, SQL…) ">
+                  <input id="fvArea" maxlength="100" aria-label="Área profissional" placeholder="Área profissional">
+                  <select id="fvOrdenar" aria-label="Ordenar resultados"><option value="relevancia">Ordenar por relevância</option><option value="data">Mais recentes</option><option value="salario">Maior salário</option></select>
+                </div>
+                <button type="submit" class="btn btn-secondary">Aplicar filtros</button>
+              </div>
             </form>
-            <form id="formSalvarBusca" class="filter-bar"><input id="nomeBusca" maxlength="100" required aria-label="Nome da busca salva" placeholder="Nome da busca"><label><input id="alertaBusca" type="checkbox"> Receber alertas de novas vagas</label><button type="submit" class="btn btn-secondary">Salvar busca</button></form>
-            <div id="buscasSalvas" class="list"></div>
-            <details><summary>Histórico de pesquisas</summary><div id="historicoBuscas"></div></details>
+            <div id="opcoesBuscaSalva" class="saved-search-options" hidden>
+              <form id="formSalvarBusca" class="filter-bar"><input id="nomeBusca" maxlength="100" required aria-label="Nome da busca salva" placeholder="Nome da busca"><label><input id="alertaBusca" type="checkbox"> Receber alertas de novas vagas</label><button type="submit" class="btn btn-secondary">Salvar busca</button></form>
+              <div id="buscasSalvas" class="list"></div>
+              <details><summary>Histórico de pesquisas</summary><div id="historicoBuscas"></div></details>
+            </div>
           </div>
           <p id="resumoBusca" role="status"></p>
           <div class="list" id="listaVagas">
@@ -411,6 +413,10 @@
           <h2 class="section-heading">Favoritos</h2>
           <div class="list" id="listaFavoritos"></div>
         </section>
+        <footer class="page-footer">
+          <span>Talentix</span>
+          <span>Seu próximo passo profissional começa aqui.</span>
+        </footer>
       </main>
     </div>
 

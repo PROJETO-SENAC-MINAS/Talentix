@@ -791,9 +791,18 @@ document.addEventListener('DOMContentLoaded', () => {
   let idsVagasCandidatadas = new Set();
   let paginaBusca = 1;
   let geracaoBusca = 0;
-  const camposBusca = {cargo:'fvTitulo',palavra_chave:'fvPalavra',localizacao:'fvLocalizacao',modalidade:'fvModalidade',nivel:'fvNivel',salario_min:'fvSalarioMin',salario_max:'fvSalarioMax',tipo_contrato:'fvContrato',empresa:'fvEmpresa',dias:'fvDias',habilidades:'fvHabilidades',area:'fvArea',ordenar:'fvOrdenar'};
+  const camposBusca = {palavra_chave:'fvTitulo',cargo:'fvCargo',localizacao:'fvLocalizacao',modalidade:'fvModalidade',nivel:'fvNivel',salario_min:'fvSalarioMin',salario_max:'fvSalarioMax',tipo_contrato:'fvContrato',empresa:'fvEmpresa',dias:'fvDias',habilidades:'fvHabilidades',area:'fvArea',ordenar:'fvOrdenar'};
   const queryInicial = new URLSearchParams(location.search);
   for (const [key,id] of Object.entries(camposBusca)) if(queryInicial.has(key)) $('#'+id).value = queryInicial.get(key);
+  const botaoFiltros = $('#btnFiltrosVagas');
+  function alternarOpcoesBusca(aberto) {
+    $('#painelFiltrosVagas').hidden = !aberto;
+    $('#opcoesBuscaSalva').hidden = !aberto;
+    botaoFiltros.setAttribute('aria-expanded', String(aberto));
+    botaoFiltros.setAttribute('aria-label', aberto ? 'Ocultar filtros e opções de busca' : 'Mostrar filtros e opções de busca');
+  }
+  botaoFiltros?.addEventListener('click', () => alternarOpcoesBusca(botaoFiltros.getAttribute('aria-expanded') !== 'true'));
+  if (Object.keys(camposBusca).some(key => key !== 'palavra_chave' && queryInicial.has(key))) alternarOpcoesBusca(true);
   function filtrosAtuais() {
     const f = {};
     for (const [key,id] of Object.entries(camposBusca)) if ($('#'+id).value.trim()) f[key] = ['salario_min','salario_max','dias'].includes(key) ? Number($('#'+id).value) : $('#'+id).value.trim();
@@ -932,9 +941,11 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       const curriculos = await api(`/candidatos/${idCandidato}/curriculos`);
       if (!curriculos.length) {
-        mostrarToast('Envie um currículo na aba Currículo antes de se candidatar.', 'error');
-        document.querySelector('[data-tab="curriculo"]').click();
+        mostrarToast('Envie um currículo na seção Currículo e experiências do seu Perfil antes de se candidatar.', 'error');
+        document.querySelector('[data-tab="perfil"]').click();
         fecharModalVaga();
+        $('#secaoCurriculos')?.scrollIntoView({behavior:'smooth',block:'start'});
+        $('#cvTitulo')?.focus({preventScroll:true});
         return;
       }
       $('#candidaturaVaga').value = idVaga;

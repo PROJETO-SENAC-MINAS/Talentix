@@ -2,14 +2,20 @@
 document.addEventListener('DOMContentLoaded', () => {
   const {$, esc, api, toast} = Talentix;
   let candidato, itens = [], idiomas = [], atualizarTimer;
-  const moved = [$('#formExperiencia')?.closest('.card'), ...document.querySelectorAll('#tab-formacao > .card')].filter(Boolean);
-  const anchors = moved.map(card => {const marker = document.createComment('posição do cartão profissional'); card.before(marker); return marker;});
-  function layout(tab) {
-    moved.forEach((card, i) => tab === 'perfil' ? $('#tab-perfil').append(card) : anchors[i].after(card));
+  const painelPerfil = $('#tab-perfil');
+  function incorporarSecao(id, titulo, descricao) {
+    const painel = $('#tab-' + id);
+    if (!painel) return;
+    const heading = document.createElement('header');
+    heading.className = 'profile-section-heading';
+    heading.innerHTML = `<h2>${esc(titulo)}</h2><p>${esc(descricao)}</p>`;
+    painelPerfil.append(heading);
+    [...painel.querySelectorAll(':scope > .card')].forEach(card => painelPerfil.append(card));
+    painel.hidden = true;
+    painel.classList.remove('active');
   }
-  layout('perfil');
-  document.querySelectorAll('.nav-item').forEach(b => b.addEventListener('click', () => layout(b.dataset.tab)));
-  // Os mesmos formulários também continuam acessíveis pelas abas antigas.
+  incorporarSecao('curriculo', 'Currículo e experiências', 'Gerencie seus arquivos, revise sugestões e descreva sua trajetória profissional.');
+  incorporarSecao('formacao', 'Formação e certificados', 'Mantenha seus estudos e certificações em um só lugar.');
   const limites = {pTituloProfissional:150,pResumo:5000,pCidade:100,pLinkedin:300,pGithub:300,pPortfolio:300,expEmpresa:150,expCargo:150,expDescricao:5000,fInstituicao:200,fCurso:200,hNome:100,cvTitulo:150};
   for (const [id, n] of Object.entries(limites)) if ($('#'+id)) $('#'+id).maxLength = n;
   ['pLinkedin','pGithub','pPortfolio'].forEach(id => $('#'+id).pattern = 'https?://.*');
