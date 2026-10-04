@@ -109,6 +109,7 @@ async function test(name,fn) {
       await candidate.locator('#modalImportarCurriculo[open]').waitFor({timeout:20000});
       const portfolioSuggestion=candidate.locator('#curriculoImportacaoResumo input[data-campo="portfolio_url"]');assert.equal(await portfolioSuggestion.isChecked(),true);
       assert.equal(await candidate.locator('#pPortfolio').inputValue(),'','O perfil não é alterado antes da confirmação do candidato.');
+      await candidate.locator('#modalImportarCurriculo').evaluate(dialog=>{dialog.scrollTop=dialog.scrollHeight});await candidate.locator('#btnAplicarCurriculo').scrollIntoViewIfNeeded();
       await submit(candidate,'#btnAplicarCurriculo','/importacao/aplicar');assert.equal(await candidate.locator('#pPortfolio').inputValue(),'https://portfolio.example.com');
       await candidate.locator('#listaCurriculos').filter({hasText:'Currículo da apresentação'}).waitFor();
     });
