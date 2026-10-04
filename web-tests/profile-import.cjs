@@ -38,7 +38,7 @@ const fixture = {
   try {
     browser = await chromium.launch({executablePath:process.env.TEST_CHROMIUM_EXECUTABLE || undefined, args:['--no-sandbox']});
     for (const [width, height] of [[1440,900], [768,900], [390,844], [683,450]]) {
-      const context = await browser.newContext({viewport:{width,height}, reducedMotion:'reduce'});
+      const context = await browser.newContext({viewport:{width,height}});
       const page = await context.newPage();
       page.on('pageerror', error => errors.push(error.message));
       let extracted = structuredClone(fixture);
@@ -91,9 +91,20 @@ const fixture = {
       const bottom = await page.evaluate(() => ({gap:document.documentElement.scrollHeight - (document.querySelector('.page-footer').getBoundingClientRect().bottom + scrollY),height:document.documentElement.scrollHeight,body:document.body.scrollHeight,scrollY,rects:['.app','.sidebar','.content','.page-footer'].map(s=>({s,rect:document.querySelector(s).getBoundingClientRect().toJSON()}))}));
       await page.screenshot({path:path.join(out,'perfil-bottom-'+width+'.png')});
       assert.ok(bottom.gap <= 32, 'Sem rolagem vazia depois do rodapé: '+JSON.stringify(bottom));
-      await page.evaluate(() => window.scrollTo(0,0));
+      await page.evaluate(() => window.scrollTo({top:0,behavior:'instant'}));
       await page.screenshot({path:path.join(out,'perfil-final-'+width+'.png')});
       if (width === 1440 || width === 390) await audit(page, 'perfil-organizado-'+width);
+      if (width === 390) {
+        const normalBackground = await page.locator('#gerarCurriculoTalentix').evaluate(el => getComputedStyle(el).backgroundColor);
+        await page.locator('[aria-label="Alternar alto contraste"]').click();
+        await audit(page, 'perfil-alto-contraste');
+        await page.locator('[aria-label="Alternar alto contraste"]').click();
+        assert.equal(await page.locator('#gerarCurriculoTalentix').evaluate(el => getComputedStyle(el).backgroundColor), normalBackground, 'O contraste dos botões deve voltar imediatamente após trocar a preferência.');
+        await page.locator('[aria-label="Alternar texto ampliado"]').click();
+        await audit(page, 'perfil-texto-ampliado');
+        assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
+        await page.locator('[aria-label="Alternar texto ampliado"]').click();
+      }
 
       await page.locator('[data-revisar-importacao]').first().click();
       await page.locator('#modalImportarCurriculo[open]').waitFor();

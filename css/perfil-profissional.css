@@ -6,6 +6,8 @@
 .candidate-dashboard .page-footer { margin-top: 12px; }
 .candidate-dashboard .a11y-toolbar { position: static; margin-top: 12px; box-shadow: none; background: var(--navy); color: #F1EDE3; }
 .candidate-dashboard .a11y-toolbar button { background: inherit; color: inherit; }
+/* Evita fundos intermediários sem contraste ao desativar o alto contraste. */
+.candidate-dashboard .btn { transition: none; }
 
 .profile-resume-card { border-color: var(--accent); }
 .profile-resume-card .content__sub { line-height: 1.6; }
