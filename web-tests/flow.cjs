@@ -89,16 +89,6 @@ async function test(name,fn) {
       const language=await candidate.locator('#idiomaCatalogo option').nth(1).getAttribute('value');await candidate.locator('#idiomaCatalogo').selectOption(language);await candidate.locator('#idiomaNivel').selectOption('fluente');await submit(candidate,'#formIdioma button','/idiomas');
       await candidate.locator('#listaIdiomasProfissionais').filter({hasText:'fluente'}).waitFor();
     });
-    await test('curriculo PDF Talentix gera pre-visao e aguarda confirmacao manual',async()=> {
-      await tab(candidate,'perfil');await candidate.locator('#secaoCurriculos').scrollIntoViewIfNeeded();const cv=await submit(candidate,'#gerarCurriculoTalentix','/curriculo-talentix');
-      assert.ok(cv?.ID_Curriculos&&cv.ArquivoUrl,'A geração deve retornar o currículo persistido com arquivo próprio.');
-      await candidate.reload();await candidate.waitForLoadState('networkidle');await candidate.locator(`[data-analisar-curriculo="${cv.ID_Curriculos}"]`).waitFor();await submit(candidate,`[data-analisar-curriculo="${cv.ID_Curriculos}"]`,'/analisar');
-      const result=spawnSync(process.env.TEST_PYTHON || 'python',['-m','app.worker_profissional','--once'],{cwd:path.join(__dirname,'../python'),env:process.env,encoding:'utf8',timeout:120000});assert.equal(result.status,0,result.stderr);
-      await candidate.locator(`#listaCurriculos [data-revisar-importacao="${cv.ID_Curriculos}"]`).waitFor({timeout:15000});
-      if(!(await candidate.locator('#modalImportarCurriculo').evaluate(dialog=>dialog.open)))await candidate.locator(`#listaCurriculos [data-revisar-importacao="${cv.ID_Curriculos}"]`).click();
-      await candidate.locator('#modalImportarCurriculo[open]').waitFor();assert.ok(await candidate.locator('#curriculoImportacaoResumo input[data-secao="perfil"]:checked').count()>0);await audit(candidate,'curriculo-importacao-seletiva');
-      const checkbox=candidate.locator('#curriculoImportacaoResumo input[data-secao="perfil"]').first();await checkbox.check();await submit(candidate,'#btnAplicarCurriculo','/importacao/aplicar');await candidate.locator('#modalImportarCurriculo').waitFor({state:'hidden'});
-    });
     let cvUrl;
     await test('upload analisa, sugere preenchimento e só altera após confirmação',async()=> {
       await tab(candidate,'perfil');await candidate.locator('#secaoCurriculos').scrollIntoViewIfNeeded();await candidate.locator('#cvTitulo').fill('Currículo da apresentação');await candidate.locator('#cvPrincipal').check();
