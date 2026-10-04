@@ -95,7 +95,8 @@ async function test(name,fn) {
       assert.ok((await saved.json()).some(item=>item.ID_Curriculos===cv.ID_Curriculos),'PDF Talentix deve ficar persistido no histórico do candidato.');
       await candidate.reload();await candidate.waitForLoadState('networkidle');await candidate.locator(`[data-analisar-curriculo="${cv.ID_Curriculos}"]`).waitFor();await submit(candidate,`[data-analisar-curriculo="${cv.ID_Curriculos}"]`,'/analisar');
       const result=spawnSync(process.env.TEST_PYTHON || 'python',['-m','app.worker_profissional','--once'],{cwd:path.join(__dirname,'../python'),env:process.env,encoding:'utf8',timeout:120000});assert.equal(result.status,0,result.stderr);
-      await candidate.locator(`#listaCurriculos [data-revisar-importacao="${cv.ID_Curriculos}"]`).waitFor({timeout:15000});await candidate.locator(`#listaCurriculos [data-revisar-importacao="${cv.ID_Curriculos}"]`).click();
+      await candidate.locator(`#listaCurriculos [data-revisar-importacao="${cv.ID_Curriculos}"]`).waitFor({timeout:15000});
+      if(!(await candidate.locator('#modalImportarCurriculo').evaluate(dialog=>dialog.open)))await candidate.locator(`#listaCurriculos [data-revisar-importacao="${cv.ID_Curriculos}"]`).click();
       await candidate.locator('#modalImportarCurriculo[open]').waitFor();assert.ok(await candidate.locator('#curriculoImportacaoResumo input[data-secao="perfil"]:checked').count()>0);await audit(candidate,'curriculo-importacao-seletiva');
       const checkbox=candidate.locator('#curriculoImportacaoResumo input[data-secao="perfil"]').first();await checkbox.check();await submit(candidate,'#btnAplicarCurriculo','/importacao/aplicar');await candidate.locator('#modalImportarCurriculo').waitFor({state:'hidden'});
     });
