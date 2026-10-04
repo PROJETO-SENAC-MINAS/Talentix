@@ -1,5 +1,6 @@
 """Instala o SQL apenas no banco descartável e vazio do CI."""
 import os
+import sys
 from pathlib import Path
 import pymysql
 from pymysql.constants import CLIENT
@@ -18,3 +19,16 @@ try:
         while cur.nextset():pass
     print("SQL instalado no MySQL descartável do CI.")
 finally:conn.close()
+
+# Exercise the same runner used outside CI, including migrations 003 and 004.
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+from app.core.config import settings
+from migrate import migrate
+conn = pymysql.connect(host=settings.DB_HOST, port=settings.DB_PORT,
+    user=settings.DB_USER, password=settings.DB_PASSWORD, database=settings.DB_NAME,
+    autocommit=True, client_flag=CLIENT.MULTI_STATEMENTS)
+try:
+    assert migrate(conn) is True
+    assert migrate(conn) is False
+finally:
+    conn.close()

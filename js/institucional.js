@@ -55,6 +55,9 @@ document.addEventListener('DOMContentLoaded', () => {
     function mostrarErro(input, erroId, mostrar) {
       const erroEl = document.getElementById(erroId);
       input.classList.toggle('input-error', mostrar);
+      input.setAttribute('aria-invalid', String(mostrar));
+      input.setAttribute('aria-describedby', erroId);
+      erroEl?.setAttribute('role', 'alert');
       erroEl?.classList.toggle('show', mostrar);
     }
   

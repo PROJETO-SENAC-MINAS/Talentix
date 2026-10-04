@@ -3,11 +3,88 @@ name: Security checks
 on:
   push:
   pull_request:
+  workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
+  compose-bootstrap:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Generate isolated local configuration
+        run: |
+          python python/configure_dev.py
+          python - <<'PY'
+          from pathlib import Path
+          import secrets
+          values = {key: secrets.token_hex(24) for key in ('MYSQL_ROOT_PASSWORD', 'MYSQL_APP_PASSWORD', 'DEMO_PASSWORD')}
+          values['SEED_DEMO'] = 'true'
+          Path('.env').write_text(''.join(f'{k}={v}\n' for k,v in values.items()))
+          PY
+      - name: Start fresh Compose with automatic migrations and demo
+        run: docker compose up --build --wait --wait-timeout 180
+      - name: Verify demo, migrations and least privilege
+        run: |
+          docker compose exec -T api python - <<'PY'
+          import pymysql
+          from app.core.config import settings
+          conn = pymysql.connect(host=settings.DB_HOST, user=settings.DB_USER, password=settings.DB_PASSWORD, database=settings.DB_NAME)
+          with conn.cursor() as cur:
+              cur.execute('SELECT COUNT(*) FROM Schema_Migrations')
+              assert cur.fetchone()[0] == 4
+              cur.execute("SELECT COUNT(*) FROM Usuarios WHERE Email LIKE '%@demo.talentix.local' AND EmailConfirmadoEm IS NOT NULL")
+              assert cur.fetchone()[0] == 3
+              cur.execute('SHOW GRANTS FOR CURRENT_USER')
+              grants = ' '.join(row[0] for row in cur.fetchall()).upper()
+              assert 'CREATE' not in grants and 'ALL PRIVILEGES' not in grants and 'GRANT OPTION' not in grants
+              try:
+                  cur.execute('CREATE TABLE Must_Not_Exist(id INT)')
+              except pymysql.err.OperationalError as error:
+                  assert error.args[0] == 1142
+              else:
+                  raise AssertionError('Runtime received DDL privileges')
+          conn.close()
+          PY
+          python - <<'PY'
+          import urllib.request, urllib.error
+          for path in ('python/.env', '.env', '.git/config', 'sql/talentix_db.sql'):
+              try:
+                  urllib.request.urlopen('http://127.0.0.1:5500/'+path)
+              except urllib.error.HTTPError as error:
+                  assert error.code == 404
+              else:
+                  raise AssertionError('Private file served: '+path)
+          PY
+      - name: Repeat bootstrap without duplicating demo accounts
+        run: |
+          docker compose run --rm bootstrap
+          docker compose exec -T api python - <<'PY'
+          import pymysql
+          from app.core.config import settings
+          conn = pymysql.connect(host=settings.DB_HOST, user=settings.DB_USER, password=settings.DB_PASSWORD, database=settings.DB_NAME)
+          with conn.cursor() as cur:
+              cur.execute("SELECT COUNT(*) FROM Usuarios WHERE Email LIKE '%@demo.talentix.local'")
+              assert cur.fetchone()[0] == 3
+          conn.close()
+          PY
+      - name: Save Compose logs
+        if: always()
+        run: mkdir -p test-results && docker compose logs --no-color > test-results/compose.log
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: compose-bootstrap-results
+          path: test-results
+      - name: Stop isolated containers
+        if: always()
+        run: docker compose down --volumes
+
   regression:
     runs-on: ubuntu-latest
     steps:

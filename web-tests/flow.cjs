@@ -1,5 +1,6 @@
 /* Fluxo de apresentação inteiro, com contas fictícias e MySQL da suíte de integração. */
 const {chromium} = require('playwright');
+const {audit} = require('./axe.cjs');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const {spawnSync} = require('node:child_process');
@@ -43,14 +44,17 @@ async function test(name,fn) {
   try {
     const company=await page(),candidate=await page(),recruit=await page(),admin=await page(),contact=await page();
     await test('cadastro de empresa abre painel existente',async()=> { await signup(company,'Empresa',companyName,`empresa-${nonce}@browser.example.com`,'dashboard-empresa.html');await company.locator('#tituloEmpresa').filter({hasText:companyName}).waitFor(); });
-    await test('cadastro de recrutador aguarda vinculo',async()=> { await signup(recruit,'Recrutador','Recrutador navegador',`rh-${nonce}@browser.example.com`,'dashboard.html');assert.ok((await recruit.locator('#idConta').textContent()).length===36); });
+    await test('cadastro de recrutador aguarda vinculo',async()=> { await signup(recruit,'Recrutador','Recrutador navegador',`rh-${nonce}@browser.example.com`,'dashboard.html');assert.ok((await recruit.locator('#idConta').textContent()).length===36);await audit(recruit,'usuario-aguardando-vinculo'); });
     await test('empresa vincula recrutador pela tela',async()=> { await tab(company,'recrutadores');await company.locator('#recrUsuario').fill(await recruit.locator('#idConta').textContent());await company.locator('#recrCargo').fill('RH navegador');await submit(company,'#formRecrutador button[type="submit"]','/recrutadores');await company.locator('#listaRecrutadores').filter({hasText:'RH navegador'}).waitFor();await recruit.locator('#atualizarVinculo').click();await recruit.waitForURL('**/dashboard-recrutador.html');await recruit.waitForLoadState('networkidle'); });
     let jobId;
     await test('empresa cria e publica vaga pelo painel',async()=> {
       await tab(company,'vagas');await company.locator('#novaVaga').click();
       await company.locator('#vagaTitulo').fill('Vaga navegador '+nonce);await company.locator('#vagaDescricao').fill('Desenvolvimento Python, SQL e testes de API.');await company.locator('#vagaModalidade').selectOption('Remoto');await company.locator('#vagaLocal').fill('Belo Horizonte');await company.locator('#vagaHabilidades').fill('Python, SQL');
       const job=await submit(company,'#formVagaEmpresa button[type="submit"]','/vagas');jobId=job.ID_Vagas;
-      await submit(company,`[data-acao="publicar"][data-vaga="${jobId}"]`,`/vagas/${jobId}/publicar`,'PATCH');
+      await company.locator('#modalVagaEmpresa').waitFor({state:'hidden'});
+      await company.locator(`[data-acao="pausar"][data-vaga="${jobId}"]`).waitFor();
+      const visible = await candidate.context().request.get(API+'/vagas/'+jobId);
+      assert.equal(visible.status(),200,'Vaga recém-criada está pública para candidatos.');
       await company.locator('#listaVagasEmpresa').filter({hasText:'Publicada'}).waitFor();
     });
     await test('cadastro candidato abre painel',async()=> { await signup(candidate,'Candidato','Candidato navegador',`candidato-${nonce}@browser.example.com`,'dashboard-candidato.html');assert.equal(await candidate.locator('#userName').textContent(),'Candidato navegador'); });
@@ -70,13 +74,13 @@ async function test(name,fn) {
     let applicationId;
     await test('candidato seleciona e anexa curriculo ao se candidatar',async()=> {
       await tab(candidate,'vagas');await candidate.locator('#fvTitulo').fill('Vaga navegador '+nonce);await candidate.locator('#formFiltroVagas button').click();await candidate.locator(`[data-candidatar="${jobId}"]`).waitFor();await candidate.locator(`[data-candidatar="${jobId}"]`).click();
-      await candidate.locator('#modalCandidatura[open]').waitFor();assert.equal(await candidate.locator('#candidaturaCurriculo').inputValue(),cvUrl);await candidate.locator('#candidaturaCarta').fill('Estou interessado nesta oportunidade.');
+      await candidate.locator('#modalCandidatura[open]').waitFor();await audit(candidate,'candidatura-dialog');assert.equal(await candidate.locator('#candidaturaCurriculo').inputValue(),cvUrl);await candidate.locator('#candidaturaCarta').fill('Estou interessado nesta oportunidade.');
       const application=await submit(candidate,'#formCandidatura button[type="submit"]','/candidaturas');assert.equal(application.CurriculoUrl,cvUrl);applicationId=application.ID_Candidaturas;
     });
     await test('empresa ve inscricao e abre somente o curriculo anexado',async()=> {
       await tab(company,'candidaturas');const link=company.locator('#listaCandidaturasEmpresa a').filter({hasText:'Abrir currículo anexado'});await link.waitFor();assert.ok((await link.getAttribute('href')).endsWith(cvUrl));const response=await company.context().request.get(API+cvUrl);assert.equal(response.status(),200);assert.ok((await response.body()).toString().startsWith('%PDF'));
     });
-    await test('recrutador ve processo da empresa vinculada',async()=> { await tab(recruit,'candidaturas');await recruit.locator(`[data-processo="${applicationId}"]`).click();await recruit.locator('#modalProcesso[open]').waitFor();assert.ok((await recruit.locator('#processoPerfil').textContent()).includes('Desenvolvedor Python'));await recruit.locator('#fecharProcesso').click(); });
+    await test('recrutador ve processo da empresa vinculada',async()=> { await tab(recruit,'candidaturas');await recruit.locator(`[data-processo="${applicationId}"]`).click();await recruit.locator('#modalProcesso[open]').waitFor();await audit(recruit,'processo-dialog');assert.ok((await recruit.locator('#processoPerfil').textContent()).includes('Desenvolvedor Python'));await recruit.locator('#fecharProcesso').click(); });
     await test('empresa adiciona etapa e agenda entrevista pela tela',async()=> {
       await company.locator(`[data-processo="${applicationId}"]`).click();await company.locator('#modalProcesso[open]').waitFor();await company.locator('#etapaNome').fill('Entrevista técnica');await submit(company,'#formEtapa button','/etapas');
       await company.locator('#entrevistaData').fill('2026-12-10T14:00');await company.locator('#entrevistaLocal').fill('Sala de entrevistas do Senac');await submit(company,'#formEntrevista button','/entrevistas');await company.locator('#processoEntrevistas').filter({hasText:'Sala de entrevistas do Senac'}).waitFor();
@@ -119,6 +123,22 @@ async function test(name,fn) {
       if(name==='candidato') await candidate.setViewportSize({width:1365,height:900});
       const file=path.join(OUT,`painel-${name}.png`);await p.screenshot({path:file,fullPage:true});screenshots.push(file);
     }
+    await test('Axe e teclado em todos os painéis autenticados',async()=> {
+      for(const [p,role] of [[candidate,'candidato'],[company,'empresa'],[recruit,'recrutador'],[admin,'admin']]) {
+        await p.setViewportSize({width:1365,height:900});
+        const ids=await p.locator('.nav-item[data-tab]').evaluateAll(items=>items.map(el=>el.dataset.tab));
+        for(const id of ids) {
+          await tab(p,id);await p.waitForLoadState('networkidle');await audit(p,role+'-'+id);
+        }
+        const first=p.locator('[role="tab"]').first();
+        await first.focus();await p.keyboard.press('End');
+        assert.equal(await p.locator('[role="tab"]').last().evaluate(el=>el===document.activeElement),true);
+        await p.keyboard.press('Home');await p.keyboard.press('Enter');
+        assert.equal(await first.getAttribute('aria-selected'),'true');
+        await p.setViewportSize({width:390,height:844});await audit(p,role+'-mobile');
+        assert.ok(await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
+      }
+    });
     await test('logout encerra a sessao',async()=> { await candidate.locator('#btnLogout').click();await candidate.waitForURL('**/login.html');assert.equal((await candidate.context().request.get(API+'/auth/me')).status(),401); });
     await test('nenhum erro de JavaScript nos paineis',async()=> {assert.deepEqual(errors,[]);});
   } catch(error) { failure=error.message;console.error(error); }

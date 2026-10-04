@@ -194,7 +194,7 @@ try:
     from app.core.config import settings
     import migrate
     old_name=settings.DB_NAME;settings.DB_NAME=migration_name
-    migration_conn=pymysql.connect(host=config['host'],port=config['port'],user=os.getenv('TEST_ROOT_USER','root'),password=os.environ['TEST_ROOT_PASSWORD'],database=migration_name,autocommit=True)
+    migration_conn=pymysql.connect(host=config['host'],port=config['port'],user=os.getenv('TEST_ROOT_USER','root'),password=os.environ['TEST_ROOT_PASSWORD'],database=migration_name,autocommit=True,client_flag=CLIENT.MULTI_STATEMENTS)
     try:
         execute("INSERT INTO Usuarios(ID_Usuarios,Nome,Email,SenhaHash) VALUES ('preservado','Preservado','preservado@regressao.example.com','test')",connection=migration_conn)
         execute("INSERT INTO Empresas(ID_Empresas,ID_Usuarios,RazaoSocial,Cnpj) VALUES ('empresa-preservada','preservado','Empresa preservada','00112233445566')",connection=migration_conn)
@@ -211,6 +211,35 @@ try:
         check('migracao de banco existente funciona',migrate.migrate(migration_conn))
         check('migracao preserva usuario existente',scalar('SELECT COUNT(*) FROM Usuarios WHERE ID_Usuarios=%s',('preservado',),migration_conn)==1)
         check('migracao repetida nao altera dados',migrate.migrate(migration_conn) is False)
+        check('003 registrada',scalar("SELECT COUNT(*) FROM Schema_Migrations WHERE Versao='003_security_hardening'",connection=migration_conn)==1)
+        check('004 cria importacoes de curriculo',scalar("SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA=%s AND TABLE_NAME='Curriculo_Importacoes'",(migration_name,),migration_conn)==1)
+        import tempfile, shutil
+        with tempfile.TemporaryDirectory() as tmp:
+            directory=Path(tmp)
+            for source in migrate.discover_migrations():shutil.copy(source,directory/source.name)
+            future=directory/'005_future_test.sql'
+            future.write_text("CREATE TABLE IF NOT EXISTS Future_Test (id INT PRIMARY KEY, value VARCHAR(50)); INSERT INTO Future_Test VALUES (1, 'texto; preservado');")
+            check('migration futura descoberta sem editar runner',migrate.migrate(migration_conn,directory))
+            check('SQL respeita ponto e virgula em strings',scalar('SELECT value FROM Future_Test WHERE id=1',connection=migration_conn)=='texto; preservado')
+            check('migration futura roda uma vez',migrate.migrate(migration_conn,directory) is False)
+            future.write_text(future.read_text()+' SELECT 1;')
+            try:
+                migrate.migrate(migration_conn,directory)
+                check('checksum rejeita migration alterada',False)
+            except RuntimeError:
+                check('checksum rejeita migration alterada',True)
+            future.unlink()
+            failed=directory/'006_failure_test.sql'
+            failed.write_text('CREATE TABLE IF NOT EXISTS Retry_Test(id INT); INVALID SQL;')
+            try:
+                migrate.migrate(migration_conn,directory)
+                check('migration falha propaga erro',False)
+            except pymysql.Error:
+                check('migration falha propaga erro',True)
+            check('migration falha nao registrada',scalar("SELECT COUNT(*) FROM Schema_Migrations WHERE Versao='006_failure_test'",connection=migration_conn)==0)
+            failed.write_text('CREATE TABLE IF NOT EXISTS Retry_Test(id INT);')
+            check('migration interrompida pode ser retomada',migrate.migrate(migration_conn,directory))
+
         check('migracao cria unicidade de pagamentos',scalar("SELECT COUNT(*) FROM information_schema.STATISTICS WHERE TABLE_SCHEMA=%s AND INDEX_NAME='UQ_Pagamentos_TransacaoId'",(migration_name,),migration_conn)==1)
     finally:
         settings.DB_NAME=old_name;migration_conn.close()

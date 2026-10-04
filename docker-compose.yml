@@ -1,59 +1,86 @@
+# Ambiente local de desenvolvimento/demonstração. Produção exige HTTPS e secrets próprios.
 services:
   db:
     image: mysql:8.4
     restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: talentix-local-root
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Configure MYSQL_ROOT_PASSWORD no .env da raiz}
+      MYSQL_ROOT_HOST: "%"
       MYSQL_DATABASE: talentix
-      MYSQL_USER: talentix_app
-      MYSQL_PASSWORD: talentix-local-app
-    ports:
-      - "3306:3306"
     volumes:
       - talentix_mysql:/var/lib/mysql
       - ./sql/talentix_db.sql:/docker-entrypoint-initdb.d/001_talentix.sql:ro
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-utalentix_app", "-ptalentix-local-app"]
+      test: ["CMD-SHELL", 'MYSQL_PWD="$$MYSQL_ROOT_PASSWORD" mysql -h 127.0.0.1 -uroot -e "SELECT 1" talentix']
       interval: 5s
       timeout: 3s
       retries: 30
+
+  bootstrap:
+    build:
+      context: .
+      dockerfile: python/Dockerfile
+    restart: "no"
+    env_file: ./python/.env
+    environment:
+      APP_ENV: development
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_NAME: talentix
+      DB_USER: root
+      DB_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Configure MYSQL_ROOT_PASSWORD}
+      RUNTIME_DB_PASSWORD: ${MYSQL_APP_PASSWORD:?Configure MYSQL_APP_PASSWORD}
+      SEED_DEMO: ${SEED_DEMO:-false}
+      DEMO_PASSWORD: ${DEMO_PASSWORD:-}
+    command: ["python", "bootstrap.py"]
+    depends_on:
+      db:
+        condition: service_healthy
 
   api:
     build:
       context: .
       dockerfile: python/Dockerfile
     restart: unless-stopped
-    env_file:
-      - ./python/.env
+    env_file: ./python/.env
     environment:
       APP_ENV: development
       DB_HOST: db
       DB_PORT: 3306
       DB_NAME: talentix
       DB_USER: talentix_app
-      DB_PASSWORD: talentix-local-app
+      DB_PASSWORD: ${MYSQL_APP_PASSWORD:?Configure MYSQL_APP_PASSWORD}
       FRONTEND_ORIGIN: http://127.0.0.1:5500
       FRONTEND_RESET_URL: http://127.0.0.1:5500/html/login.html
       SESSION_COOKIE_SECURE: "false"
       UPLOAD_DIR: /app/uploads
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
     volumes:
       - talentix_uploads:/app/uploads
     depends_on:
-      db:
-        condition: service_healthy
+      bootstrap:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/saude', timeout=2)"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
 
   frontend:
     image: python:3.12-alpine
     working_dir: /site
     command: python -m http.server 5500 --bind 0.0.0.0
     volumes:
-      - ./:/site:ro
+      - ./html:/site/html:ro
+      - ./css:/site/css:ro
+      - ./js:/site/js:ro
+      - ./docs:/site/docs:ro
     ports:
-      - "5500:5500"
+      - "127.0.0.1:5500:5500"
     depends_on:
-      - api
+      api:
+        condition: service_healthy
 
 volumes:
   talentix_mysql:

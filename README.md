@@ -184,28 +184,74 @@ callback usam tokens isolados e não movimentam dinheiro.
 
 ## Execução com Docker Compose
 
-O ambiente de desenvolvimento também pode ser iniciado de forma reproduzível com Docker:
+O ambiente local usa Docker Compose v2 com MySQL 8.4, bootstrap, FastAPI e frontend.
+Na raiz, faça a configuração inicial uma única vez:
 
 ```bash
-cd python
-python configure_dev.py
-cd ..
-docker compose up --build
+python python/configure_dev.py
+cp .env.example .env
 ```
 
-O Compose inicia MySQL 8, API FastAPI e o frontend estático. A API fica em
-`http://127.0.0.1:8000`, o frontend em `http://127.0.0.1:5500/html/index.html`
-e o MySQL permanece persistido em volume próprio. O arquivo `python/.env`
-continua sendo local e nunca deve ser versionado.
-
-Para dados fictícios de apresentação, depois que o banco estiver disponível:
+No PowerShell, use `Copy-Item .env.example .env`. Se `python/.env` já existe,
+preserve-o e pule `configure_dev.py`. Preencha no `.env` **da raiz**
+`MYSQL_ROOT_PASSWORD` e `MYSQL_APP_PASSWORD` com senhas diferentes e novas.
+Para criar as três contas de apresentação, defina também `SEED_DEMO=true` e
+`DEMO_PASSWORD` com pelo menos 12 caracteres. Não versione nenhum `.env`.
+Depois execute:
 
 ```bash
-cd python
-python seed_demo.py --password "uma-senha-forte-de-demonstracao"
+docker compose up --build --wait
 ```
 
-O seed é idempotente, é bloqueado em `APP_ENV=production` e nunca usa dados reais.
+A sequência automática é: banco saudável → migrations → conta de runtime com
+somente SELECT/INSERT/UPDATE/DELETE → seed opcional → API saudável → frontend.
+Qualquer falha do bootstrap impede o início da API. A conta administrativa do
+banco só entra no serviço de bootstrap; não é repassada à API.
+O MySQL não publica porta no host. API e frontend escutam somente em localhost.
+O frontend serve apenas html/css/js/docs, sem expor `.env`, código Python ou Git.
+Abra `http://127.0.0.1:5500/html/index.html`; API em `http://127.0.0.1:8000`.
+
+Contas fictícias (senha definida em `DEMO_PASSWORD`):
+
+- `candidato@demo.talentix.local`
+- `empresa@demo.talentix.local`
+- `admin@demo.talentix.local`
+
+O seed não redefine senhas nem duplica usuários ao repetir. Ele recusa colisões
+com contas não pertencentes ao demo e é bloqueado em produção. Sem seed, deixe
+`SEED_DEMO=false`. Para atualizar uma instalação Compose existente, preserve o
+volume e a senha root original, pare os serviços com `docker compose down`
+(**sem `--volumes`**) e execute novamente `docker compose up --build --wait`.
+Não use este Compose de desenvolvimento como configuração de produção.
+
+### Contrato das migrations
+
+`migrate.py` descobre `sql/migrations/NNN_nome.sql`, ordena pela versão, registra
+checksum SHA-256 e só grava sucesso após concluir o arquivo. As versões 001/002
+mantêm os adaptadores legados para compatibilidade com bancos existentes; 003/004
+e futuras versões entram automaticamente. Alterações em arquivos já registrados
+são rejeitadas: crie uma nova versão. O runner usa lock MySQL para serializar DDL.
+Arquivos SQL devem ser idempotentes para retomada após falha; DDL no MySQL faz
+commit implícito e não pode ser desfeito por rollback. Não use comandos do cliente
+`DELIMITER`/`SOURCE` nem `USE` para trocar de banco nas migrations.
+
+A 003 agora mantém as responsabilidades de DBA fora da fila automática e remove
+a promoção implícita por e-mail. O bootstrap aplica privilégios reais à conta
+runtime; instalações manuais usam `sql/operations/runtime_privileges.sql` com DBA.
+Administradores são criados explicitamente via `create_admin.py` ou seed demo.
+Faça backup do seu banco WAMP antes de aplicar migrations como DBA; o Compose
+usa volume próprio e não altera esse banco local.
+
+### Evidências de acessibilidade
+
+`npm run check --prefix web-tests` executa verificações estáticas e Axe/Playwright
+nas páginas públicas em desktop, mobile e viewport equivalente ao reflow em 200%.
+`npm test --prefix web-tests` acrescenta painéis autenticados, abas e diálogos com
+dados reais do ambiente isolado. Violações A/AA até WCAG 2.2 e boas práticas falham
+o CI. Os artefatos incluem regras aprovadas, violações e itens `incomplete` para
+revisão humana. Regras de contraste e áreas clicáveis não são desativadas.
+Auditoria automática não certifica conformidade integral: leitura com NVDA/VoiceOver,
+qualidade dos textos alternativos e zoom real do navegador requerem revisão manual.
 
 ## Ambientes, logs e rastreabilidade
 

@@ -19,6 +19,8 @@
 
     d.querySelectorAll('.a11y-toolbar').forEach(toolbar => {
       toolbar.hidden = !enabled;
+      toolbar.querySelector('[aria-label="Alternar alto contraste"]')?.setAttribute('aria-pressed', String(root.dataset.a11yContrast === 'high'));
+      toolbar.querySelector('[aria-label="Alternar texto ampliado"]')?.setAttribute('aria-pressed', String(root.dataset.a11yText === 'large'));
     });
   }
 
@@ -27,6 +29,7 @@
       const tabs = [...nav.querySelectorAll('.nav-item[data-tab]')];
       if (!tabs.length) return;
       nav.setAttribute('role', 'tablist');
+      nav.setAttribute('aria-orientation', 'vertical');
       tabs.forEach((tab, index) => {
         const panel = d.getElementById('tab-' + tab.dataset.tab);
         tab.setAttribute('role', 'tab');
@@ -57,6 +60,7 @@
           else if (event.key === 'End') target = tabs.length - 1;
           else if (['ArrowDown','ArrowRight'].includes(event.key)) target = (index + 1) % tabs.length;
           else target = (index - 1 + tabs.length) % tabs.length;
+          tabs.forEach((item, i) => { item.tabIndex = i === target ? 0 : -1; });
           tabs[target].focus();
         });
       });
@@ -67,7 +71,7 @@
     if (d.querySelector('.a11y-toolbar')) return;
     const bar = d.createElement('div');
     bar.className = 'a11y-toolbar';
-    bar.setAttribute('role', 'group');
+    bar.setAttribute('role', 'region');
     bar.setAttribute('aria-label', 'Opções de acessibilidade');
 
     const contrast = d.createElement('button');
@@ -98,6 +102,7 @@
   function ready() {
     const main = d.querySelector('main');
     if (main && !main.id) main.id = 'conteudo-principal';
+    if (main) main.tabIndex = -1;
     if (main && !d.querySelector('.skip-link')) {
       const skip = d.createElement('a');
       skip.className = 'skip-link';
@@ -111,7 +116,7 @@
       element.setAttribute('aria-live', 'polite');
       element.setAttribute('aria-atomic', 'true');
     });
-    d.querySelectorAll('img:not([alt])').forEach(img => img.setAttribute('alt', ''));
+
 
     tabs();
     toolbar();

@@ -12,6 +12,9 @@ document.addEventListener('DOMContentLoaded', () => {
   function mostrarErro(inputEl, erroEl, mostrar) {
     if (!inputEl || !erroEl) return;
     inputEl.classList.toggle('input-error', mostrar);
+    inputEl.setAttribute('aria-invalid', String(mostrar));
+    inputEl.setAttribute('aria-describedby', erroEl.id);
+    erroEl.setAttribute('role', 'alert');
     erroEl.classList.toggle('show', mostrar);
   }
 
@@ -497,7 +500,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const btnRecuperarSubmit = $('#btnRecuperarSubmit');
 
   function abrirModal() {
-    modalRecuperar.classList.add('show');
+    modalRecuperar.showModal();
     formRecuperar.classList.remove('hide');
     formRecuperar.style.display = '';
     modalSucesso.classList.remove('show');
@@ -507,7 +510,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function fecharModal() {
-    modalRecuperar.classList.remove('show');
+    modalRecuperar.close();
   }
 
   $('#abrirRecuperarSenha')?.addEventListener('click', (e) => {
@@ -524,7 +527,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && modalRecuperar.classList.contains('show')) {
+    if (e.key === 'Escape' && modalRecuperar.open) {
       fecharModal();
     }
   });
@@ -605,7 +608,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function abrirModalNovaSenha(token) {
     tokenResetAtual = token;
-    modalNovaSenha.classList.add('show');
+    modalNovaSenha.showModal();
     formNovaSenha.style.display = '';
     modalNovaSenhaSucesso.classList.remove('show');
     novaSenhaInput.value = '';
@@ -617,13 +620,14 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function fecharModalNovaSenha() {
-    modalNovaSenha.classList.remove('show');
+    modalNovaSenha.close();
     // Limpa o token da URL para evitar reuso acidental via refresh
     const url = new URL(window.location.href);
     url.searchParams.delete('token');
     window.history.replaceState({}, document.title, url.pathname + url.search);
   }
 
+  modalNovaSenha?.addEventListener('cancel', (event) => { event.preventDefault(); fecharModalNovaSenha(); });
   $('#fecharModalNovaSenha')?.addEventListener('click', fecharModalNovaSenha);
   $('#fecharNovaSenhaSucesso')?.addEventListener('click', () => {
     fecharModalNovaSenha();

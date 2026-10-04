@@ -1,7 +1,10 @@
 """Atualização incremental, idempotente e sem apagar registros de negócio."""
 from pathlib import Path
+import hashlib
+import re
 
 import pymysql
+from pymysql.constants import CLIENT
 
 from app.core.config import settings
 
@@ -109,7 +112,31 @@ def _apply_002(cur) -> bool:
     return True
 
 
-def migrate(conn):
+MIGRATIONS_DIR = Path(__file__).resolve().parents[1] / "sql/migrations"
+LEGACY = {"001_contatos": ("001_estabilizacao", _apply_001),
+          "002_security_accounts": ("002_security_accounts", _apply_002)}
+
+
+def discover_migrations(directory=MIGRATIONS_DIR):
+    paths = sorted(directory.glob("*.sql"))
+    numbers = set()
+    for path in paths:
+        match = re.fullmatch(r"(\d{3,})_[a-z0-9_]+", path.stem)
+        if not match or int(match[1]) in numbers:
+            raise RuntimeError(f"Nome/versão de migration inválido ou repetido: {path.name}")
+        numbers.add(int(match[1]))
+    return sorted(paths, key=lambda path: int(path.name.split("_", 1)[0]))
+
+
+def execute_sql(cur, source):
+    # MySQL's own parser handles strings, comments and multiple statements.
+    # MULTI_STATEMENTS is enabled only on this trusted migration connection.
+    cur.execute(source)
+    while cur.nextset():
+        pass
+
+
+def migrate(conn, directory=MIGRATIONS_DIR):
     with conn.cursor() as cur:
         cur.execute("SELECT GET_LOCK('talentix_schema_migration', 10)")
         if cur.fetchone()[0] != 1:
@@ -128,8 +155,28 @@ def migrate(conn):
             cur.execute("""CREATE TABLE IF NOT EXISTS Schema_Migrations
                        (Versao VARCHAR(100) PRIMARY KEY, AplicadaEm DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP)
                        ENGINE=InnoDB""")
-            changed |= _apply_001(cur)
-            changed |= _apply_002(cur)
+            if not _column_exists(cur, "Schema_Migrations", "Checksum"):
+                cur.execute("ALTER TABLE Schema_Migrations ADD Checksum CHAR(64) NULL")
+            for path in discover_migrations(directory):
+                source = path.read_bytes()
+                checksum = hashlib.sha256(source).hexdigest()
+                version, legacy = LEGACY.get(path.stem, (path.stem, None))
+                cur.execute("SELECT Checksum FROM Schema_Migrations WHERE Versao=%s", (version,))
+                row = cur.fetchone()
+                if row:
+                    if row[0] and row[0] != checksum:
+                        raise RuntimeError(f"Migration já aplicada foi alterada: {path.name}")
+                    if not row[0]:
+                        cur.execute("UPDATE Schema_Migrations SET Checksum=%s WHERE Versao=%s", (checksum, version))
+                    continue
+                if legacy:
+                    legacy(cur)
+                else:
+                    execute_sql(cur, source.decode("utf-8"))
+                    cur.execute("INSERT INTO Schema_Migrations(Versao) VALUES (%s)", (version,))
+                cur.execute("UPDATE Schema_Migrations SET Checksum=%s WHERE Versao=%s", (checksum, version))
+                conn.commit()
+                changed = True
             return changed
         finally:
             cur.execute("SELECT RELEASE_LOCK('talentix_schema_migration')")
@@ -139,7 +186,7 @@ def main():
     conn = pymysql.connect(
         host=settings.DB_HOST, port=settings.DB_PORT, user=settings.DB_USER,
         password=settings.DB_PASSWORD, database=settings.DB_NAME,
-        charset="utf8mb4", autocommit=True,
+        charset="utf8mb4", autocommit=True, client_flag=CLIENT.MULTI_STATEMENTS,
     )
     try:
         changed = migrate(conn)

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 import uuid
 
 import pymysql
@@ -43,11 +44,14 @@ def seed(password: str) -> None:
                 user_id = deterministic_uuid(role)
                 ids[role] = user_id
                 cur.execute("SELECT ID_Usuarios FROM Usuarios WHERE Email=%s", (email,))
-                if not cur.fetchone():
+                existing = cur.fetchone()
+                if existing and existing[0] != user_id:
+                    raise RuntimeError(f"E-mail demo já pertence a outra conta: {email}")
+                if not existing:
                     cur.execute(
                         """INSERT INTO Usuarios
-                           (ID_Usuarios, Nome, Email, SenhaHash, Ativo)
-                           VALUES (%s, %s, %s, %s, 1)""",
+                           (ID_Usuarios, Nome, Email, SenhaHash, Ativo, EmailConfirmadoEm)
+                           VALUES (%s, %s, %s, %s, 1, CURRENT_TIMESTAMP)""",
                         (user_id, name, email, hash_senha(password)),
                     )
 
@@ -92,7 +96,9 @@ def seed(password: str) -> None:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--password", required=True, help="Senha comum somente para os usuários fictícios locais.")
+    parser.add_argument("--password", default=os.getenv("DEMO_PASSWORD"), help="Senha comum somente para os usuários fictícios locais.")
     args = parser.parse_args()
+    if not args.password:
+        parser.error("Informe DEMO_PASSWORD ou --password.")
     seed(args.password)
     print("Seed de demonstração aplicado com sucesso.")

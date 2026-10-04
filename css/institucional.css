@@ -12,7 +12,7 @@
     --accent-dark:#225B4F;
     --danger:#E4581B;
     --text:#12242E;
-    --text-muted:#6B7580;
+    --text-muted:#58636E;
     --border:#E3E0D8;
     --border-strong:#C9C4B7;
     --radius:10px;
@@ -166,7 +166,7 @@
   .footer{border-top:1px solid var(--border);padding:56px 0 32px;}
   .footer__grid{display:grid;grid-template-columns:1.4fr repeat(3,1fr);gap:32px;margin-bottom:40px;}
   .footer__brand p{color:var(--text-muted);font-size:14px;line-height:1.6;margin-top:14px;max-width:32ch;}
-  .footer__col h5{font-family:var(--font-display);font-size:14px;font-weight:600;margin:0 0 16px;color:var(--navy);}
+  .footer__col h2{font-family:var(--font-display);font-size:14px;font-weight:600;margin:0 0 16px;color:var(--navy);}
   .footer__col ul{display:flex;flex-direction:column;gap:10px;}
   .footer__col a{font-size:13.5px;color:var(--text-muted);transition:color .15s ease;}
   .footer__col a:hover{color:var(--accent-dark);}

@@ -7,9 +7,10 @@
     "check:a11y": "node accessibility.mjs"
   },
   "devDependencies": {
-    "playwright": "1.63.0",
+    "@axe-core/playwright": "4.13.0",
+    "jsdom": "30.1.1",
     "mermaid": "12.0.0",
-    "jsdom": "30.1.1"
+    "playwright": "1.63.0"
   },
   "overrides": {
     "lodash-es": "4.18.1"

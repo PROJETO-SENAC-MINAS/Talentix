@@ -201,11 +201,11 @@
 
     <!-- ================= MODAL: RECUPERAR SENHA ================= -->
 
-    <div class="modal-overlay" id="modalRecuperar">
+    <dialog class="modal-overlay" id="modalRecuperar" aria-labelledby="modalRecuperarTitulo">
       <div class="modal">
         <button type="button" class="modal__close" id="fecharModal" aria-label="Fechar">✕</button>
         <form id="formRecuperar">
-          <h3>Recuperar senha</h3>
+          <h3 id="modalRecuperarTitulo">Recuperar senha</h3>
           <p>Informe o e-mail da sua conta. Se ele existir, enviaremos um link para redefinir sua senha.</p>
           <div class="field">
             <label for="recuperarEmail">E-mail</label>
@@ -226,15 +226,15 @@
           <button type="button" class="btn btn-primary" id="fecharModalSucesso">Entendi</button>
         </div>
       </div>
-    </div>
+    </dialog>
 
     <!-- ================= MODAL: DEFINIR NOVA SENHA (via link do e-mail) ================= -->
 
-    <div class="modal-overlay" id="modalNovaSenha">
+    <dialog class="modal-overlay" id="modalNovaSenha" aria-labelledby="modalNovaSenhaTitulo">
       <div class="modal">
         <button type="button" class="modal__close" id="fecharModalNovaSenha" aria-label="Fechar">✕</button>
         <form id="formNovaSenha">
-          <h3>Defina sua nova senha</h3>
+          <h3 id="modalNovaSenhaTitulo">Defina sua nova senha</h3>
           <p>Escolha uma nova senha para acessar sua conta.</p>
           <div class="field">
             <label for="novaSenhaInput">Nova senha</label>
@@ -271,7 +271,7 @@
           <button type="button" class="btn btn-primary" id="fecharNovaSenhaSucesso">Ir para o login</button>
         </div>
       </div>
-    </div>
+    </dialog>
     <script src="../js/config.js"></script> <script src="../js/login.js"></script> <script src="../js/acessibilidade.js"></script>
   </body>
 </html>
