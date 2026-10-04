@@ -182,8 +182,9 @@ async function test(name,fn) {
         await p.locator('[aria-label="Alternar alto contraste"]').click();await scan(p,role+'-alto-contraste');
         await p.locator('[aria-label="Alternar alto contraste"]').click();
         await p.locator('[aria-label="Alternar texto ampliado"]').click();await scan(p,role+'-texto-ampliado');
+        const overflow=await p.evaluate(()=>({width:document.documentElement.scrollWidth,viewport:innerWidth,elements:[...document.querySelectorAll('body *')].map(el=>({tag:el.tagName,id:el.id,cls:typeof el.className==='string'?el.className:'',right:Math.round(el.getBoundingClientRect().right),width:Math.round(el.getBoundingClientRect().width)})).filter(el=>el.right>innerWidth+1).slice(0,8)}));
+        assert.ok(overflow.width<=overflow.viewport,`${role} com texto ampliado: ${JSON.stringify(overflow)}`);
         await p.locator('[aria-label="Alternar texto ampliado"]').click();
-        assert.ok(await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
       }
       assert.deepEqual(auditErrors,[]);
     });
