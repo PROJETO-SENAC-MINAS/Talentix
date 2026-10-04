@@ -33,6 +33,14 @@ try {
       assert.equal(await page.locator(':focus').getAttribute('class'),'skip-link');
       await page.keyboard.press('Enter');
       assert.equal(await page.locator(':focus').evaluate(el=>el.tagName),'MAIN');
+      if(width <= 720 && name !== 'login') {
+        await page.locator('#navToggle').click();
+        assert.equal(await page.locator('.nav__links').isVisible(),true);
+        await page.locator('.mobile-nav-login a').focus();
+        try {await audit(page,`${name}-menu-${width}`);} catch(e) {errors.push(e.message);}
+        await page.keyboard.press('Escape');
+        assert.equal(await page.locator('#navToggle').getAttribute('aria-expanded'),'false');
+      }
       if(name==='contato') {
         await page.locator('#btnContatoSubmit').click();
         assert.equal(await page.locator('#contatoNome').getAttribute('aria-invalid'),'true');

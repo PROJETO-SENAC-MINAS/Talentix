@@ -381,3 +381,10 @@
     flex: 1;
   }
 }
+.mobile-nav-login{display:none;}
+@media(max-width:720px){
+  .header__bar{position:relative;}
+  .nav--open .nav__links{display:flex;position:absolute;top:100%;left:0;right:0;flex-direction:column;gap:0;padding:12px 20px;background:var(--bg);border-bottom:1px solid var(--border);box-shadow:0 8px 18px rgba(0,0,0,.12);z-index:1000;}
+  .nav--open .nav__links a{display:flex;align-items:center;min-height:44px;}
+  .mobile-nav-login{display:list-item;}
+}

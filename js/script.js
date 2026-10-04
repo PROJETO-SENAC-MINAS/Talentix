@@ -2,6 +2,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const navToggle = document.getElementById('navToggle');
     const nav = document.querySelector('.nav');
+    const links = nav?.querySelector('.nav__links');
+    if (links) { links.id = 'navegacao-principal'; navToggle?.setAttribute('aria-controls', links.id); }
+    nav?.addEventListener('keydown', event => {
+      if (event.key === 'Escape' && nav.classList.contains('nav--open')) {
+        nav.classList.remove('nav--open');navToggle?.setAttribute('aria-expanded','false');navToggle?.focus();
+      }
+    });
   
     navToggle?.addEventListener('click', () => {
       const aberto = nav.classList.toggle('nav--open');

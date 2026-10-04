@@ -16,3 +16,6 @@ html[data-a11y-contrast="high"] body :where(section,div,header,footer,aside,nav,
 html[data-a11y-contrast="high"] body a{color:#ffeb66!important;}
 html[data-reduced-motion="true"] *,html[data-reduced-motion="true"] *::before,html[data-reduced-motion="true"] *::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important;}
 .a11y-toolbar[hidden]{display:none!important;}
+
+body{padding-bottom:110px;}
+:where(a,button,input,select,textarea,[tabindex]){scroll-margin-block:100px;}

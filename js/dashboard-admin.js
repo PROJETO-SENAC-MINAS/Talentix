@@ -112,7 +112,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   async function catalogo() {
     const [data,idiomas] = await Promise.all([api('/cursos'),api('/idiomas')]); cursos=data;
-    $('#cursosAdmin').innerHTML = data.length ? data.map(c => '<article class="list-item"><div><h3>' + esc(c.Titulo) + '</h3><p>' + esc(c.Plataforma) + ' · ' + esc(c.Categoria) + '</p>' + (c.Url ? '<a href="' + esc(safeUrl(c.Url)) + '" target="_blank" rel="noopener">Abrir curso</a>' : '') + '</div><div class="inline-actions"><button class="btn btn-secondary" data-editar-curso="' + esc(c.ID_Cursos) + '">Editar</button><button class="btn-danger-ghost" data-excluir-curso="' + esc(c.ID_Cursos) + '">Desativar</button></div></article>').join('') : '<p class="empty-state">Nenhum curso cadastrado.</p>';
+    $('#cursosAdmin').innerHTML = data.length ? data.map(c => '<article class="list-item"><div><h2 class="list-item__heading">' + esc(c.Titulo) + '</h2><p>' + esc(c.Plataforma) + ' · ' + esc(c.Categoria) + '</p>' + (c.Url ? '<a href="' + esc(safeUrl(c.Url)) + '" target="_blank" rel="noopener">Abrir curso</a>' : '') + '</div><div class="inline-actions"><button class="btn btn-secondary" data-editar-curso="' + esc(c.ID_Cursos) + '">Editar</button><button class="btn-danger-ghost" data-excluir-curso="' + esc(c.ID_Cursos) + '">Desativar</button></div></article>').join('') : '<p class="empty-state">Nenhum curso cadastrado.</p>';
     $('#idiomasAdmin').innerHTML = idiomas.length
       ? idiomas.map(i => '<span class="language-chip">' + esc(i.Nome) + '</span>').join('')
       : '<span class="language-empty">Nenhum idioma cadastrado.</span>';
