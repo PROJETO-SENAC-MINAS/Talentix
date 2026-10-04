@@ -12,9 +12,9 @@ from app.core.security import hash_senha
 
 
 USERS = {
-    "candidato": ("candidato@demo.talentix.local", "Candidato Demo"),
-    "empresa": ("empresa@demo.talentix.local", "Empresa Demo"),
-    "admin": ("admin@demo.talentix.local", "Administrador Demo"),
+    "candidato": ("candidato@demo.talentix.com", "Candidato Demo"),
+    "empresa": ("empresa@demo.talentix.com", "Empresa Demo"),
+    "admin": ("admin@demo.talentix.com", "Administrador Demo"),
 }
 
 
@@ -43,6 +43,9 @@ def seed(password: str) -> None:
             for role, (email, name) in USERS.items():
                 user_id = deterministic_uuid(role)
                 ids[role] = user_id
+                # Upgrade only old demo identities, preserving their password/data.
+                cur.execute("UPDATE Usuarios SET Email=%s WHERE ID_Usuarios=%s AND Email=%s",
+                            (email, user_id, email.replace(".com", ".local")))
                 cur.execute("SELECT ID_Usuarios FROM Usuarios WHERE Email=%s", (email,))
                 existing = cur.fetchone()
                 if existing and existing[0] != user_id:

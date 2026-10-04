@@ -262,7 +262,7 @@ document.addEventListener('DOMContentLoaded', () => {
       limparErro(loginSenha, $('#erroLoginSenha'));
     }
 
-    if (!valido) return;
+    if (!valido) { e.currentTarget.querySelector('[aria-invalid="true"]')?.focus(); return; }
 
     realizarLogin({
       email: loginEmail.value.trim(),
@@ -670,7 +670,7 @@ document.addEventListener('DOMContentLoaded', () => {
       limparErro(confirmarNovaSenhaInput, $('#erroConfirmarNovaSenha'));
     }
 
-    if (!valido) return;
+    if (!valido) { e.currentTarget.querySelector('[aria-invalid="true"]')?.focus(); return; }
 
     btnNovaSenhaSubmit.setAttribute('data-loading', 'true');
 

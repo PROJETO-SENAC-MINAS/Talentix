@@ -33,7 +33,16 @@ try {
       assert.equal(await page.locator(':focus').getAttribute('class'),'skip-link');
       await page.keyboard.press('Enter');
       assert.equal(await page.locator(':focus').evaluate(el=>el.tagName),'MAIN');
+      if(name==='contato') {
+        await page.locator('#btnContatoSubmit').click();
+        assert.equal(await page.locator('#contatoNome').getAttribute('aria-invalid'),'true');
+        try {await audit(page,`contato-erros-${width}`);} catch(e) {errors.push(e.message);}
+      }
       if(name==='login') {
+        await page.locator('#btnLoginSubmit').click();
+        assert.equal(await page.locator('#loginEmail').getAttribute('aria-invalid'),'true');
+        try {await audit(page,`login-erros-${width}`);} catch(e) {errors.push(e.message);}
+
         await page.locator('label[for="modeCadastro"]').click();
         try {await audit(page,`cadastro-${width}`);} catch(e) {errors.push(e.message);}
         await page.locator('label[for="modeLogin"]').click();
@@ -41,11 +50,20 @@ try {
         const dialog=page.locator('#modalRecuperar');
         await dialog.locator('input').focus();
         try {await audit(page,`recuperacao-dialog-${width}`);} catch(e) {errors.push(e.message);}
+        const controls=dialog.locator('button:visible,input:visible');
+        await controls.last().focus();await page.keyboard.press('Tab');
+        assert.equal(await controls.first().evaluate(el=>el===document.activeElement),true);
         await page.keyboard.press('Escape');
         assert.equal(await dialog.isVisible(),false);
         assert.equal(await page.locator(':focus').getAttribute('id'),'abrirRecuperarSenha');
       }
     }
+    await page.locator('[aria-label="Alternar alto contraste"]').click();
+    assert.equal(await page.locator('[aria-label="Alternar alto contraste"]').getAttribute('aria-pressed'),'true');
+    try {await audit(page,`alto-contraste-${width}`);} catch(e) {errors.push(e.message);}
+    await page.locator('[aria-label="Alternar texto ampliado"]').click();
+    try {await audit(page,`texto-ampliado-${width}`);} catch(e) {errors.push(e.message);}
+    assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
     await context.close();
   }
 } finally {await browser.close();}

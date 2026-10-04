@@ -99,6 +99,20 @@
     };
   }
 
+  function dialogs() {
+    d.addEventListener('keydown', event => {
+      if (event.key !== 'Tab') return;
+      const dialog = d.activeElement?.closest('dialog[open]');
+      if (!dialog) return;
+      const controls = [...dialog.querySelectorAll('a[href],button,input,select,textarea,[tabindex]')]
+        .filter(el => !el.disabled && el.tabIndex >= 0 && el.getClientRects().length);
+      if (!controls.length) { event.preventDefault(); dialog.focus(); return; }
+      const first = controls[0], last = controls[controls.length - 1];
+      if (event.shiftKey && d.activeElement === first) { event.preventDefault(); last.focus(); }
+      else if (!event.shiftKey && d.activeElement === last) { event.preventDefault(); first.focus(); }
+    });
+  }
+
   function ready() {
     const main = d.querySelector('main');
     if (main && !main.id) main.id = 'conteudo-principal';
@@ -119,6 +133,7 @@
 
 
     tabs();
+    dialogs();
     toolbar();
     applyPreferences();
     window.addEventListener('talentix:preferences-changed', applyPreferences);

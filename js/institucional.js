@@ -93,7 +93,7 @@ document.addEventListener('DOMContentLoaded', () => {
       document.getElementById('contatoFalha').hidden = true;
   
       const valido = [validarNome(), validarEmail(), validarAssunto(), validarMensagem()].every(Boolean);
-      if (!valido) return;
+      if (!valido) { formContato.querySelector('[aria-invalid="true"]')?.focus(); return; }
   
       btnSubmit.setAttribute('disabled', 'true');
       btnSubmit.textContent = 'Enviando...';

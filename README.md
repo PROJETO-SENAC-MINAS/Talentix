@@ -213,9 +213,9 @@ Abra `http://127.0.0.1:5500/html/index.html`; API em `http://127.0.0.1:8000`.
 
 Contas fictícias (senha definida em `DEMO_PASSWORD`):
 
-- `candidato@demo.talentix.local`
-- `empresa@demo.talentix.local`
-- `admin@demo.talentix.local`
+- `candidato@demo.talentix.com`
+- `empresa@demo.talentix.com`
+- `admin@demo.talentix.com`
 
 O seed não redefine senhas nem duplica usuários ao repetir. Ele recusa colisões
 com contas não pertencentes ao demo e é bloqueado em produção. Sem seed, deixe

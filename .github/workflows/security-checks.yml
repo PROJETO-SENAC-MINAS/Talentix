@@ -38,7 +38,7 @@ jobs:
           with conn.cursor() as cur:
               cur.execute('SELECT COUNT(*) FROM Schema_Migrations')
               assert cur.fetchone()[0] == 4
-              cur.execute("SELECT COUNT(*) FROM Usuarios WHERE Email LIKE '%@demo.talentix.local' AND EmailConfirmadoEm IS NOT NULL")
+              cur.execute("SELECT COUNT(*) FROM Usuarios WHERE Email LIKE '%@demo.talentix.com' AND EmailConfirmadoEm IS NOT NULL")
               assert cur.fetchone()[0] == 3
               cur.execute('SHOW GRANTS FOR CURRENT_USER')
               grants = ' '.join(row[0] for row in cur.fetchall()).upper()
@@ -61,6 +61,19 @@ jobs:
               else:
                   raise AssertionError('Private file served: '+path)
           PY
+      - name: Log in with all demo roles through the real API
+        run: |
+          python - <<'PYTHON'
+          import json, urllib.request
+          from pathlib import Path
+          env = dict(line.split('=',1) for line in Path('.env').read_text().splitlines())
+          for role, expected in [('candidato','candidato'), ('empresa','empresa'), ('admin','administrador')]:
+              body = json.dumps({'email':role+'@demo.talentix.com','senha':env['DEMO_PASSWORD']}).encode()
+              req = urllib.request.Request('http://127.0.0.1:8000/auth/login', data=body, headers={'Content-Type':'application/json','Origin':'http://127.0.0.1:5500'})
+              with urllib.request.urlopen(req) as response:
+                  assert response.status == 200
+                  assert json.load(response)['tipo_usuario'] == expected
+          PYTHON
       - name: Repeat bootstrap without duplicating demo accounts
         run: |
           docker compose run --rm bootstrap
@@ -69,7 +82,7 @@ jobs:
           from app.core.config import settings
           conn = pymysql.connect(host=settings.DB_HOST, user=settings.DB_USER, password=settings.DB_PASSWORD, database=settings.DB_NAME)
           with conn.cursor() as cur:
-              cur.execute("SELECT COUNT(*) FROM Usuarios WHERE Email LIKE '%@demo.talentix.local'")
+              cur.execute("SELECT COUNT(*) FROM Usuarios WHERE Email LIKE '%@demo.talentix.com'")
               assert cur.fetchone()[0] == 3
           conn.close()
           PY

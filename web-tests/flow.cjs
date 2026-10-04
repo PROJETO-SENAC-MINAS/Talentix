@@ -124,20 +124,27 @@ async function test(name,fn) {
       const file=path.join(OUT,`painel-${name}.png`);await p.screenshot({path:file,fullPage:true});screenshots.push(file);
     }
     await test('Axe e teclado em todos os painéis autenticados',async()=> {
+      const auditErrors=[];
+      const scan=async(p,name)=>{try {await audit(p,name);} catch(error){auditErrors.push(error.message);}};
       for(const [p,role] of [[candidate,'candidato'],[company,'empresa'],[recruit,'recrutador'],[admin,'admin']]) {
         await p.setViewportSize({width:1365,height:900});
         const ids=await p.locator('.nav-item[data-tab]').evaluateAll(items=>items.map(el=>el.dataset.tab));
         for(const id of ids) {
-          await tab(p,id);await p.waitForLoadState('networkidle');await audit(p,role+'-'+id);
+          await tab(p,id);await p.waitForLoadState('networkidle');await scan(p,role+'-'+id);
         }
         const first=p.locator('[role="tab"]').first();
         await first.focus();await p.keyboard.press('End');
         assert.equal(await p.locator('[role="tab"]').last().evaluate(el=>el===document.activeElement),true);
         await p.keyboard.press('Home');await p.keyboard.press('Enter');
         assert.equal(await first.getAttribute('aria-selected'),'true');
-        await p.setViewportSize({width:390,height:844});await audit(p,role+'-mobile');
+        await p.setViewportSize({width:390,height:844});await scan(p,role+'-mobile');
+        await p.locator('[aria-label="Alternar alto contraste"]').click();await scan(p,role+'-alto-contraste');
+        await p.locator('[aria-label="Alternar alto contraste"]').click();
+        await p.locator('[aria-label="Alternar texto ampliado"]').click();await scan(p,role+'-texto-ampliado');
+        await p.locator('[aria-label="Alternar texto ampliado"]').click();
         assert.ok(await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
       }
+      assert.deepEqual(auditErrors,[]);
     });
     await test('logout encerra a sessao',async()=> { await candidate.locator('#btnLogout').click();await candidate.waitForURL('**/login.html');assert.equal((await candidate.context().request.get(API+'/auth/me')).status(),401); });
     await test('nenhum erro de JavaScript nos paineis',async()=> {assert.deepEqual(errors,[]);});
