@@ -66,8 +66,11 @@ o cálculo novamente depois de salvar, adicionar, editar ou remover dados.
 
 **Visualizar perfil salvo** abre a prévia privada dos dados persistidos, com
 experiências, preferências, formação, certificados, cursos, projetos, habilidades
-e idiomas. Campos ainda não salvos não entram na prévia. Cursos e projetos são
-agrupados na lista existente; o layout e as folhas de estilo aprovadas são mantidos.
+e idiomas. Campos ainda não salvos não entram na prévia. Cursos ficam no card
+**Formação acadêmica e cursos**, com inclusão/edição pelo formulário de estudos;
+o card **Projetos** recebe somente projetos. Cursos anteriormente cadastrados
+continuam disponíveis com seus mesmos IDs, descrições, links e datas, sem migração
+nem exclusão. A prévia e o PDF seguem essa organização. As folhas de estilo são mantidas.
 
 Foto: JPG/PNG/WebP, até o menor limite entre 5 MB e `MAX_UPLOAD_SIZE_MB`, até
 16 megapixels. O servidor confere formato real, decodifica os pixels, remove

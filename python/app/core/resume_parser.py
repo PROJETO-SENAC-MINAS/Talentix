@@ -18,7 +18,7 @@ PARSER_VERSION = 3
 _SECOES = {
     "resumo": {"resumo", "perfil", "perfil profissional", "objetivo", "objetivo profissional", "sobre mim"},
     "experiencias": {"experiencia", "experiencias", "experiencia profissional", "experiencias profissionais", "historico profissional"},
-    "formacoes": {"formacao", "formacoes", "formacao academica", "formacoes academicas", "educacao", "escolaridade"},
+    "formacoes": {"formacao", "formacoes", "formacao academica", "formacoes academicas", "formacao academica e cursos", "educacao", "escolaridade"},
     "certificados": {"certificados", "certificacoes", "cursos", "cursos e certificacoes", "cursos e certificados", "cursos complementares", "qualificacoes"},
     "projetos": {"projeto", "projetos", "projetos pessoais", "projetos academicos", "projetos profissionais", "principais projetos", "projetos relevantes", "portfolio", "portfolio de projetos"},
     "habilidades": {"habilidades", "competencias", "competencias tecnicas", "skills", "tecnologias"},

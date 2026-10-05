@@ -317,6 +317,21 @@ def test_erro_parser_compreensivel(ambiente):
     assert 'Não foi possível ler' in result['ErroProcessamento'] and settings.UPLOAD_DIR not in result['ErroProcessamento']
 
 
+def test_pdf_agrupa_cursos_com_formacao_e_preserva_dados():
+    from app.core.resume_pdf import gerar_pdf
+    dados = {'perfil':{}, 'experiencias':[], 'formacoes':[{'Curso':'Sistemas', 'Instituicao':'SENAC'}],
+             'habilidades':[], 'idiomas':[], 'itens':[
+                 {'Tipo':'curso','Titulo':'Curso complementar','Instituicao':'IFMG','Descricao':'Detalhes do curso','Url':'https://example.com/curso'},
+                 {'Tipo':'projeto','Titulo':'Projeto pessoal','Descricao':'Detalhes do projeto'}]}
+    original = json.dumps(dados)
+    pdf = gerar_pdf(dados, {'Nome':'Pessoa de teste'})
+    texto = '\n'.join(p.extract_text() for p in PdfReader(BytesIO(pdf)).pages)
+    assert texto.index('Formação acadêmica e cursos') < texto.index('Curso complementar') < texto.index('Projetos') < texto.index('Projeto pessoal')
+    assert 'Detalhes do curso' in texto and 'https://example.com/curso' in texto
+    assert 'Cursos e projetos' not in texto
+    assert json.dumps(dados) == original
+
+
 def test_parser_contato():
     d=analisar_curriculo('Maria Silva\nAnalista Python\nmaria@example.com\n(31) 99999-1234\nIdiomas\nInglês fluente')
     assert d['contato']=={'nome':'Maria Silva','email':'maria@example.com','telefone':'(31) 99999-1234'}

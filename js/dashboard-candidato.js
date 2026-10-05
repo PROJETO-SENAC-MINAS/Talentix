@@ -58,7 +58,7 @@ document.addEventListener('DOMContentLoaded', () => {
       throw new Error(msg);
     }
 
-    if (options.method && /candidatos|experiencias|formacoes|curriculos|foto-perfil/.test(path)) document.dispatchEvent(new Event('perfil:alterado'));
+    if (options.method && /candidatos|experiencias|formacoes|curriculos|foto-perfil|itens-profissionais/.test(path)) document.dispatchEvent(new Event('perfil:alterado'));
     return corpo;
   }
 
@@ -771,12 +771,24 @@ document.addEventListener('DOMContentLoaded', () => {
   const fTipo = $('#fTipo');
   function atualizarCamposFormacao() {
     const ehCertificado = fTipo.value === 'certificado';
-    $('#grupoNivelFormacao').style.display = ehCertificado ? 'none' : '';
-    $('#grupoStatusFormacao').style.display = ehCertificado ? 'none' : '';
+    const ehCurso = fTipo.value === 'curso';
+    $('#grupoNivelFormacao').style.display = ehCertificado || ehCurso ? 'none' : '';
+    $('#grupoStatusFormacao').style.display = ehCertificado || ehCurso ? 'none' : '';
+    $('#grupoDetalhesCurso').hidden = !ehCurso;
+    $('#fDescricao').disabled = $('#fUrl').disabled = !ehCurso;
+    $('#fInstituicao').required = !ehCurso;
     $('#fInstituicao').placeholder = ehCertificado ? 'Ex: Alura, AWS, Google...' : 'Ex: UFMG, Alura, Coursera...';
     $('#fCurso').placeholder = ehCertificado ? 'Ex: AWS Cloud Practitioner' : 'Ex: Ciência da Computação';
   }
-  fTipo?.addEventListener('change', atualizarCamposFormacao);
+  fTipo?.addEventListener('change', () => {delete $('#formFormacao').dataset.editando; $('#fItemId').value = ''; atualizarCamposFormacao();});
+  $('#cancelarFormacao').addEventListener('click', () => {$('#formFormacao').reset(); delete $('#formFormacao').dataset.editando; $('#fItemId').value = ''; atualizarCamposFormacao();});
+  document.addEventListener('curso:editar', e => {
+    const curso = e.detail;
+    $('#formFormacao').reset(); delete $('#formFormacao').dataset.editando;
+    fTipo.value = 'curso'; atualizarCamposFormacao(); $('#fItemId').value = curso.ID_Item;
+    for (const [id,key] of Object.entries({fCurso:'Titulo',fInstituicao:'Instituicao',fDescricao:'Descricao',fUrl:'Url',fInicio:'DataInicio',fConclusao:'DataFim'})) $('#'+id).value = curso[key] || '';
+    $('#fCurso').focus();
+  });
   atualizarCamposFormacao();
 
   async function carregarFormacoes() {
@@ -825,6 +837,16 @@ document.addEventListener('DOMContentLoaded', () => {
   $('#formFormacao')?.addEventListener('submit', async (e) => {
     e.preventDefault();
     const ehCertificado = fTipo.value === 'certificado';
+    if (fTipo.value === 'curso') {
+      try {
+        const curso = {tipo:'curso',titulo:$('#fCurso').value.trim(),instituicao:$('#fInstituicao').value.trim() || null,descricao:$('#fDescricao').value.trim() || null,url:$('#fUrl').value.trim() || null,data_inicio:$('#fInicio').value || null,data_fim:$('#fConclusao').value || null};
+        if (curso.data_inicio && curso.data_fim && curso.data_inicio > curso.data_fim) throw new Error('A conclusão não pode anteceder o início.');
+        const id = $('#fItemId').value;
+        await api(id ? `/itens-profissionais/${id}` : `/candidatos/${idCandidato}/itens`, {method:id ? 'PUT':'POST',body:JSON.stringify(curso)});
+        $('#cancelarFormacao').click(); mostrarToast('Curso salvo.');
+      } catch (erro) {mostrarToast(erro.message, 'error');}
+      return;
+    }
 
     const payload = {
       instituicao: $('#fInstituicao').value.trim(),
@@ -847,6 +869,7 @@ document.addEventListener('DOMContentLoaded', () => {
       mostrarToast(ehCertificado ? 'Certificado adicionado.' : 'Formação adicionada.');
       $('#formFormacao').reset();
       delete $('#formFormacao').dataset.editando;
+      $('#fItemId').value = '';
       atualizarCamposFormacao();
       carregarFormacoes();
     } catch (erro) {
@@ -858,6 +881,7 @@ document.addEventListener('DOMContentLoaded', () => {
     lista.addEventListener('click', async (e) => {
       if(e.target.dataset.editarFormacao) {
         const f=formacoesEmCache.find(v=>v.ID_Formacoes===e.target.dataset.editarFormacao);
+        $('#fItemId').value = '';
         $('#formFormacao').dataset.editando=f.ID_Formacoes; $('#fTipo').value=f.Nivel==='Certificado' ? 'certificado':'formacao'; atualizarCamposFormacao();
         for(const [id,key] of Object.entries({fInstituicao:'Instituicao',fCurso:'Curso',fNivel:'Nivel',fInicio:'DataInicio',fConclusao:'DataConclusao',fStatus:'Status'})) $('#'+id).value=f[key] || '';
         $('#fInstituicao').focus(); return;

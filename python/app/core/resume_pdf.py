@@ -22,13 +22,16 @@ def gerar_pdf(dados, contato):
     text(p.get("Resumo"))
     for key in ("GithubUrl", "LinkedinUrl", "PortfolioUrl"):
         text(p.get(key))
-    for title, key, fields in (("Experiências", "experiencias", ("Cargo", "Empresa", "DataInicio", "DataFim", "Descricao")),
-        ("Formação e certificados", "formacoes", ("Curso", "Instituicao", "Nivel", "DataConclusao")),
-        ("Cursos e projetos", "itens", ("Titulo", "Instituicao", "Descricao", "Url")),
-        ("Habilidades técnicas", "habilidades", ("Nome",)), ("Idiomas", "idiomas", ("Nome", "Nivel"))):
-        if dados[key]:
+    estudos = [f for f in dados['formacoes'] if f.get('Nivel') != 'Certificado']
+    estudos += [{**i, 'Curso':i['Titulo'], 'DataConclusao':i.get('DataFim')} for i in dados['itens'] if i['Tipo'] == 'curso']
+    for title, items, fields in (("Experiências", dados['experiencias'], ("Cargo", "Empresa", "DataInicio", "DataFim", "Descricao")),
+        ("Formação acadêmica e cursos", estudos, ("Curso", "Instituicao", "Nivel", "DataConclusao", "Descricao", "Url")),
+        ("Certificados", [f for f in dados['formacoes'] if f.get('Nivel') == 'Certificado'], ("Curso", "Instituicao", "DataConclusao")),
+        ("Projetos", [i for i in dados['itens'] if i['Tipo'] == 'projeto'], ("Titulo", "Instituicao", "Descricao", "Url")),
+        ("Habilidades técnicas", dados['habilidades'], ("Nome",)), ("Idiomas", dados['idiomas'], ("Nome", "Nivel"))):
+        if items:
             text(title, "Heading2")
-            for item in dados[key]:
+            for item in items:
                 text(" · ".join(str(item[f]) for f in fields if item.get(f)))
     if p.get("HabilidadesComportamentais"):
         text("Habilidades comportamentais", "Heading2")

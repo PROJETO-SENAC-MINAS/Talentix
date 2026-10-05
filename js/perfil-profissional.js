@@ -22,11 +22,10 @@ document.addEventListener('DOMContentLoaded', () => {
     $('#fotoProfissional').hidden = !d.perfil.FotoUrl;
     if (d.perfil.FotoUrl) $('#fotoProfissional').src = API_BASE_URL + d.perfil.FotoUrl;
     itens = d.itens; idiomas = d.idiomas;
-    $('#listaItensProfissionais').innerHTML = ['projeto','curso'].map(tipo => {
+    for (const [tipo, destino] of [['projeto','#listaItensProfissionais'],['curso','#listaCursosAcademicos']]) {
       const grupo = itens.filter(i => i.Tipo === tipo);
-      if (!grupo.length) return '';
-      return `<h3 class="section-subtitle">${tipo === 'projeto' ? 'Projetos' : 'Cursos'}</h3>` + grupo.map(i => `<article class="list-item"><div class="list-item__main"><h3>${esc(i.Titulo)}</h3><p>${esc(i.Tipo)} · ${esc(i.Instituicao)}</p><p>${esc(i.Descricao)}</p>${i.Url ? `<a href="${esc(Talentix.safeUrl(i.Url))}" target="_blank" rel="noopener noreferrer">Abrir ${esc(i.Tipo)}</a>` : ''}</div><div class="list-item__actions"><button type="button" class="btn btn-secondary" data-editar-item="${esc(i.ID_Item)}">Editar ${esc(i.Tipo)}</button><button type="button" class="btn-danger-ghost" data-remover-item="${esc(i.ID_Item)}">Remover ${esc(i.Tipo)}</button></div></article>`).join('');
-    }).join('') || '<p>Nenhum curso ou projeto cadastrado.</p>';
+      $(destino).innerHTML = grupo.map(i => `<article class="list-item"><div class="list-item__main"><h3>${esc(i.Titulo)}</h3><p>${esc(i.Tipo)} · ${esc(i.Instituicao)}</p><p>${esc(i.Descricao)}</p>${i.Url ? `<a href="${esc(Talentix.safeUrl(i.Url))}" target="_blank" rel="noopener noreferrer">Abrir ${esc(i.Tipo)}</a>` : ''}</div><div class="list-item__actions"><button type="button" class="btn btn-secondary" data-editar-item="${esc(i.ID_Item)}">Editar ${esc(i.Tipo)}</button><button type="button" class="btn-danger-ghost" data-remover-item="${esc(i.ID_Item)}">Remover ${esc(i.Tipo)}</button></div></article>`).join('') || (tipo === 'projeto' ? '<p>Nenhum projeto cadastrado.</p>' : '');
+    }
     $('#listaIdiomasProfissionais').innerHTML = idiomas.map(i => `<div class="list-item"><p>${esc(i.Nome)} · ${esc(i.Nivel)}</p><button type="button" class="btn btn-secondary" data-editar-idioma="${esc(i.ID_Candidato_Idiomas)}">Editar ${esc(i.Nome)}</button><button type="button" class="btn-danger-ghost" data-remover-idioma="${esc(i.ID_Candidato_Idiomas)}">Remover ${esc(i.Nome)}</button></div>`).join('') || '<p>Nenhum idioma cadastrado.</p>';
   }
   const refresh = () => {clearTimeout(atualizarTimer); atualizarTimer = setTimeout(() => atualizar().catch(e => toast(e.message, true)), 100);};
@@ -50,17 +49,19 @@ document.addEventListener('DOMContentLoaded', () => {
     e.preventDefault();
     if ($('#itemInicio').value && $('#itemFim').value && $('#itemInicio').value > $('#itemFim').value) {toast('Revise as datas do item.',true); return;}
     const id = $('#itemId').value;
-    const payload = {tipo:$('#itemTipo').value,titulo:$('#itemTitulo').value.trim(),instituicao:$('#itemInstituicao').value.trim() || null,descricao:$('#itemDescricao').value.trim() || null,url:$('#itemUrl').value.trim() || null,data_inicio:$('#itemInicio').value || null,data_fim:$('#itemFim').value || null};
+    const payload = {tipo:'projeto',titulo:$('#itemTitulo').value.trim(),instituicao:$('#itemInstituicao').value.trim() || null,descricao:$('#itemDescricao').value.trim() || null,url:$('#itemUrl').value.trim() || null,data_inicio:$('#itemInicio').value || null,data_fim:$('#itemFim').value || null};
     try {await api(id ? `/itens-profissionais/${id}` : `/candidatos/${candidato}/itens`,{method:id ? 'PUT':'POST',body:JSON.stringify(payload)}); $('#formItemProfissional').reset(); $('#itemId').value = ''; await atualizar(); toast('Item salvo.');} catch(error) {toast(error.message,true);}
   });
   $('#cancelarItem').addEventListener('click', () => {$('#formItemProfissional').reset(); $('#itemId').value='';});
-  $('#listaItensProfissionais').addEventListener('click', async e => {
+  for (const lista of ['#listaItensProfissionais','#listaCursosAcademicos']) $(lista).addEventListener('click', async e => {
     const id = e.target.dataset.editarItem || e.target.dataset.removerItem; if (!id) return;
     try {
       if (e.target.dataset.removerItem) {await api(`/itens-profissionais/${id}`,{method:'DELETE'}); await atualizar();}
       else {
-        const i = itens.find(v => v.ID_Item === id); $('#itemId').value = id;
-        for (const [idCampo,key] of Object.entries({itemTipo:'Tipo',itemTitulo:'Titulo',itemInstituicao:'Instituicao',itemDescricao:'Descricao',itemUrl:'Url',itemInicio:'DataInicio',itemFim:'DataFim'})) $('#'+idCampo).value = i[key] || '';
+        const i = itens.find(v => v.ID_Item === id);
+        if (i.Tipo === 'curso') {document.dispatchEvent(new CustomEvent('curso:editar',{detail:i})); return;}
+        $('#itemId').value = id;
+        for (const [idCampo,key] of Object.entries({itemTitulo:'Titulo',itemInstituicao:'Instituicao',itemDescricao:'Descricao',itemUrl:'Url',itemInicio:'DataInicio',itemFim:'DataFim'})) $('#'+idCampo).value = i[key] || '';
         $('#itemTitulo').focus();
       }
     } catch(error) {toast(error.message,true);}

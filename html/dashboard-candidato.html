@@ -202,15 +202,14 @@
           <div class="card"><h2 class="section-subtitle">Idiomas</h2>
             <form id="formIdioma" class="inline-form"><select id="idiomaCatalogo" aria-label="Idioma" required><option value="">Selecione um idioma</option></select><select id="idiomaNivel" aria-label="Proficiência" required><option value="basico">Básico</option><option value="intermediario">Intermediário</option><option value="avancado">Avançado</option><option value="fluente">Fluente</option><option value="nativo">Nativo</option></select><button class="btn btn-secondary" type="submit">Salvar idioma</button></form><div id="listaIdiomasProfissionais" class="list"></div>
           </div>
-          <div class="card"><h2 class="section-subtitle">Cursos e projetos</h2>
+          <div class="card" id="secaoProjetos"><h2 class="section-subtitle">Projetos</h2>
             <form id="formItemProfissional" class="inline-form-stack">
               <input id="itemId" type="hidden">
-              <div class="field"><label for="itemTipo">Tipo</label><select id="itemTipo"><option value="projeto">Projeto</option><option value="curso">Curso</option></select></div>
               <div class="grid-2"><div class="field"><label for="itemTitulo">Título</label><input id="itemTitulo" maxlength="200" required></div><div class="field"><label for="itemInstituicao">Instituição ou organização</label><input id="itemInstituicao" maxlength="200"></div></div>
               <div class="field"><label for="itemDescricao">Descrição</label><textarea id="itemDescricao" maxlength="5000" rows="3"></textarea></div>
-              <div class="field"><label for="itemUrl">Link do curso ou projeto</label><input id="itemUrl" type="url" maxlength="300" pattern="https?://.*"></div>
+              <div class="field"><label for="itemUrl">Link do projeto</label><input id="itemUrl" type="url" maxlength="300" pattern="https?://.*"></div>
               <div class="grid-2"><div class="field"><label for="itemInicio">Data inicial</label><input id="itemInicio" type="date"></div><div class="field"><label for="itemFim">Data final</label><input id="itemFim" type="date"></div></div>
-              <div class="form-actions form-actions--start"><button class="btn btn-primary" type="submit">Salvar item</button><button class="btn btn-secondary" id="cancelarItem" type="button">Cancelar edição</button></div>
+              <div class="form-actions form-actions--start"><button class="btn btn-primary" type="submit">Salvar projeto</button><button class="btn btn-secondary" id="cancelarItem" type="button">Cancelar edição</button></div>
             </form><div id="listaItensProfissionais" class="list"></div>
           </div>
           <div class="card">
@@ -252,13 +251,14 @@
               <p class="empty-state">Nenhuma experiência cadastrada ainda.</p>
             </div>
           </div>
-          <header class="profile-section-heading"><h2>Formação e certificados</h2><p>Complete ou revise seus estudos e certificações.</p></header>
+          <header class="profile-section-heading"><h2>Formação acadêmica, cursos e certificados</h2><p>Complete ou revise seus estudos e certificações.</p></header>
           <div class="card">
             <form id="formFormacao" class="inline-form-stack">
+              <input id="fItemId" type="hidden">
               <div class="field">
                 <label for="fTipo">Tipo</label>
                 <select id="fTipo">
-                  <option value="formacao">Formação acadêmica (escola, faculdade, curso)</option> <option value="certificado">Certificado</option>
+                  <option value="formacao">Formação acadêmica (escola, faculdade, técnico)</option> <option value="curso">Curso livre ou complementar</option> <option value="certificado">Certificado</option>
                 </select>
               </div>
               <div class="grid-2">
@@ -299,14 +299,19 @@
                   <option value="">Selecione</option> <option value="Concluído">Concluído</option> <option value="Cursando">Cursando</option> <option value="Trancado">Trancado</option>
                 </select>
               </div>
-              <button type="submit" class="btn btn-primary" id="btnAdicionarFormacao" style="align-self:flex-start;">Adicionar</button>
+              <div id="grupoDetalhesCurso" hidden>
+                <div class="field"><label for="fDescricao">Descrição do curso</label><textarea id="fDescricao" maxlength="5000" rows="3"></textarea></div>
+                <div class="field"><label for="fUrl">Link do curso</label><input id="fUrl" type="url" maxlength="300" pattern="https?://.*"></div>
+              </div>
+              <div class="form-actions form-actions--start"><button type="submit" class="btn btn-primary" id="btnAdicionarFormacao">Salvar</button><button type="button" class="btn btn-secondary" id="cancelarFormacao">Cancelar edição</button></div>
             </form>
           </div>
-          <div class="card">
-            <h2 class="section-subtitle">Formação acadêmica</h2>
+          <div class="card" id="secaoFormacaoAcademica">
+            <h2 class="section-subtitle">Formação acadêmica e cursos</h2>
             <div class="list" id="listaFormacoes">
               <p class="empty-state">Nenhuma formação cadastrada ainda.</p>
             </div>
+            <div class="list" id="listaCursosAcademicos"></div>
           </div>
           <div class="card">
             <h2 class="section-subtitle">Certificados</h2>
@@ -497,6 +502,6 @@
       <div class="dialog-header"><h2 id="tituloNomeCurriculo">Nome da versão</h2><button type="button" data-fechar-novembro="modalNomeCurriculo" aria-label="Fechar edição do currículo">×</button></div>
       <form id="formNomeCurriculo"><input type="hidden" id="nomeCurriculoId"><div class="field"><label for="nomeCurriculoTexto">Nome do currículo</label><input id="nomeCurriculoTexto" maxlength="150" required></div><p id="nomeCurriculoErro" role="alert" hidden></p><div class="dialog-actions"><button type="button" class="btn btn-secondary" data-fechar-novembro="modalNomeCurriculo">Cancelar</button><button class="btn btn-primary" type="submit">Salvar nome</button></div></form>
     </dialog>
-    <script src="../js/config.js"></script> <script src="../js/painel-comum.js"></script> <script src="../js/dashboard-candidato.js?v=importacao-revisao3-20261005"></script> <script src="../js/perfil-profissional.js?v=novembro-20261005"></script> <script src="../js/novembro.js?v=novembro-20261005"></script> <script src="../js/seguranca-conta.js"></script> <script src="../js/acessibilidade.js"></script>
+    <script src="../js/config.js"></script> <script src="../js/painel-comum.js"></script> <script src="../js/dashboard-candidato.js?v=cursos-formacao-20261005"></script> <script src="../js/perfil-profissional.js?v=cursos-formacao-20261005"></script> <script src="../js/novembro.js?v=cursos-formacao-20261005"></script> <script src="../js/seguranca-conta.js"></script> <script src="../js/acessibilidade.js"></script>
   </body>
 </html>

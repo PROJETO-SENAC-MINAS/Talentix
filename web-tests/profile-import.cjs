@@ -57,7 +57,7 @@ const fixture = {
         if (url.pathname === '/auth/me') data = {id_usuario:'u-ui',tipo_usuario:'candidato',Nome:'Candidato de teste'};
         else if (url.pathname === '/candidatos/me') data = candidate;
         else if (url.pathname === '/candidatos/c-ui/profissional') data = {
-          perfil:candidate,completude:27,itens:[],idiomas:[],habilidades:[],experiencias:[],formacoes:[],faltantes:[
+          perfil:candidate,completude:27,itens:[{ID_Item:'curso-antigo',Tipo:'curso',Titulo:'Curso já cadastrado',Instituicao:'SENAC',Descricao:'Descrição preservada',Url:'https://example.com/curso'},{ID_Item:'projeto-antigo',Tipo:'projeto',Titulo:'Projeto já cadastrado'}],idiomas:[],habilidades:[],experiencias:[],formacoes:[],faltantes:[
             {campo:'Foto de perfil',peso:5},{campo:'Experiência profissional',peso:10},
             {campo:'Formação acadêmica',peso:10},{campo:'Idioma',peso:3},
           ],
@@ -82,6 +82,16 @@ const fixture = {
       await page.goto(front + '/html/dashboard-candidato.html');
       await page.locator('#completudeTexto').filter({hasText:'27%'}).waitFor();
       await page.locator('[data-revisar-importacao]').first().waitFor();
+      await page.locator('#secaoFormacaoAcademica #listaCursosAcademicos').filter({hasText:'Curso já cadastrado'}).waitFor();
+      assert.ok(!(await page.locator('#secaoProjetos').textContent()).includes('Curso já cadastrado'));
+      assert.equal(await page.locator('#itemTipo').count(), 0);
+      await page.locator('#listaCursosAcademicos [data-editar-item]').click();
+      assert.equal(await page.locator('#fTipo').inputValue(), 'curso');
+      assert.equal(await page.locator('#fItemId').inputValue(), 'curso-antigo');
+      assert.equal(await page.locator('#fDescricao').inputValue(), 'Descrição preservada');
+      assert.equal(await page.locator('#fUrl').inputValue(), 'https://example.com/curso');
+      await page.locator('#cancelarFormacao').click();
+      assert.equal(await page.locator('#fItemId').inputValue(), '');
       assert.equal(await page.locator('#formCurriculo').count(), 1);
       assert.equal(await page.locator('#tab-curriculo,#tab-formacao').count(), 0);
       assert.equal(await page.locator('#tab-perfil > .card').first().getAttribute('id'), 'secaoCurriculos');
@@ -198,6 +208,8 @@ const fixture = {
       await page.locator('#pTituloProfissional').fill('Alteração ainda não salva');
       await page.locator('#visualizarPerfil').click();
       await page.locator('#modalPerfilSalvo[open]').waitFor();
+      const estudos = page.locator('#previaPerfilSalvo section').filter({has:page.getByRole('heading',{name:'Formação acadêmica e cursos',exact:true})});
+      assert.ok((await estudos.textContent()).includes('Curso já cadastrado'));
       assert.ok(!(await page.locator('#previaPerfilSalvo').textContent()).includes('Alteração ainda não salva'));
       if (width === 390 || width === 1440) await audit(page, 'previa-perfil-' + width);
       await page.keyboard.press('Escape');
