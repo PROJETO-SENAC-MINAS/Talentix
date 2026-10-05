@@ -99,6 +99,7 @@
               <h2 class="section-subtitle">Seus currículos</h2>
               <button type="button" id="gerarCurriculoTalentix" class="btn btn-secondary">Gerar PDF com meu perfil</button>
             </div>
+            <div class="inline-actions"><button type="button" id="verHistoricoCurriculos" class="btn btn-secondary">Histórico de versões</button></div>
             <div class="list" id="listaCurriculos"><p class="empty-state">Nenhum currículo enviado ainda.</p></div>
           </div>
           <div class="card">
@@ -106,6 +107,7 @@
             <p id="completudeTexto" role="status">Calculando completude do perfil…</p>
             <progress id="completudeBarra" max="100" value="0" aria-label="Completude do perfil"></progress>
             <ul id="perfilFaltantes" class="profile-completion-tasks" aria-label="Sugestões para completar seu perfil"></ul>
+            <div class="form-actions form-actions--start"><button type="button" id="visualizarPerfil" class="btn btn-secondary">Visualizar perfil salvo</button></div>
             <form id="formFoto" class="profile-photo-form">
               <h3>Sua foto de perfil</h3>
               <div class="profile-photo-fields">
@@ -481,6 +483,20 @@
       </div>
       <div id="acompanhamentoConteudo"></div>
     </dialog>
-    <script src="../js/config.js"></script> <script src="../js/painel-comum.js"></script> <script src="../js/dashboard-candidato.js"></script> <script src="../js/perfil-profissional.js"></script> <script src="../js/seguranca-conta.js"></script> <script src="../js/acessibilidade.js"></script>
+    <dialog id="modalPerfilSalvo" aria-labelledby="tituloPerfilSalvo">
+      <div class="dialog-header"><h2 id="tituloPerfilSalvo">Seu perfil salvo</h2><button type="button" data-fechar-novembro="modalPerfilSalvo" aria-label="Fechar prévia do perfil">×</button></div>
+      <p class="content__sub">Esta prévia mostra as informações salvas. Alterações no formulário aparecem aqui depois de salvar.</p>
+      <div id="previaPerfilSalvo" class="list"></div>
+    </dialog>
+    <dialog id="modalHistoricoCurriculos" aria-labelledby="tituloHistoricoCurriculos">
+      <div class="dialog-header"><h2 id="tituloHistoricoCurriculos">Histórico de versões</h2><button type="button" data-fechar-novembro="modalHistoricoCurriculos" aria-label="Fechar histórico de currículos">×</button></div>
+      <p class="content__sub">Cada documento mantém sua versão original. Versões arquivadas não aparecem em novas candidaturas; documentos já enviados continuam disponíveis para aquela empresa.</p>
+      <div id="historicoCurriculos" class="list"></div>
+    </dialog>
+    <dialog id="modalNomeCurriculo" aria-labelledby="tituloNomeCurriculo">
+      <div class="dialog-header"><h2 id="tituloNomeCurriculo">Nome da versão</h2><button type="button" data-fechar-novembro="modalNomeCurriculo" aria-label="Fechar edição do currículo">×</button></div>
+      <form id="formNomeCurriculo"><input type="hidden" id="nomeCurriculoId"><div class="field"><label for="nomeCurriculoTexto">Nome do currículo</label><input id="nomeCurriculoTexto" maxlength="150" required></div><p id="nomeCurriculoErro" role="alert" hidden></p><div class="dialog-actions"><button type="button" class="btn btn-secondary" data-fechar-novembro="modalNomeCurriculo">Cancelar</button><button class="btn btn-primary" type="submit">Salvar nome</button></div></form>
+    </dialog>
+    <script src="../js/config.js"></script> <script src="../js/painel-comum.js"></script> <script src="../js/dashboard-candidato.js?v=novembro-20261005"></script> <script src="../js/perfil-profissional.js?v=novembro-20261005"></script> <script src="../js/novembro.js?v=novembro-20261005"></script> <script src="../js/seguranca-conta.js"></script> <script src="../js/acessibilidade.js"></script>
   </body>
 </html>

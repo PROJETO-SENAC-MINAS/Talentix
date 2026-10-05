@@ -44,7 +44,8 @@ const fixture = {
       let extracted = structuredClone(fixture);
       const applied = [];
       let reject = false;
-      const candidate = {ID_Candidatos:'c-ui',ID_Usuarios:'u-ui',Disponivel:true,PortfolioUrl:'https://atual.example.com'};
+      const candidate = {ID_Candidatos:'c-ui',ID_Usuarios:'u-ui',Nome:'Candidato de teste',Disponivel:true,PortfolioUrl:'https://atual.example.com',Modalidades:['remoto'],TiposContrato:['CLT'],HabilidadesComportamentais:['Comunicação']};
+      const curriculum = {ID_Curriculos:'cv-ui',Titulo:'Currículo de teste',ArquivoUrl:'/uploads/curriculos/teste.pdf',Principal:true,ImportacaoStatus:3,Versao:2,Ativo:true};
       await page.route('**/*', async route => {
         const url = new URL(route.request().url());
         if (url.origin === front) return route.continue();
@@ -53,12 +54,15 @@ const fixture = {
         if (url.pathname === '/auth/me') data = {id_usuario:'u-ui',tipo_usuario:'candidato',Nome:'Candidato de teste'};
         else if (url.pathname === '/candidatos/me') data = candidate;
         else if (url.pathname === '/candidatos/c-ui/profissional') data = {
-          perfil:candidate,completude:27,itens:[],idiomas:[],faltantes:[
+          perfil:candidate,completude:27,itens:[],idiomas:[],habilidades:[],experiencias:[],formacoes:[],faltantes:[
             {campo:'Foto de perfil',peso:5},{campo:'Experiência profissional',peso:10},
             {campo:'Formação acadêmica',peso:10},{campo:'Idioma',peso:3},
           ],
         };
-        else if (url.pathname === '/candidatos/c-ui/curriculos') data = [{ID_Curriculos:'cv-ui',Titulo:'Currículo de teste',ArquivoUrl:'/uploads/curriculos/teste.pdf',Principal:true,ImportacaoStatus:3}];
+        else if (url.pathname === '/candidatos/c-ui/curriculos') data = [curriculum];
+        else if (url.pathname === '/candidatos/c-ui/curriculos/historico') data = [{...curriculum,CandidaturasEnviadas:1},{...curriculum,ID_Curriculos:'cv-old',Titulo:'Versão anterior',Versao:1,Ativo:false,Principal:false,CandidaturasEnviadas:2}];
+        else if (url.pathname === '/curriculos/cv-ui' && route.request().method() === 'PUT') {curriculum.Titulo = route.request().postDataJSON().titulo; data = curriculum;}
+        else if (url.pathname === '/vagas/busca') data = {resultados:[],total:21,pagina:Number(url.searchParams.get('pagina')),por_pagina:20};
         else if (url.pathname === '/curriculos/cv-ui/importacao') data = {ID_Status_Processamento_IA:3,DadosExtraidos:extracted};
         else if (url.pathname === '/curriculos/cv-ui/importacao/aplicar') {
           const payload = route.request().postDataJSON();
@@ -168,6 +172,27 @@ const fixture = {
       assert.deepEqual(complete.selecionados.habilidades, [0,1]);
       assert.equal(complete.importar_perfil, true);
       assert.equal(complete.importar_idiomas, false);
+      await page.locator('#pTituloProfissional').fill('Alteração ainda não salva');
+      await page.locator('#visualizarPerfil').click();
+      await page.locator('#modalPerfilSalvo[open]').waitFor();
+      assert.ok(!(await page.locator('#previaPerfilSalvo').textContent()).includes('Alteração ainda não salva'));
+      if (width === 390 || width === 1440) await audit(page, 'previa-perfil-' + width);
+      await page.keyboard.press('Escape');
+      await page.locator('#verHistoricoCurriculos').click();
+      await page.locator('#modalHistoricoCurriculos[open]').waitFor();
+      await page.locator('#historicoCurriculos').filter({hasText:'Arquivada'}).waitFor();
+      if (width === 390 || width === 1440) await audit(page, 'historico-versoes-' + width);
+      await page.keyboard.press('Escape');
+      await page.locator('[data-nome-curriculo]').click();
+      await page.locator('#nomeCurriculoTexto').fill('Versão para tecnologia');
+      if (width === 390) await audit(page, 'nome-versao');
+      await page.locator('#formNomeCurriculo button[type="submit"]').click();
+      await page.locator('#listaCurriculos').filter({hasText:'Versão para tecnologia'}).waitFor();
+      assert.equal(curriculum.Principal,true);
+      await page.goto(front + '/html/dashboard-candidato.html?cargo=Analista&pagina=2');
+      await page.locator('#paginaAtual').filter({hasText:'Página 2 de 2'}).waitFor();
+      await page.reload();
+      await page.locator('#paginaAtual').filter({hasText:'Página 2 de 2'}).waitFor();
       await page.locator('[data-tab="notificacoes"]').click();
       await page.locator('#listaNotificacoes .empty-state').waitFor();
       assert.ok(await page.evaluate(() => document.querySelector('.page-footer').getBoundingClientRect().top - document.querySelector('#tab-notificacoes').getBoundingClientRect().bottom < 40));

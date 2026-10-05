@@ -64,6 +64,11 @@ GitHub 5; LinkedIn 2; portfólio 2; preferências 2. Campos vazios não pontuam;
 disponibilidade falsa e salário zero são respostas válidas. A interface consulta
 o cálculo novamente depois de salvar, adicionar, editar ou remover dados.
 
+**Visualizar perfil salvo** abre a prévia privada dos dados persistidos, com
+experiências, preferências, formação, certificados, cursos, projetos, habilidades
+e idiomas. Campos ainda não salvos não entram na prévia. Cursos e projetos são
+agrupados na lista existente; o layout e as folhas de estilo aprovadas são mantidos.
+
 Foto: JPG/PNG/WebP, até o menor limite entre 5 MB e `MAX_UPLOAD_SIZE_MB`, até
 16 megapixels. O servidor confere formato real, decodifica os pixels, remove
 EXIF/ICC/metadados e grava PNG de até 1200×1200. SVG é recusado. Fotos não são
@@ -81,6 +86,16 @@ atômica e o nome deriva de SHA-256, nunca do nome fornecido pelo usuário.
 O proprietário pode escolher o principal, mudar o título ou remover logicamente
 uma versão. A exclusão não apaga os bytes compartilhados; versões não excluídas
 continuam disponíveis e trocar o principal não altera candidaturas anteriores.
+
+O botão **Histórico de versões** usa `GET /candidatos/{id}/curriculos/historico`
+e inclui versões arquivadas, origem, número de versão e quantidade de candidaturas
+com aquele documento. Somente proprietário/admin podem listar esse histórico.
+**Editar nome** altera o título sem modificar os bytes nem o currículo principal.
+Arquivar remove a versão do seletor de novas candidaturas; o proprietário pode
+consultá-la no histórico e a empresa só pode acessar o documento anexado à sua
+própria candidatura ativa. A primeira versão disponível torna-se principal; ao
+arquivar a principal, a versão disponível mais recente assume essa preferência.
+Prévia inline está disponível para PDF; DOC/DOCX são baixados.
 
 | Método | Endpoint | Finalidade |
 |---|---|---|
@@ -155,6 +170,7 @@ escapados e cláusulas ORDER BY vêm de lista fixa.
 `GET /vagas/autocomplete?q=py&limite=8` exige dois caracteres e limita a dez
 sugestões. A interface usa debounce e lista nativa acessível. Filtros ficam na
 URL ao recarregar; buscas/histórico são vinculados à sessão, não a IDs do cliente.
+O número da página também é restaurado e ajustado se o total de vagas diminuir.
 Também há detalhe, favoritar, compartilhar e seleção de CV na candidatura.
 
 | Método | Endpoint | Finalidade |

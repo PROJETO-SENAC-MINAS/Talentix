@@ -79,7 +79,7 @@ document.addEventListener('DOMContentLoaded', () => {
       botao.classList.add('active');
       $(`#tab-${botao.dataset.tab}`).classList.add('active');
 
-      if (botao.dataset.tab === 'vagas' && !listaVagasCarregada) carregarVagas();
+      if (botao.dataset.tab === 'vagas' && !listaVagasCarregada) carregarVagas(null, paginaBusca);
       if (botao.dataset.tab === 'candidaturas') carregarCandidaturas();
       if (botao.dataset.tab === 'notificacoes') Talentix.notifications().catch(e => mostrarToast(e.message, 'error'));
       if (botao.dataset.tab === 'mensagens') Talentix.messages().catch(e => mostrarToast(e.message, 'error'));
@@ -374,6 +374,7 @@ document.addEventListener('DOMContentLoaded', () => {
             <div class="list-item__main">
               <p class="list-item__title">${escapeHtml(c.Titulo)} ${c.Principal ? '<span class="badge">Principal</span>' : ''}</p>
               <p class="list-item__sub">Versão ${Number(c.Versao || 1)} · ${tamanhoKb} KB · ${escapeHtml(c.ArquivoTipoMime || '')}</p>
+              <p class="list-item__meta">Origem: ${c.Origem === 'talentix' ? 'PDF do perfil Talentix' : 'Arquivo enviado'}</p>
               <p class="list-item__meta">Preenchimento inteligente: ${escapeHtml(rotuloStatusImportacao(c.ImportacaoStatus))}</p>
               ${c.ImportacaoErro ? `<p class="list-item__meta">${escapeHtml(c.ImportacaoErro)}</p>` : ''}
             </div>
@@ -382,7 +383,8 @@ document.addEventListener('DOMContentLoaded', () => {
               <a class="btn btn-secondary" href="${API_BASE_URL}${c.ArquivoUrl}" target="_blank" rel="noopener">Baixar</a>
               ${acaoImportacao}
               ${!c.Principal ? `<button type="button" class="btn btn-secondary" data-principal-curriculo="${escapeHtml(c.ID_Curriculos)}">Tornar principal</button>` : ''}
-              <button type="button" class="btn-danger-ghost" data-remover-curriculo="${escapeHtml(c.ID_Curriculos)}">Remover</button>
+              <button type="button" class="btn btn-secondary" data-nome-curriculo="${escapeHtml(c.ID_Curriculos)}" data-principal="${c.Principal ? '1' : '0'}" data-titulo="${escapeHtml(c.Titulo)}">Editar nome</button>
+              <button type="button" class="btn-danger-ghost" data-remover-curriculo="${escapeHtml(c.ID_Curriculos)}">Arquivar</button>
             </div>
           </div>
         `;
@@ -594,10 +596,10 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
       if (!idRemover) return;
-      if (!confirm('Remover este currículo?')) return;
+      if (!confirm('Arquivar esta versão? Candidaturas já enviadas mantêm o documento original.')) return;
 
       await api(`/curriculos/${idRemover}`, { method: 'DELETE' });
-      mostrarToast('Currículo removido.');
+      mostrarToast('Versão arquivada. O histórico e as candidaturas foram preservados.');
       await carregarCurriculos();
     } catch (erro) {
       mostrarToast(erro.message, 'error');
@@ -864,6 +866,8 @@ document.addEventListener('DOMContentLoaded', () => {
   let geracaoBusca = 0;
   const camposBusca = {palavra_chave:'fvTitulo',cargo:'fvCargo',localizacao:'fvLocalizacao',modalidade:'fvModalidade',nivel:'fvNivel',salario_min:'fvSalarioMin',salario_max:'fvSalarioMax',tipo_contrato:'fvContrato',empresa:'fvEmpresa',dias:'fvDias',habilidades:'fvHabilidades',area:'fvArea',ordenar:'fvOrdenar'};
   const queryInicial = new URLSearchParams(location.search);
+  const paginaInicial = Math.max(1, Math.min(10000, Math.trunc(Number(queryInicial.get('pagina'))) || 1));
+  paginaBusca = paginaInicial;
   for (const [key,id] of Object.entries(camposBusca)) if(queryInicial.has(key)) $('#'+id).value = queryInicial.get(key);
   const botaoFiltros = $('#btnFiltrosVagas');
   function alternarOpcoesBusca(aberto) {
@@ -896,6 +900,8 @@ document.addEventListener('DOMContentLoaded', () => {
         api(`/candidaturas?id_candidato=${idCandidato}`).catch(() => []),
       ]);
       if(geracao !== geracaoBusca) return;
+      const ultimaPagina = Math.max(1, Math.ceil(resultado.total / resultado.por_pagina));
+      if (pagina > ultimaPagina) return carregarVagas(filtros, ultimaPagina);
       const vagas = resultado.resultados;
       $('#resumoBusca').textContent = `${resultado.total} vaga(s) encontrada(s). Compatibilidade calculada pelas habilidades e níveis cadastrados.`;
       $('#paginaAtual').textContent = ` Página ${pagina} de ${Math.max(1,Math.ceil(resultado.total/resultado.por_pagina))} `;
@@ -1021,7 +1027,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       $('#candidaturaVaga').value = idVaga;
       $('#candidaturaCarta').value = '';
-      $('#candidaturaCurriculo').innerHTML = curriculos.map(c => `<option value="${escapeHtml(c.ArquivoUrl)}">${escapeHtml(c.Titulo)}${c.Principal ? ' (principal)' : ''}</option>`).join('');
+      $('#candidaturaCurriculo').innerHTML = curriculos.map(c => `<option value="${escapeHtml(c.ArquivoUrl)}" ${c.Principal ? 'selected' : ''}>${escapeHtml(c.Titulo)} · versão ${Number(c.Versao || 1)}${c.Principal ? ' (principal)' : ''}</option>`).join('');
       fecharModalVaga();
       $('#modalCandidatura').showModal();
     } catch (error) { mostrarToast(error.message, 'error'); }

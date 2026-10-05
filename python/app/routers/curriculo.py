@@ -14,7 +14,7 @@ from io import BytesIO
 from copy import deepcopy
 
 from fastapi import Depends, HTTPException, status, UploadFile, File, Form
-from pydantic import BaseModel, Field, model_validator, ValidationError
+from pydantic import BaseModel, Field, model_validator, ConfigDict, ValidationError
 
 from app.db.database import fetch_one, fetch_all, execute
 from app.core.security import novo_uuid
@@ -174,6 +174,8 @@ async def enviar_curriculo(
 ):
     await _checar_dono_candidato(id_candidato, sessao)
     await fetch_one("SELECT ID_Candidatos FROM Candidatos WHERE ID_Candidatos=%s FOR UPDATE", (id_candidato,))
+    if not await fetch_one("SELECT ID_Curriculos FROM Curriculos WHERE ID_Candidatos=%s AND Ativo=1 AND Principal=1 LIMIT 1", (id_candidato,)):
+        principal = True
     info = await salvar_arquivo(arquivo, "curriculos")
 
     # Evita duplicar o mesmo documento para o mesmo candidato.
@@ -230,11 +232,26 @@ async def listar_curriculos(id_candidato: str, sessao: dict = Depends(usuario_at
 
 @router.delete("/curriculos/{id_curriculo}", tags=["Currículos"])
 async def excluir_curriculo(id_curriculo: str, sessao: dict = Depends(usuario_atual)):
-    await _curriculo_do_dono(id_curriculo, sessao, bloquear=True)
+    cv = await _curriculo_do_dono(id_curriculo, sessao, bloquear=True)
     await execute(
-        "UPDATE Curriculos SET Ativo=0, DeletadoEm=NOW() WHERE ID_Curriculos=%s", (id_curriculo,)
+        "UPDATE Curriculos SET Ativo=0, Principal=0, DeletadoEm=NOW() WHERE ID_Curriculos=%s", (id_curriculo,)
     )
-    return {"mensagem": "Currículo removido (soft delete)."}
+    if cv["Principal"]:
+        restante = await fetch_one("SELECT ID_Curriculos FROM Curriculos WHERE ID_Candidatos=%s AND Ativo=1 ORDER BY Versao DESC, ID_Curriculos LIMIT 1", (cv["ID_Candidatos"],))
+        if restante:
+            await execute("UPDATE Curriculos SET Principal=1 WHERE ID_Curriculos=%s", (restante["ID_Curriculos"],))
+    return {"mensagem": "Versão arquivada. Candidaturas já enviadas mantêm o documento original."}
+
+
+@router.get("/candidatos/{id_candidato}/curriculos/historico", tags=["Currículos"])
+async def historico_curriculos(id_candidato: str, sessao: dict = Depends(usuario_atual)):
+    await _checar_dono_candidato(id_candidato, sessao)
+    return await fetch_all(
+        """SELECT c.*, (SELECT COUNT(*) FROM Candidaturas ca
+             WHERE ca.ID_Candidatos=c.ID_Candidatos AND ca.CurriculoUrl=c.ArquivoUrl AND ca.Ativo=1) AS CandidaturasEnviadas
+           FROM Curriculos c WHERE c.ID_Candidatos=%s ORDER BY c.Versao DESC, c.ID_Curriculos""",
+        (id_candidato,),
+    )
 
 
 @router.post("/curriculos/{id_curriculo}/analisar", tags=["Currículos"])
@@ -466,6 +483,7 @@ async def aplicar_importacao_curriculo(
 # ==================== EXPERIÊNCIAS ====================
 
 class ExperienciaCreate(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
     empresa: str = Field(min_length=1, max_length=150)
     cargo: str = Field(min_length=1, max_length=150)
     descricao: str | None = Field(None, max_length=5000)
@@ -529,6 +547,7 @@ async def excluir_experiencia(id_experiencia: str, sessao: dict = Depends(usuari
 # ==================== FORMAÇÕES ====================
 
 class FormacaoCreate(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
     instituicao: str = Field(min_length=1, max_length=200)
     curso: str = Field(min_length=1, max_length=200)
     nivel: str | None = Field(default=None, max_length=50)
@@ -544,6 +563,7 @@ class FormacaoCreate(BaseModel):
 
 
 class CurriculoEdicao(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
     titulo: str = Field(min_length=1, max_length=150)
     principal: bool = False
 

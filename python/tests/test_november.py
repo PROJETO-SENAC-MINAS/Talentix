@@ -87,6 +87,42 @@ def test_upload_fila_versoes_principal_geracao(ambiente,autenticar):
     assert c.post('/candidatos/c1/curriculo-talentix').status_code==403
 
 
+def test_historico_arquivado_preserva_candidatura_e_escolhe_principal(ambiente, autenticar):
+    c, conn = ambiente
+    autenticar(c, 'uc1', 'candidato')
+    cv = c.post('/candidatos/c1/curriculo-talentix').json()
+    assert c.put('/curriculos/cr1', json={'titulo':' Versão enviada ', 'principal':True}).status_code == 200
+    assert c.put('/curriculos/cr1', json={'titulo':'   '}).status_code == 422
+    original = conn.execute("SELECT CurriculoUrl FROM Candidaturas WHERE ID_Candidaturas='ca1'").fetchone()[0]
+    assert c.delete('/curriculos/cr1').status_code == 200
+    active = c.get('/candidatos/c1/curriculos').json()
+    assert [r['ID_Curriculos'] for r in active if r['Principal']] == [cv['ID_Curriculos']]
+    history = c.get('/candidatos/c1/curriculos/historico').json()
+    old = next(r for r in history if r['ID_Curriculos'] == 'cr1')
+    assert old['Titulo'] == 'Versão enviada' and not old['Ativo'] and not old['Principal']
+    assert old['CandidaturasEnviadas'] == 1
+    assert conn.execute("SELECT CurriculoUrl FROM Candidaturas WHERE ID_Candidaturas='ca1'").fetchone()[0] == original
+    assert c.get(original).status_code == 200
+    assert c.post('/candidaturas',json={'id_vaga':'v2','curriculo_url':original}).status_code == 403
+    autenticar(c,'ue1','empresa')
+    assert c.get(original).status_code == 200
+    assert c.get('/candidatos/c1/curriculos/historico').status_code == 403
+    autenticar(c,'ue2','empresa')
+    assert c.get(original).status_code == 404
+    autenticar(c,'uc2','candidato')
+    assert c.get('/candidatos/c1/curriculos/historico').status_code == 403
+    assert c.get(original).status_code == 404
+
+
+def test_primeira_versao_automaticamente_principal(ambiente, autenticar):
+    c, conn = ambiente
+    autenticar(c,'uc1','candidato')
+    conn.execute("UPDATE Curriculos SET Principal=0 WHERE ID_Candidatos='c1'")
+    conn.commit()
+    r = c.post('/candidatos/c1/curriculo-talentix')
+    assert r.status_code == 201 and r.json()['Principal']
+
+
 def test_confirmacao_seletiva_e_dados_separados(ambiente,autenticar):
     c,conn=ambiente;autenticar(c,'uc1','candidato')
     dados={'perfil':{'titulo_profissional':'Título aprovado','resumo':'Não aprovado'},'experiencias':[],'formacoes':[],'habilidades':[],'idiomas':[]}

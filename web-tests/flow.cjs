@@ -108,6 +108,20 @@ async function test(name,fn) {
       await candidate.locator('#listaCurriculos').filter({hasText:'Currículo da apresentação'}).waitFor();
     });
     let applicationId;
+    await test('previa privada usa perfil salvo e versoes podem ser nomeadas sem alterar documentos',async()=> {
+      const title=await candidate.locator('#pTituloProfissional').inputValue();
+      await candidate.locator('#pTituloProfissional').fill('Rascunho ainda não salvo');
+      await candidate.locator('#visualizarPerfil').click();await candidate.locator('#modalPerfilSalvo[open]').waitFor();
+      assert.ok((await candidate.locator('#previaPerfilSalvo').textContent()).includes(title));
+      assert.ok(!(await candidate.locator('#previaPerfilSalvo').textContent()).includes('Rascunho ainda não salvo'));
+      await audit(candidate,'previa-perfil-salvo');await candidate.keyboard.press('Escape');
+      await candidate.locator('#pTituloProfissional').fill(title);
+      const generated=await submit(candidate,'#gerarCurriculoTalentix','/curriculo-talentix');assert.ok(generated.ArquivoUrl.endsWith('.pdf'));
+      const pdf=await candidate.context().request.get(API+generated.ArquivoUrl+'?preview=true');assert.equal(pdf.status(),200);assert.ok(pdf.headers()['content-disposition'].startsWith('inline;'));
+      await candidate.locator('[data-nome-curriculo][data-titulo="Currículo da apresentação"]').click();await candidate.locator('#nomeCurriculoTexto').fill('Currículo para esta oportunidade');
+      await audit(candidate,'editar-nome-versao');await submit(candidate,'#formNomeCurriculo button[type="submit"]','/curriculos/','PUT');
+      await candidate.locator('#listaCurriculos').filter({hasText:'Currículo para esta oportunidade'}).waitFor();
+    });
     await test('candidato seleciona e anexa curriculo ao se candidatar',async()=> {
       await tab(candidate,'vagas');await candidate.locator('#fvTitulo').fill('Vaga navegador '+nonce);await candidate.locator('#formFiltroVagas button[type="submit"]').first().click();await candidate.locator(`[data-candidatar="${jobId}"]`).waitFor();await candidate.locator(`[data-candidatar="${jobId}"]`).click();
       await candidate.locator('#modalCandidatura[open]').waitFor();await audit(candidate,'candidatura-dialog');assert.equal(await candidate.locator('#candidaturaCurriculo').inputValue(),cvUrl);await candidate.locator('#candidaturaCarta').fill('Estou interessado nesta oportunidade.');
@@ -120,6 +134,16 @@ async function test(name,fn) {
       await candidate.locator('#nomeBusca').fill('Minha oportunidade');await candidate.locator('#alertaBusca').check();await submit(candidate,'#formSalvarBusca button','/buscas');await candidate.locator('#buscasSalvas').filter({hasText:'Alertas ativos'}).waitFor();
       await submit(candidate,'#buscasSalvas [data-alerta-busca]','/buscas/','PUT');await candidate.locator('#buscasSalvas').filter({hasText:'Alertas desativados'}).waitFor();
       await candidate.reload();await candidate.waitForLoadState('networkidle');await candidate.locator('#btnFiltrosVagas').waitFor();assert.equal(await candidate.locator('#btnFiltrosVagas').getAttribute('aria-expanded'),'true');assert.equal(await candidate.locator('#fvModalidade').inputValue(),'Remoto');await candidate.locator(`[data-ver-vaga="${jobId}"]`).waitFor();await audit(candidate,'busca-avancada-persistente');
+    });
+    await test('arquivar versao preserva o documento enviado e o historico privado',async()=> {
+      await tab(candidate,'perfil');
+      await submit(candidate,'#listaCurriculos .list-item:has-text("Currículo para esta oportunidade") [data-remover-curriculo]','/curriculos/','DELETE');
+      await candidate.locator('#listaCurriculos').filter({hasText:'Currículo para esta oportunidade'}).waitFor({state:'hidden'});
+      await candidate.locator('#verHistoricoCurriculos').click();await candidate.locator('#modalHistoricoCurriculos[open]').waitFor();
+      const archived=candidate.locator('#historicoCurriculos .list-item').filter({hasText:'Currículo para esta oportunidade'});
+      assert.ok((await archived.textContent()).includes('Arquivada'));assert.ok((await archived.textContent()).includes('1 candidatura'));
+      await audit(candidate,'historico-curriculos');await candidate.keyboard.press('Escape');
+      assert.equal((await candidate.context().request.get(API+cvUrl)).status(),200);
     });
     await test('empresa ve inscricao e abre somente o curriculo anexado',async()=> {
       await tab(company,'candidaturas');const link=company.locator('#listaCandidaturasEmpresa a').filter({hasText:'Abrir currículo anexado'});await link.waitFor();assert.ok((await link.getAttribute('href')).endsWith(cvUrl));const response=await company.context().request.get(API+cvUrl);assert.equal(response.status(),200);assert.ok((await response.body()).toString().startsWith('%PDF'));

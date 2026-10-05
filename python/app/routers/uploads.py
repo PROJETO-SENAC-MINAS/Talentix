@@ -55,13 +55,14 @@ async def baixar_curriculo(nome_arquivo: str, preview: bool = False, sessao: dic
     url = f"/uploads/curriculos/{nome_arquivo}"
     if sessao["tipo_usuario"] == "administrador":
         curriculo = await fetch_one(
-            "SELECT ID_Curriculos FROM Curriculos WHERE ArquivoUrl=%s AND Ativo=1 LIMIT 1", (url,)
+            """SELECT cr.ID_Curriculos FROM Curriculos cr JOIN Candidatos c ON c.ID_Candidatos=cr.ID_Candidatos AND c.Ativo=1
+               WHERE cr.ArquivoUrl=%s LIMIT 1""", (url,)
         )
     elif sessao["tipo_usuario"] == "candidato":
         curriculo = await fetch_one(
             """SELECT cr.ID_Curriculos FROM Curriculos cr
                JOIN Candidatos c ON c.ID_Candidatos=cr.ID_Candidatos AND c.Ativo=1
-               WHERE cr.ArquivoUrl=%s AND cr.Ativo=1 AND c.ID_Usuarios=%s LIMIT 1""",
+               WHERE cr.ArquivoUrl=%s AND c.ID_Usuarios=%s LIMIT 1""",
             (url, sessao["id_usuario"]),
         )
     elif sessao["tipo_usuario"] in {"empresa", "recrutador"}:
@@ -69,11 +70,12 @@ async def baixar_curriculo(nome_arquivo: str, preview: bool = False, sessao: dic
         # Acesso somente ao arquivo que o candidato anexou à candidatura desta empresa.
         curriculo = await fetch_one(
             """SELECT cr.ID_Curriculos FROM Curriculos cr
+               JOIN Candidatos c ON c.ID_Candidatos=cr.ID_Candidatos AND c.Ativo=1
                JOIN Candidaturas ca ON ca.ID_Candidatos=cr.ID_Candidatos
                  AND ca.CurriculoUrl=cr.ArquivoUrl AND ca.Ativo=1
                JOIN Vagas v ON v.ID_Vagas=ca.ID_Vagas
                JOIN Empresas e ON e.ID_Empresas=v.ID_Empresas AND e.Ativo=1
-               WHERE cr.ArquivoUrl=%s AND cr.Ativo=1 AND e.ID_Empresas=%s LIMIT 1""",
+               WHERE cr.ArquivoUrl=%s AND e.ID_Empresas=%s LIMIT 1""",
             (url, empresa["ID_Empresas"]),
         )
     else:
