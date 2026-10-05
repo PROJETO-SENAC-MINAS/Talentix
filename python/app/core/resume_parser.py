@@ -158,8 +158,11 @@ def _periodo(texto: str) -> tuple[str | None, str | None, bool]:
     normal = _normalizar(texto)
     anos = re.findall(r"\b((?:19|20)\d{2})\b", normal)
     atual = bool(re.search(r"\b(atual|presente|current|hoje)\b", normal))
-    inicio = f"{anos[0]}-01-01" if anos else None
-    fim = None if atual else (f"{anos[1]}-01-01" if len(anos) > 1 else None)
+    # Currículos também escrevem "conclusão 2027, início 2025". A ordem em
+    # que os anos aparecem no texto não pode gerar um período impossível.
+    anos_ordenados = sorted({int(ano) for ano in anos})
+    inicio = f"{anos_ordenados[0]}-01-01" if anos_ordenados else None
+    fim = None if atual else (f"{anos_ordenados[-1]}-01-01" if len(anos_ordenados) > 1 else None)
     return inicio, fim, atual
 
 
@@ -206,7 +209,10 @@ def _parse_formacoes(linhas: list[str], certificado: bool = False) -> list[dict]
             continue
         vistos.add(chave)
 
-        inicio, fim, _ = _periodo(contexto)
+        # Prefere o período da própria linha. Usa as linhas vizinhas somente
+        # quando instituição/curso e datas foram separados pelo PDF/DOCX.
+        fonte_periodo = linha if re.search(r"\b(?:19|20)\d{2}\b", linha) else contexto
+        inicio, fim, _ = _periodo(fonte_periodo)
         resultado.append({
             "instituicao": instituicao,
             "curso": curso,

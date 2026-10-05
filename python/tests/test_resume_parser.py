@@ -60,3 +60,22 @@ def test_parser_nao_inventa_campos_sem_evidencia():
     assert dados["perfil"]["estado"] is None
     assert dados["experiencias"] == []
     assert dados["habilidades"] == []
+
+
+def test_parser_normaliza_periodo_de_formacao_escrito_com_conclusao_primeiro():
+    dados = analisar_curriculo("""
+Maria Silva
+Desenvolvedora Web
+
+Formação acadêmica
+Tecnologia em Sistemas | Faculdade Exemplo | Conclusão 2027, início 2025
+""")
+
+    assert dados["formacoes"] == [{
+        "instituicao": "Faculdade Exemplo",
+        "curso": "Tecnologia em Sistemas",
+        "nivel": None,
+        "data_inicio": "2025-01-01",
+        "data_conclusao": "2027-01-01",
+        "status": None,
+    }]

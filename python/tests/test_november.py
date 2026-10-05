@@ -146,7 +146,7 @@ def test_importacao_grupos_e_itens_confirmados_juntos(ambiente, autenticar, indi
             {'empresa': 'Empresa B', 'cargo': 'Analista', 'data_inicio': '2026-01-01'},
         ],
         'formacoes': [
-            {'instituicao': 'Escola A', 'curso': 'Sistemas'},
+            {'instituicao': 'Escola A', 'curso': 'Sistemas', 'data_inicio': '2027-01-01', 'data_conclusao': '2025-01-01'},
             {'instituicao': 'Escola B', 'curso': 'Testes'},
         ],
         'habilidades': [{'nome': 'Python'}, {'nome': 'SQL'}],
@@ -166,6 +166,9 @@ def test_importacao_grupos_e_itens_confirmados_juntos(ambiente, autenticar, indi
     assert {e['Empresa'] for e in experiencias} == {dados['experiencias'][i]['empresa'] for i in indices}
     formacoes = c.get('/candidatos/c1/formacoes').json()
     assert {f['Curso'] for f in formacoes} == {dados['formacoes'][i]['curso'] for i in indices}
+    if 0 in indices:
+        primeira = next(f for f in formacoes if f['Curso'] == 'Sistemas')
+        assert primeira['DataInicio'] == '2025-01-01' and primeira['DataConclusao'] == '2027-01-01'
     habilidades = c.get('/candidatos/c1/habilidades').json()
     assert {h['NomeHabilidade'] for h in habilidades} == {dados['habilidades'][i]['nome'] for i in indices}
     idiomas = c.get('/candidatos/c1/idiomas').json()

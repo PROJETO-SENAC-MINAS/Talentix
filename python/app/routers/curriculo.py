@@ -383,14 +383,22 @@ async def aplicar_importacao_curriculo(
         for formacao in dados.get("formacoes") or []:
             if not formacao.get("instituicao") or not formacao.get("curso"):
                 continue
+            formacao_normalizada = {**formacao, "status_formacao": formacao.get("status")}
+            inicio = formacao_normalizada.get("data_inicio")
+            conclusao = formacao_normalizada.get("data_conclusao")
+            # Mantém compatibilidade com análises concluídas antes da correção
+            # do parser, que podiam armazenar os anos na ordem em que apareciam.
+            if inicio and conclusao and str(conclusao) < str(inicio):
+                formacao_normalizada["data_inicio"] = conclusao
+                formacao_normalizada["data_conclusao"] = inicio
             try:
-                FormacaoCreate(**{**formacao, "status_formacao": formacao.get("status")})
+                formacao_validada = FormacaoCreate(**formacao_normalizada).model_dump(mode="json")
             except ValidationError as exc:
                 raise HTTPException(422, "Revise a formação identificada ou desmarque-a antes de confirmar.") from exc
             duplicada = await fetch_one(
                 """SELECT ID_Formacoes FROM Formacoes
                    WHERE ID_Candidatos=%s AND Instituicao=%s AND Curso=%s LIMIT 1""",
-                (id_candidato, formacao["instituicao"], formacao["curso"]),
+                (id_candidato, formacao_validada["instituicao"], formacao_validada["curso"]),
             )
             if duplicada:
                 continue
@@ -399,9 +407,9 @@ async def aplicar_importacao_curriculo(
                    (ID_Formacoes, ID_Candidatos, Instituicao, Curso, Nivel, DataInicio, DataConclusao, Status)
                    VALUES (%s,%s,%s,%s,%s,%s,%s,%s)""",
                 (
-                    novo_uuid(), id_candidato, formacao["instituicao"][:200], formacao["curso"][:200],
-                    (formacao.get("nivel") or None), formacao.get("data_inicio"),
-                    formacao.get("data_conclusao"), formacao.get("status"),
+                    novo_uuid(), id_candidato, formacao_validada["instituicao"], formacao_validada["curso"],
+                    formacao_validada.get("nivel"), formacao_validada.get("data_inicio"),
+                    formacao_validada.get("data_conclusao"), formacao_validada.get("status_formacao"),
                 ),
             )
             contadores["formacoes"] += 1

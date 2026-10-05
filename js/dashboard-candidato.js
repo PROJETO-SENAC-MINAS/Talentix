@@ -487,7 +487,7 @@ document.addEventListener('DOMContentLoaded', () => {
           `${escapeHtml(item.cargo || '')} · ${escapeHtml(item.empresa || '')} ${item.data_inicio ? `(${escapeHtml(item.data_inicio.slice(0, 4))}${item.atual ? ' — atual' : item.data_fim ? ` — ${escapeHtml(item.data_fim.slice(0, 4))}` : ''})` : ''}`
         , 'experiencias')}
         ${listaPreview('Formação e certificados', dados?.formacoes, (item) =>
-          `${escapeHtml(item.curso || '')} · ${escapeHtml(item.instituicao || '')}${item.nivel ? ` — ${escapeHtml(item.nivel)}` : ''}`
+          `${escapeHtml(item.curso || '')} · ${escapeHtml(item.instituicao || '')}${item.nivel ? ` — ${escapeHtml(item.nivel)}` : ''}${item.data_inicio ? ` (${escapeHtml(item.data_inicio.slice(0, 4))}${item.data_conclusao ? ` — ${escapeHtml(item.data_conclusao.slice(0, 4))}` : ''})` : ''}`
         , 'formacoes')}
         ${listaPreview('Habilidades', dados?.habilidades, (item) => escapeHtml(item.nome || ''), 'habilidades')}
         ${listaPreview('Idiomas', dados?.idiomas, (item) =>
