@@ -7,7 +7,7 @@ from pydantic import BaseModel, EmailStr, Field
 
 from app.core.audit import registrar_auditoria
 from app.core.config import settings
-from app.core.deps import descobrir_tipo_usuario, usuario_atual
+from app.core.deps import descobrir_tipo_usuario, descobrir_tipo_usuario_comum, usuario_atual
 from app.core.email_service import (
     email_2fa_alterado,
     email_boas_vindas,
@@ -270,6 +270,10 @@ async def me(sessao: dict = Depends(usuario_atual)):
         "tipo_usuario": sessao["tipo_usuario"],
         "tipo_principal": sessao.get("tipo_principal", sessao["tipo_usuario"]),
         "modo_usuario": bool(sessao.get("modo_usuario")),
+        "tipo_alternativo": (
+            await descobrir_tipo_usuario_comum(sessao["id_usuario"])
+            if sessao.get("tipo_principal") == "administrador" else None
+        ),
         "permissoes": sessao.get("permissoes", []),
     }
 

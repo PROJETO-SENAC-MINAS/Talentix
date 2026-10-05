@@ -41,3 +41,25 @@ def test_me_expoe_permissoes(ambiente, autenticar):
     resposta = client.get("/auth/me")
     assert resposta.status_code == 200
     assert "perfil:editar" in resposta.json()["permissoes"]
+    assert resposta.json()["tipo_alternativo"] is None
+
+
+def test_me_informa_destino_real_da_troca_de_perfil(ambiente, autenticar):
+    client, conn = ambiente
+    autenticar(client, "ua", "administrador")
+    assert client.get("/auth/me").json()["tipo_alternativo"] == "usuario"
+    conn.execute("INSERT INTO Recrutadores(ID_Recrutadores, ID_Empresas, ID_Usuarios) VALUES ('ra', 'e1', 'ua')")
+    conn.commit()
+    resposta = client.get("/auth/me").json()
+    assert resposta["tipo_alternativo"] == "recrutador"
+    assert resposta["tipo_usuario"] == "administrador"
+    assert "admin:gerenciar" in resposta["permissoes"]
+    conn.execute("UPDATE Empresas SET Ativo=0 WHERE ID_Empresas='e1'")
+    conn.commit()
+    assert client.get("/auth/me").json()["tipo_alternativo"] == "usuario"
+    conn.execute("INSERT INTO Empresas(ID_Empresas, ID_Usuarios) VALUES ('ea', 'ua')")
+    conn.commit()
+    assert client.get("/auth/me").json()["tipo_alternativo"] == "empresa"
+    conn.execute("INSERT INTO Candidatos(ID_Candidatos, ID_Usuarios) VALUES ('ca', 'ua')")
+    conn.commit()
+    assert client.get("/auth/me").json()["tipo_alternativo"] == "candidato"

@@ -34,7 +34,7 @@ document.addEventListener('DOMContentLoaded', () => {
           <input id="settingDarkMode" type="checkbox">
         </label>
         <label class="setting-toggle">
-          <span><strong>Controles de acessibilidade</strong><small>Exibe os atalhos flutuantes de contraste e texto.</small></span>
+          <span><strong>Controles de acessibilidade</strong><small>Exibe os atalhos de contraste e texto no menu.</small></span>
           <input id="settingA11yEnabled" type="checkbox">
         </label>
         <label class="setting-toggle">

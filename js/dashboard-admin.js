@@ -158,6 +158,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     const user=await api('/auth/me');
     if(user.tipo_usuario!=='administrador' || user.tipo_principal!=='administrador'){location.assign('login.html');return;}
     $('#userName').textContent=user.Nome;$('#userAvatar').textContent=user.Nome.charAt(0).toUpperCase();
+    const modos = {recrutador:'Acessar painel do recrutador', empresa:'Acessar painel da empresa', candidato:'Acessar painel do candidato', usuario:'Acessar minha conta'};
+    $('#btnModoUsuario').textContent = modos[user.tipo_alternativo] || 'Acessar outro perfil';
+    $('#btnModoUsuario').disabled = false;
     await Promise.all([metricas(),carregarUsuarios()]);
   }catch(error){toast(error.message,true);}
 });

@@ -91,3 +91,41 @@ dialog.modal-overlay[open]{display:flex;}
 @media(max-width:900px){.sidebar{flex-direction:column;align-items:stretch}.sidebar__nav{flex-flow:row wrap}.sidebar__footer{display:flex;flex-wrap:wrap;align-items:center;gap:12px}.btn-logout{width:auto}.sidebar__brand{padding-bottom:16px}}
 
 .list-item__heading{font-size:16px;margin:0 0 8px;}
+
+/* Os demais paineis seguem o fluxo compacto aprovado no perfil do candidato. */
+body[data-painel] { padding-bottom: 0; }
+body[data-painel] .app { align-items: start; }
+body[data-painel] .content { min-height: 0; padding-bottom: 24px; }
+body[data-painel] .tab-panel.active { flex: 0 0 auto; }
+body[data-painel] .page-footer { margin-top: 12px; }
+body[data-painel] .a11y-toolbar { position: static; margin-top: 12px; box-shadow: none; background: var(--navy); color: #F1EDE3; }
+body[data-painel] .a11y-toolbar button { background: inherit; color: inherit; }
+body[data-painel] .btn { transition: none; }
+body[data-painel] .content__header { flex-wrap: wrap; }
+body[data-painel] .content__header > * { min-width: 0; }
+body[data-painel] .content__header h1 { letter-spacing: 0; }
+body[data-painel] .form-actions,
+body[data-painel] .dialog-actions { gap: 12px; flex-wrap: wrap; }
+body[data-painel] .form-actions--start { justify-content: flex-start; }
+body[data-painel] .metric { min-width: 0; margin-bottom: 0; }
+body[data-painel] .field { min-width: 0; }
+body[data-painel] .user-chip { min-width: 0; }
+body[data-painel] .user-chip > div:last-child { min-width: 0; overflow-wrap: anywhere; }
+body[data-painel] .checkbox-row { min-height: 44px; margin-bottom: 18px; }
+body[data-painel] .checkbox-row input { flex: 0 0 auto; width: 18px; height: 18px; margin: 0; accent-color: var(--accent); }
+body[data-painel] .dialog-header button { flex-shrink: 0; min-width: 44px; }
+body[data-painel] #processoPerfil { margin-bottom: 24px; }
+body[data-painel] #processoStatus { max-width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--panel); color: var(--text); }
+body[data-painel] :is(#processoEtapas, #processoEntrevistas) { margin-bottom: 20px; }
+@media (min-width: 901px) {
+  body[data-painel] .sidebar { overflow-y: auto; }
+  body[data-painel] .sidebar__nav { flex-shrink: 0; overflow: visible; }
+}
+@media (max-width: 650px) {
+  body[data-painel] .card:not(.admin-card) { padding: 20px 16px; }
+  body[data-painel] .metric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+  body[data-painel] .metric { min-height: 104px; overflow-wrap: anywhere; }
+  body[data-painel] dialog { padding: 20px 16px; }
+  body[data-painel] .dialog-header h2 { font-size: 20px; }
+  body[data-painel] .dialog-actions .btn { flex: 1; min-width: 120px; }
+}

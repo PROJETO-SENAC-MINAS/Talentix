@@ -30,7 +30,7 @@
             </div>
           </div>
           <button class="btn-logout" id="btnLogout" type="button">Sair</button>
-          <button class="btn-switch-mode" id="btnModoUsuario" type="button">Entrar como usuário comum</button>
+          <button class="btn-switch-mode" id="btnModoUsuario" type="button" disabled>Acessar outro perfil</button>
         </div>
       </aside>
       <main class="content">
@@ -136,8 +136,10 @@
                 <label for="cursoUrl">Link</label>
                 <input id="cursoUrl" type="url" maxlength="500">
               </div>
-              <button class="btn btn-primary" type="submit">Salvar curso</button>
-              <button class="btn btn-secondary" id="limparCurso" type="button">Novo curso</button>
+              <div class="form-actions form-actions--start">
+                <button class="btn btn-primary" type="submit">Salvar curso</button>
+                <button class="btn btn-secondary" id="limparCurso" type="button">Novo curso</button>
+              </div>
             </form>
           </div>
           <div class="list" id="cursosAdmin"></div>
@@ -215,12 +217,16 @@
             </div>
           </section>
         </section>
+        <footer class="page-footer">
+          <span>Talentix</span>
+          <span>Seu próximo passo profissional começa aqui.</span>
+        </footer>
       </main>
     </div>
     <dialog aria-labelledby="modalUsuarioTitulo" id="modalUsuario">
       <div class="dialog-header">
         <h2 id="modalUsuarioTitulo">Editar usuário</h2>
-        <button type="button" data-close="modalUsuario">×</button>
+        <button type="button" data-close="modalUsuario" aria-label="Fechar edição de usuário">×</button>
       </div>
       <form id="formUsuarioAdmin">
         <input type="hidden" id="usuarioId">
@@ -245,7 +251,7 @@
     <dialog aria-labelledby="modalEmpresaTitulo" id="modalEmpresa">
       <div class="dialog-header">
         <h2 id="modalEmpresaTitulo">Editar empresa</h2>
-        <button type="button" data-close="modalEmpresa">×</button>
+        <button type="button" data-close="modalEmpresa" aria-label="Fechar edição de empresa">×</button>
       </div>
       <form id="formEmpresaAdmin">
         <input type="hidden" id="empresaId">
