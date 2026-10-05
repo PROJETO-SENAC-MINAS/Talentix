@@ -59,6 +59,7 @@ async function checkLayout(page, name) {
         let effectiveRole = role;
         let alternate = 'recrutador';
         let rejectSwitch = false;
+        let rejectMeOnce = false;
         const switches = [];
         const user = {ID_Usuarios:'u-test',Nome:'Pessoa de teste com nome completo',Email:'pessoa@example.com',email_confirmado:true};
         await page.route('**/*', async route => {
@@ -66,6 +67,10 @@ async function checkLayout(page, name) {
           if (url.origin === front) return route.continue();
           if (url.origin !== 'http://127.0.0.1:8000') return route.abort();
           let data = [];
+          if (url.pathname === '/auth/me' && rejectMeOnce) {
+            rejectMeOnce = false;
+            return route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({detail:'Falha temporária ao carregar perfil.'})});
+          }
           if (url.pathname === '/auth/me') data = {...user,tipo_usuario:effectiveRole,tipo_principal:role === 'empresa' ? 'empresa' : 'administrador',tipo_alternativo:alternate,modo_usuario:effectiveRole === 'recrutador'};
           else if (url.pathname === '/auth/alternar-modo') {
             switches.push(route.request().postDataJSON());
@@ -119,6 +124,10 @@ async function checkLayout(page, name) {
             await page.locator('#toast').filter({hasText:'Tente novamente.'}).waitFor();
             assert.ok(page.url().endsWith('dashboard-admin.html'));
             rejectSwitch = false;
+            rejectMeOnce = true;
+            await page.reload();
+            await page.locator('#toast').filter({hasText:'Falha temporária'}).waitFor();
+            assert.equal(await page.locator('#btnModoUsuario').isEnabled(), true);
           }
           await page.locator('#btnModoUsuario').click();
           await page.waitForURL('**/dashboard-recrutador.html');

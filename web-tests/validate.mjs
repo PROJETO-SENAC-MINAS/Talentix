@@ -13,7 +13,7 @@ for(const name of fs.readdirSync(path.join(root,'html')).filter(n=>n.endsWith('.
   const ids=[...page.querySelectorAll('[id]')].map(el=>el.id);assert.equal(new Set(ids).size,ids.length,'IDs duplicados em '+name);
   for(const el of page.querySelectorAll('script[src],link[rel="stylesheet"],img[src]')) {
     const value=el.getAttribute('src') || el.getAttribute('href');if(/^https?:|^data:/.test(value))continue;
-    const local=path.resolve(path.dirname(file),value);assert.ok(local.startsWith(root+path.sep));assert.ok(fs.existsSync(local),`${name}: recurso ausente ${value}`);
+    const local=path.resolve(path.dirname(file),value.split(/[?#]/)[0]);assert.ok(local.startsWith(root+path.sep));assert.ok(fs.existsSync(local),`${name}: recurso ausente ${value}`);
   }
   count++;
 }

@@ -1,4 +1,4 @@
-@import url('dashboard-candidato.css');
+@import url('dashboard-candidato.css?v=20261005-2');
 
 .content{min-width:0;max-width:none;width:100%}.content__header{display:flex;align-items:flex-start;justify-content:space-between;gap:20px;margin-bottom:18px}.content__header h1{margin-bottom:6px}.content__header p{margin:0;color:var(--text-muted)}
 .panel-toolbar{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:20px}.metric-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:16px;margin:20px 0 28px}.metric{min-height:126px;display:flex;flex-direction:column;justify-content:center}.metric span{font-weight:500}.metric strong{display:block;font-size:32px;color:var(--accent);margin:8px 0 0}

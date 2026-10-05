@@ -13,11 +13,18 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   bindLogout();
   $('#btnModoUsuario')?.addEventListener('click', run(async () => {
-    await api('/auth/alternar-modo', {
-      method: 'POST',
-      body: JSON.stringify({modo_usuario: true}),
-    });
-    window.location.assign('dashboard.html');
+    const button = $('#btnModoUsuario');
+    if (button.disabled) return;
+    button.disabled = true;
+    try {
+      await api('/auth/alternar-modo', {
+        method: 'POST',
+        body: JSON.stringify({modo_usuario: true}),
+      });
+      window.location.assign('dashboard.html');
+    } finally {
+      button.disabled = false;
+    }
   }));
 
   async function metricas() {
