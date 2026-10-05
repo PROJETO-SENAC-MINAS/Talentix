@@ -141,6 +141,20 @@ texto extraído ou a prévia do candidato. Downloads/preview têm autorização,
 `nosniff`, cache privado e sandbox. Não há montagem estática do diretório de CVs.
 O PDF Talentix usa texto escapado; não incorpora imagens/URLs externas.
 
+A revisão separa **Formação acadêmica**, **Certificados** e **Projetos**, cada
+grupo com seleção independente. A extração v2 reconhece cabeçalhos de projetos
+e não deixa suas descrições entrarem no grupo anterior. Formações e certificados
+vão para `Formacoes` (certificados com `Nivel='Certificado'`); projetos vão para
+`Candidato_Itens` com `Tipo='projeto'`. Repetir a confirmação não duplica os itens.
+O cliente envia `versao_revisao: 2`, as seleções `certificados`/`projetos` e os
+respectivos indicadores `importar_certificados`/`importar_projetos`. Seleções
+continuam referenciando a prévia do servidor, nunca conteúdo enviado pelo cliente.
+Análises v1 com texto armazenado recebem a nova separação ao abrir a revisão,
+sem reenvio do arquivo e sem alterar o texto/original ou o perfil automaticamente.
+Quando o texto antigo não está disponível, os certificados são separados pelo
+nível já identificado; projetos antes não extraídos podem ser adicionados na seção Projetos.
+Essa compatibilidade não reclassifica registros já confirmados no perfil.
+
 ## Update 6: busca profissional
 
 `GET /vagas/busca` é paginado, público e preserva `/vagas` como API legada da

@@ -411,7 +411,9 @@ document.addEventListener('DOMContentLoaded', () => {
   const gruposImportacao = {
     perfil: {id: 'impPerfil', nome: 'dados do perfil'},
     experiencias: {id: 'impExperiencias', nome: 'experiências'},
-    formacoes: {id: 'impFormacoes', nome: 'formação e certificados'},
+    formacoes: {id: 'impFormacoes', nome: 'formação acadêmica'},
+    certificados: {id: 'impCertificados', nome: 'certificados'},
+    projetos: {id: 'impProjetos', nome: 'projetos'},
     habilidades: {id: 'impHabilidades', nome: 'habilidades'},
     idiomas: {id: 'impIdiomas', nome: 'idiomas'},
   };
@@ -486,9 +488,15 @@ document.addEventListener('DOMContentLoaded', () => {
         ${listaPreview('Experiências', dados?.experiencias, (item) =>
           `${escapeHtml(item.cargo || '')} · ${escapeHtml(item.empresa || '')} ${item.data_inicio ? `(${escapeHtml(item.data_inicio.slice(0, 4))}${item.atual ? ' — atual' : item.data_fim ? ` — ${escapeHtml(item.data_fim.slice(0, 4))}` : ''})` : ''}`
         , 'experiencias')}
-        ${listaPreview('Formação e certificados', dados?.formacoes, (item) =>
+        ${listaPreview('Formação acadêmica', dados?.formacoes, (item) =>
           `${escapeHtml(item.curso || '')} · ${escapeHtml(item.instituicao || '')}${item.nivel ? ` — ${escapeHtml(item.nivel)}` : ''}${item.data_inicio ? ` (${escapeHtml(item.data_inicio.slice(0, 4))}${item.data_conclusao ? ` — ${escapeHtml(item.data_conclusao.slice(0, 4))}` : ''})` : ''}`
         , 'formacoes')}
+        ${listaPreview('Certificados', dados?.certificados, (item) =>
+          `${escapeHtml(item.curso || '')} · ${escapeHtml(item.instituicao || '')}${item.data_conclusao ? ` — ${escapeHtml(item.data_conclusao.slice(0, 4))}` : ''}`
+        , 'certificados')}
+        ${listaPreview('Projetos', dados?.projetos, (item) =>
+          `${escapeHtml(item.titulo || '')}${item.descricao ? ` — ${escapeHtml(item.descricao)}` : ''}${item.url ? ` · ${escapeHtml(item.url)}` : ''}`
+        , 'projetos')}
         ${listaPreview('Habilidades', dados?.habilidades, (item) => escapeHtml(item.nome || ''), 'habilidades')}
         ${listaPreview('Idiomas', dados?.idiomas, (item) =>
           `${escapeHtml(item.idioma || '')}${item.nivel ? ` — ${escapeHtml(item.nivel)}` : ''}`
@@ -631,7 +639,8 @@ document.addEventListener('DOMContentLoaded', () => {
     botao.setAttribute('data-loading', 'true');
 
     const payload = {
-      selecionados: {perfil:[], experiencias:[], formacoes:[], habilidades:[], idiomas:[]},
+      versao_revisao: 2,
+      selecionados: {perfil:[], experiencias:[], formacoes:[], certificados:[], projetos:[], habilidades:[], idiomas:[]},
       sobrescrever_perfil: $('#impSobrescrever').checked,
     };
     $all('#curriculoImportacaoResumo input[data-secao]:checked').forEach(el => payload.selecionados[el.dataset.secao].push(el.dataset.campo || Number(el.dataset.indice)));

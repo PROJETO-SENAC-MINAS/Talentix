@@ -19,11 +19,13 @@ const server = http.createServer((req, res) => {
     res.end(error ? '' : data);
   });
 });
-const controls = ['impPerfil', 'impExperiencias', 'impFormacoes', 'impHabilidades', 'impIdiomas'];
+const controls = ['impPerfil', 'impExperiencias', 'impFormacoes', 'impCertificados', 'impProjetos', 'impHabilidades', 'impIdiomas'];
 const fixture = {
   perfil: {titulo_profissional:'Analista de qualidade', cidade:'Contagem', estado:'MG', github_url:'https://github.com/exemplo', portfolio_url:'https://novo.example.com'},
   experiencias: [{empresa:'Empresa A',cargo:'Assistente',data_inicio:'2025-01-01'}, {empresa:'Empresa B',cargo:'Analista',data_inicio:'2026-01-01',atual:true}],
   formacoes: [{instituicao:'Escola A',curso:'Sistemas'}, {instituicao:'Escola B',curso:'Testes'}],
+  certificados: [{instituicao:'IFMG',curso:'Python Avançado',nivel:'Certificado'}, {instituicao:'IFRS',curso:'Java Básico',nivel:'Certificado'}],
+  projetos: [{titulo:'Talentix',descricao:'Plataforma de empregos'}, {titulo:'Biblioteca',descricao:'Gestão de empréstimos'}],
   habilidades: [{nome:'Python'}, {nome:'SQL'}],
   idiomas: [{idioma:'Inglês',nivel:'intermediario'}, {idioma:'Espanhol',nivel:'basico'}],
 };
@@ -127,6 +129,11 @@ const fixture = {
       await page.locator('input[data-secao="habilidades"][data-indice="0"]').uncheck();
       assert.equal(await page.locator('#impHabilidades').evaluate(el => el.indeterminate), true);
       await page.locator('#impFormacoes').uncheck();
+      assert.equal(await page.locator('#impCertificados').isChecked(), true, 'Desmarcar formação preserva certificados.');
+      await page.locator('input[data-secao="certificados"][data-indice="0"]').uncheck();
+      assert.equal(await page.locator('#impCertificados').evaluate(el => el.indeterminate), true);
+      await page.locator('#impProjetos').uncheck();
+      assert.equal(await page.locator('input[data-secao="certificados"]:checked').count(), 1, 'Projetos e certificados têm seleções independentes.');
       const before = await page.locator('#pGithub').inputValue();
       assert.equal(before, '', 'Nenhum dado aplicado sem confirmação.');
       await page.screenshot({path:path.join(out,'revisao-final-'+width+'.png')});
@@ -140,7 +147,10 @@ const fixture = {
       assert.equal(await github.isChecked(), true);
       assert.equal(await page.locator('#btnAplicarCurriculo').isEnabled(), true);
       const payload = applied[0];
-      assert.deepEqual(payload.selecionados, {perfil:['github_url'],experiencias:[0,1],formacoes:[],habilidades:[1],idiomas:[0,1]});
+      assert.equal(payload.versao_revisao, 2);
+      assert.deepEqual(payload.selecionados, {perfil:['github_url'],experiencias:[0,1],formacoes:[],certificados:[1],projetos:[],habilidades:[1],idiomas:[0,1]});
+      assert.equal(payload.importar_certificados, true);
+      assert.equal(payload.importar_projetos, false);
       assert.equal(payload.importar_perfil, true, 'Grupo parcial também importa seus itens.');
       assert.equal(payload.importar_formacoes, false);
       reject = false;
@@ -169,6 +179,8 @@ const fixture = {
       const complete = applied.at(-1);
       assert.deepEqual(complete.selecionados.experiencias, [0,1]);
       assert.deepEqual(complete.selecionados.formacoes, [0,1]);
+      assert.deepEqual(complete.selecionados.certificados, [0,1]);
+      assert.deepEqual(complete.selecionados.projetos, [0,1]);
       assert.deepEqual(complete.selecionados.habilidades, [0,1]);
       assert.equal(complete.importar_perfil, true);
       assert.equal(complete.importar_idiomas, false);

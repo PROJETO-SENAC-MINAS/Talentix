@@ -79,3 +79,40 @@ Tecnologia em Sistemas | Faculdade Exemplo | Conclusão 2027, início 2025
         "data_conclusao": "2027-01-01",
         "status": None,
     }]
+
+
+def test_separa_certificados_projetos_e_formacao_sem_misturar_periodos():
+    dados = analisar_curriculo("""Maria Silva
+Desenvolvedora Web
+Formação acadêmica
+Técnico em Sistemas | SENAC Minas | 2025 - 2027
+Ensino Médio | Escola Exemplo | 2022 - 2024
+Certificados
+Python Avançado | IFMG | 2026
+Java Básico | IFRS | 2024
+Projetos pessoais
+Talentix — Plataforma de empregos
+Aplicação desenvolvida durante o curso no SENAC.
+https://github.com/exemplo/talentix
+Biblioteca — Gestão de empréstimos
+Habilidades
+Python | SQL
+""")
+    assert [(f['curso'], f['data_inicio'], f['data_conclusao']) for f in dados['formacoes']] == [
+        ('Técnico em Sistemas', '2025-01-01', '2027-01-01'),
+        ('Ensino Médio', '2022-01-01', '2024-01-01'),
+    ]
+    assert [f['curso'] for f in dados['certificados']] == ['Python Avançado', 'Java Básico']
+    assert all(f['nivel'] == 'Certificado' for f in dados['certificados'])
+    assert [p['titulo'] for p in dados['projetos']] == ['Talentix', 'Biblioteca']
+    assert dados['projetos'][0]['url'] == 'https://github.com/exemplo/talentix'
+    assert 'SENAC' in dados['projetos'][0]['descricao']
+
+
+def test_certificado_com_instituicao_em_outra_linha():
+    dados = analisar_curriculo('Maria Silva\nCertificados\nPython Avançado\nIFMG\n2026\nProjetos\nTalentix — Portal de empregos')
+    assert len(dados['certificados']) == 1
+    assert dados['certificados'][0]['curso'] == 'Python Avançado'
+    assert dados['certificados'][0]['instituicao'] == 'IFMG'
+    assert dados['formacoes'] == []
+    assert dados['projetos'][0]['titulo'] == 'Talentix'

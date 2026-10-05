@@ -17,8 +17,9 @@ MAX_PDF_PAGES = 30
 _SECOES = {
     "resumo": {"resumo", "perfil", "perfil profissional", "objetivo", "objetivo profissional", "sobre mim"},
     "experiencias": {"experiencia", "experiencias", "experiencia profissional", "experiencias profissionais", "historico profissional"},
-    "formacoes": {"formacao", "formacao academica", "educacao", "escolaridade"},
-    "certificados": {"certificados", "certificacoes", "cursos", "cursos e certificacoes", "qualificacoes"},
+    "formacoes": {"formacao", "formacoes", "formacao academica", "formacoes academicas", "educacao", "escolaridade"},
+    "certificados": {"certificados", "certificacoes", "cursos", "cursos e certificacoes", "cursos e certificados", "cursos complementares", "qualificacoes"},
+    "projetos": {"projeto", "projetos", "projetos pessoais", "projetos academicos", "projetos profissionais", "principais projetos", "projetos relevantes", "portfolio", "portfolio de projetos"},
     "habilidades": {"habilidades", "competencias", "competencias tecnicas", "skills", "tecnologias"},
     "idiomas": {"idiomas", "linguas", "languages"},
 }
@@ -182,22 +183,22 @@ def _parse_formacoes(linhas: list[str], certificado: bool = False) -> list[dict]
 
     for indice, linha in enumerate(linhas):
         partes = [_limpar_linha(p) for p in re.split(r"\s*[|•·]\s*|\s+[-–—]\s+", linha) if _limpar_linha(p)]
-        contexto = " | ".join(linhas[max(0, indice - 1): min(len(linhas), indice + 2)])
-        nivel = _inferir_nivel_formacao(contexto, certificado)
-
+        # Datas/status isolados podem complementar um registro, mas outra
+        # formação nunca deve fornecer seu período ou nível ao item vizinho.
+        def metadado(valor):
+            return bool(re.fullmatch(r"[\d\s/.,:()–—|\-]+|\d+\s*(?:h|horas)|(?:conclusao|inicio|previsao|cursando|concluido|em andamento|carga horaria|horas|h)\b.*", _normalizar(valor)))
+        vizinhas = linhas[max(0, indice - 1):indice] + linhas[indice + 1:indice + 2]
+        contexto = " | ".join([linha] + [v for v in vizinhas if metadado(v)])
+        nivel = _inferir_nivel_formacao(linha, certificado)
         instituicao = next((p for p in partes if _INSTITUICAO_RE.search(_normalizar(p))), None)
-        curso = next((p for p in partes if p != instituicao and not re.fullmatch(r".*(?:19|20)\d{2}.*", p)), None)
-
-        if not instituicao and _INSTITUICAO_RE.search(_normalizar(linha)):
-            instituicao = _limpar_linha(re.sub(r"\b(?:19|20)\d{2}\b.*$", "", linha).strip(" -–—|"))
-            if indice > 0:
-                curso = _limpar_linha(linhas[indice - 1])
-            elif indice + 1 < len(linhas):
-                curso = _limpar_linha(linhas[indice + 1])
-
-        if not instituicao and len(partes) >= 2 and nivel:
-            instituicao = partes[-1]
-            curso = partes[0]
+        curso = next((p for p in partes if p != instituicao and not metadado(p)), None)
+        if instituicao and not curso:
+            curso = next((v for v in vizinhas if not metadado(v) and not _INSTITUICAO_RE.search(_normalizar(v))), None)
+            nivel = _inferir_nivel_formacao(curso or linha, certificado)
+        if not instituicao and nivel:
+            conteudo = [p for p in partes if not metadado(p)]
+            if len(conteudo) == 2:
+                curso, instituicao = conteudo
 
         if not instituicao or not curso:
             continue
@@ -221,6 +222,26 @@ def _parse_formacoes(linhas: list[str], certificado: bool = False) -> list[dict]
             "data_conclusao": fim,
             "status": "Cursando" if re.search(r"\b(cursando|em andamento)\b", _normalizar(contexto)) else None,
         })
+    return resultado[:20]
+
+
+def _parse_projetos(linhas: list[str]) -> list[dict]:
+    """Reconhece títulos explícitos, preservando as linhas de descrição juntas."""
+    resultado = []
+    for linha in linhas:
+        url = re.search(r"https?://[^\s|<>]+", linha)
+        sem_url = re.sub(r"https?://[^\s|<>]+", "", linha).strip(" |–—-")
+        partes = re.split(r"\s*[|]\s*|\s+[-–—]\s+|:\s+", sem_url, maxsplit=1)
+        titulo = partes[0].strip()
+        novo = bool(titulo and (not resultado or len(partes) > 1 or (len(titulo) <= 80 and not titulo.endswith('.'))))
+        if novo:
+            resultado.append({"titulo": titulo[:200], "descricao": partes[1].strip()[:5000] if len(partes) > 1 else None,
+                              "url": url.group(0).rstrip('.,;')[:300] if url else None})
+        elif resultado:
+            if sem_url:
+                resultado[-1]["descricao"] = "\n".join(filter(None, [resultado[-1]["descricao"], sem_url]))[:5000]
+            if url and not resultado[-1]["url"]:
+                resultado[-1]["url"] = url.group(0).rstrip('.,;')[:300]
     return resultado[:20]
 
 
@@ -351,7 +372,7 @@ def analisar_curriculo(
 
     experiencias = _parse_experiencias(secoes.get("experiencias", []))
     formacoes = _parse_formacoes(secoes.get("formacoes", []))
-    formacoes.extend(_parse_formacoes(secoes.get("certificados", []), certificado=True))
+    certificados = _parse_formacoes(secoes.get("certificados", []), certificado=True)
 
     anos = [int(exp["data_inicio"][:4]) for exp in experiencias if exp.get("data_inicio")]
     experiencia_anos = None
@@ -360,7 +381,7 @@ def analisar_curriculo(
         experiencia_anos = max(0, min(80, date.today().year - min(anos)))
 
     dados = {
-        "versao": 1,
+        "versao": 2,
         "contato": {
             "nome": cabecalho[0][:150] if cabecalho and "@" not in cabecalho[0] else None,
             "email": (re.search(r"[\w.+-]+@[\w.-]+\.[a-zA-Z]{2,}", texto).group(0) if re.search(r"[\w.+-]+@[\w.-]+\.[a-zA-Z]{2,}", texto) else None),
@@ -378,6 +399,8 @@ def analisar_curriculo(
         },
         "experiencias": experiencias,
         "formacoes": formacoes[:30],
+        "certificados": certificados,
+        "projetos": _parse_projetos(secoes.get("projetos", [])),
         "habilidades": _parse_habilidades(texto, secoes.get("habilidades", []), habilidades_catalogo),
         "idiomas": _parse_idiomas(texto, secoes.get("idiomas", []), idiomas_catalogo),
         "meta": {

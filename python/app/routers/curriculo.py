@@ -12,6 +12,7 @@ from datetime import date
 from pathlib import Path
 from io import BytesIO
 from copy import deepcopy
+from typing import Literal
 
 from fastapi import Depends, HTTPException, status, UploadFile, File, Form
 from pydantic import BaseModel, Field, model_validator, ConfigDict, ValidationError
@@ -24,6 +25,7 @@ from app.core.upload import salvar_arquivo
 from app.core.config import settings
 from app.core.resume_parser import extrair_texto_curriculo, analisar_curriculo
 from app.routers.perfis import CandidatoUpdate
+from app.routers.profissional import ItemProfissional
 
 router = APIRouter(tags=["Currículo"])
 
@@ -79,6 +81,25 @@ def _json_importacao(valor) -> dict | None:
     if isinstance(valor, str):
         return json.loads(valor)
     return dict(valor)
+
+
+def _dados_revisao(importacao: dict) -> dict | None:
+    """A prévia e a confirmação usam a mesma separação, sem mudar o original."""
+    dados = deepcopy(_json_importacao(importacao.get("DadosExtraidos")))
+    if not dados:
+        return dados
+    if dados.get("versao") == 1 and importacao.get("TextoExtraido"):
+        # Recupera a separação de documentos já analisados pelo parser antigo.
+        novos = analisar_curriculo(importacao["TextoExtraido"])
+        for secao in ("formacoes", "certificados", "projetos"):
+            dados[secao] = novos[secao]
+    else:
+        formacoes = dados.get("formacoes") or []
+        dados["certificados"] = (dados.get("certificados") or []) + [f for f in formacoes if f.get("nivel") == "Certificado"]
+        dados["formacoes"] = [f for f in formacoes if f.get("nivel") != "Certificado"]
+        dados.setdefault("projetos", [])
+    dados["versao"] = 2
+    return dados
 
 
 async def _processar_importacao(curriculo: dict) -> dict:
@@ -152,7 +173,7 @@ async def _enfileirar(curriculo):
         raise HTTPException(422, "A análise aceita somente PDF com texto ou DOCX. O original permanece salvo.")
     existente = await fetch_one("SELECT * FROM Curriculo_Importacoes WHERE ID_Curriculos=%s", (curriculo["ID_Curriculos"],))
     if existente and existente["ID_Status_Processamento_IA"] in (1, 2, 3):
-        existente["DadosExtraidos"] = _json_importacao(existente.get("DadosExtraidos"))
+        existente["DadosExtraidos"] = _dados_revisao(existente)
         return existente
     if existente:
         await execute("UPDATE Curriculo_Importacoes SET ID_Status_Processamento_IA=1,ErroProcessamento=NULL WHERE ID_Curriculos=%s", (curriculo["ID_Curriculos"],))
@@ -268,7 +289,7 @@ async def obter_importacao_curriculo(id_curriculo: str, sessao: dict = Depends(u
     )
     if not importacao:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Este currículo ainda não foi analisado.")
-    importacao["DadosExtraidos"] = _json_importacao(importacao.get("DadosExtraidos"))
+    importacao["DadosExtraidos"] = _dados_revisao(importacao)
     return importacao
 
 
@@ -276,9 +297,12 @@ class CurriculoImportacaoAplicar(BaseModel):
     importar_perfil: bool = True
     importar_experiencias: bool = True
     importar_formacoes: bool = True
+    importar_certificados: bool = False
+    importar_projetos: bool = False
     importar_habilidades: bool = True
     importar_idiomas: bool = True
     sobrescrever_perfil: bool = False
+    versao_revisao: Literal[1, 2] = 1
     # Índices escolhidos na prévia, e nomes de campos do perfil. Ausente mantém
     # compatibilidade com clientes anteriores que aprovam explicitamente categorias.
     selecionados: dict[str, list[int | str]] | None = None
@@ -286,7 +310,7 @@ class CurriculoImportacaoAplicar(BaseModel):
     @model_validator(mode="after")
     def selecao(self):
         if self.selecionados is not None:
-            if set(self.selecionados) - {"perfil", "experiencias", "formacoes", "habilidades", "idiomas"} or any(len(v)>50 for v in self.selecionados.values()):
+            if set(self.selecionados) - {"perfil", "experiencias", "formacoes", "certificados", "projetos", "habilidades", "idiomas"} or any(len(v)>50 for v in self.selecionados.values()):
                 raise ValueError("Seleção de dados inválida.")
         return self
 
@@ -310,14 +334,19 @@ async def aplicar_importacao_curriculo(
             "Analise o currículo com sucesso antes de importar os dados.",
         )
 
-    dados = _json_importacao(importacao["DadosExtraidos"]) or {}
-    dados = deepcopy(dados)
+    dados = _dados_revisao(importacao) if opcoes.versao_revisao == 2 else deepcopy(_json_importacao(importacao["DadosExtraidos"]))
+    if opcoes.versao_revisao == 1 and dados.get("versao") == 2:
+        # Clientes anteriores têm um único grupo de formação/certificados.
+        dados["formacoes"] = dados.get("formacoes", []) + dados.get("certificados", [])
+        dados["certificados"] = []
     if opcoes.selecionados is not None:
-        for secao in ("experiencias", "formacoes", "habilidades", "idiomas"):
+        for secao in ("experiencias", "formacoes", "certificados", "projetos", "habilidades", "idiomas"):
             indices = opcoes.selecionados.get(secao, [])
             dados[secao] = [v for i, v in enumerate(dados.get(secao, [])) if i in indices]
         dados["perfil"] = {k: v for k, v in dados.get("perfil", {}).items() if k in opcoes.selecionados.get("perfil", [])}
     contadores = {"perfil": 0, "experiencias": 0, "formacoes": 0, "habilidades": 0, "idiomas": 0}
+    if opcoes.versao_revisao == 2 or opcoes.importar_certificados or opcoes.importar_projetos:
+        contadores.update(certificados=0, projetos=0)
 
     if opcoes.importar_perfil:
         try:
@@ -379,11 +408,16 @@ async def aplicar_importacao_curriculo(
             )
             contadores["experiencias"] += 1
 
-    if opcoes.importar_formacoes:
-        for formacao in dados.get("formacoes") or []:
+    for secao, importar in (("formacoes", opcoes.importar_formacoes), ("certificados", opcoes.importar_certificados)):
+        if not importar:
+            continue
+        rotulo = "certificado" if secao == "certificados" else "formação acadêmica"
+        for formacao in dados.get(secao) or []:
             if not formacao.get("instituicao") or not formacao.get("curso"):
-                continue
+                raise HTTPException(422, f"Revise instituição e curso do item de {rotulo}, ou desmarque-o antes de confirmar.")
             formacao_normalizada = {**formacao, "status_formacao": formacao.get("status")}
+            if secao == "certificados":
+                formacao_normalizada["nivel"] = "Certificado"
             inicio = formacao_normalizada.get("data_inicio")
             conclusao = formacao_normalizada.get("data_conclusao")
             # Mantém compatibilidade com análises concluídas antes da correção
@@ -394,11 +428,15 @@ async def aplicar_importacao_curriculo(
             try:
                 formacao_validada = FormacaoCreate(**formacao_normalizada).model_dump(mode="json")
             except ValidationError as exc:
-                raise HTTPException(422, "Revise a formação identificada ou desmarque-a antes de confirmar.") from exc
+                titulo = str(formacao.get("curso", ""))[:100]
+                campo = str(exc.errors()[0]["loc"][0]) if exc.errors()[0]["loc"] else "datas"
+                campo = {"instituicao":"a instituição", "curso":"o nome do curso", "nivel":"o nível", "data_inicio":"a data de início", "data_conclusao":"a data de conclusão", "status_formacao":"a situação"}.get(campo, "as datas")
+                raise HTTPException(422, f'Revise {campo} em “{titulo}” ({rotulo}) ou desmarque esse item antes de confirmar.') from exc
             duplicada = await fetch_one(
                 """SELECT ID_Formacoes FROM Formacoes
-                   WHERE ID_Candidatos=%s AND Instituicao=%s AND Curso=%s LIMIT 1""",
-                (id_candidato, formacao_validada["instituicao"], formacao_validada["curso"]),
+                   WHERE ID_Candidatos=%s AND Instituicao=%s AND Curso=%s
+                     AND COALESCE(Nivel, '')=%s LIMIT 1""",
+                (id_candidato, formacao_validada["instituicao"], formacao_validada["curso"], formacao_validada.get("nivel") or ""),
             )
             if duplicada:
                 continue
@@ -412,7 +450,31 @@ async def aplicar_importacao_curriculo(
                     formacao_validada.get("data_conclusao"), formacao_validada.get("status_formacao"),
                 ),
             )
-            contadores["formacoes"] += 1
+            contadores[secao] += 1
+
+    if opcoes.importar_projetos:
+        for projeto in dados.get("projetos") or []:
+            try:
+                item = ItemProfissional(**{**projeto, "tipo": "projeto"}).model_dump(mode="json")
+            except ValidationError as exc:
+                titulo = str(projeto.get("titulo", "Projeto"))[:100]
+                raise HTTPException(422, f'Revise o projeto “{titulo}” ou desmarque esse item antes de confirmar.') from exc
+            duplicado = await fetch_one(
+                """SELECT ID_Item FROM Candidato_Itens
+                   WHERE ID_Candidatos=%s AND Tipo='projeto' AND Titulo=%s
+                     AND COALESCE(Url, '')=%s LIMIT 1""",
+                (id_candidato, item["titulo"], item.get("url") or ""),
+            )
+            if duplicado:
+                continue
+            await execute(
+                """INSERT INTO Candidato_Itens
+                   (ID_Item, ID_Candidatos, Tipo, Titulo, Instituicao, Descricao, Url, DataInicio, DataFim)
+                   VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)""",
+                (novo_uuid(), id_candidato, "projeto", item["titulo"], item.get("instituicao"),
+                 item.get("descricao"), item.get("url"), item.get("data_inicio"), item.get("data_fim")),
+            )
+            contadores["projetos"] += 1
 
     if opcoes.importar_habilidades:
         for item in dados.get("habilidades") or []:

@@ -86,7 +86,11 @@ try:
     check('Exportação é download',c1.get(url).headers['content-disposition'].startswith('attachment;'))
     check('Prévia é inline autenticado',c1.get(url+'?preview=true').headers['content-disposition'].startswith('inline;'))
     stream=BytesIO();doc=canvas.Canvas(stream);y=800
-    for line in ['Maria Revisão','Desenvolvedora Python','maria@example.com','(31) 99999-1234','Resumo','Apresentação sugerida','Idiomas','Inglês fluente']:
+    for line in ['Maria Revisão','Desenvolvedora Python','maria@example.com','(31) 99999-1234','Resumo','Apresentação sugerida',
+                 'Formação acadêmica','Técnico em Sistemas | SENAC Minas | 2025 - 2027',
+                 'Certificados','Python Avançado | IFMG | 2026','Java Básico | IFRS | 2024',
+                 'Projetos','Talentix Importado - Portal de empregos','Desenvolvido durante o curso no SENAC.',
+                 'https://github.com/exemplo/talentix','Idiomas','Inglês fluente']:
         doc.drawString(50,y,line);y-=25
     doc.save();resume=stream.getvalue()
     r=c1.post(f'/candidatos/{p}/curriculos',data={'titulo':'Importação para revisar','principal':'true'},files={'arquivo':('cv.pdf',resume,'application/pdf')});check('Upload não espera parser',r.status_code==201 and r.json()['importacao']['ID_Status_Processamento_IA']==1)
@@ -99,6 +103,19 @@ try:
     check('Confirmação manual seletiva',c1.post('/curriculos/'+ident+'/importacao/aplicar',json={'selecionados':{'perfil':['resumo']},'sobrescrever_perfil':True}).status_code==200)
     check('Campo não aprovado intacto',c1.get(f'/candidatos/{p}').json()['TituloProfissional']==fields['titulo_profissional'])
     check('Campo aprovado aplicado',c1.get(f'/candidatos/{p}').json()['Resumo']=='Apresentação sugerida')
+    dados=imp['DadosExtraidos']
+    check('PDF separa formação, certificados e projetos',len(dados['formacoes'])==1 and len(dados['certificados'])==2 and len(dados['projetos'])==1)
+    selection={'versao_revisao':2,'importar_certificados':True,'importar_projetos':True,
+               'selecionados':{'formacoes':[0],'certificados':[1],'projetos':[0]}}
+    applied=c1.post('/curriculos/'+ident+'/importacao/aplicar',json=selection)
+    check('Importação independente em MySQL',applied.status_code==200 and {k:v for k,v in applied.json()['importados'].items() if v}=={'formacoes':1,'certificados':1,'projetos':1})
+    official=c1.get(f'/candidatos/{p}/profissional').json()
+    check('Certificado no grupo correto',any(f['Curso']=='Java Básico' and f['Nivel']=='Certificado' for f in official['formacoes']))
+    check('Certificado desmarcado não importado',not any(f['Curso']=='Python Avançado' for f in official['formacoes']))
+    check('Projeto no grupo correto',any(i['Titulo']=='Talentix Importado' and i['Tipo']=='projeto' for i in official['itens']))
+    check('Projetos não viram certificados',not any(f['Curso']=='Talentix Importado' for f in official['formacoes']))
+    check('Repetição não duplica itens',sum(c1.post('/curriculos/'+ident+'/importacao/aplicar',json=selection).json()['importados'].values())==0)
+    check('Importação alheia bloqueada',c2.post('/curriculos/'+ident+'/importacao/aplicar',json=selection).status_code==403)
     check('Original nunca sobrescrito',c1.get(cv['ArquivoUrl']).content==resume and c1.get(url).content==pdf)
     check('Currículo principal trocável',c1.put('/curriculos/'+generated_id,json={'titulo':'Principal Talentix','principal':True}).status_code==200)
     check('Apenas um principal',sum(x['Principal'] for x in c1.get(f'/candidatos/{p}/curriculos').json())==1)

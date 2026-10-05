@@ -131,7 +131,8 @@ def test_confirmacao_seletiva_e_dados_separados(ambiente,autenticar):
     assert c.post('/curriculos/cr1/importacao/aplicar',json={'selecionados':{'perfil':['titulo_profissional']}}).status_code==200
     p=c.get('/candidatos/c1').json();assert p['TituloProfissional']=='Título aprovado' and p['Resumo'] is None
     imp=c.get('/curriculos/cr1/importacao').json()
-    assert imp['DadosExtraidos']==dados and imp['TextoExtraido']=='original' and imp['DadosConfirmados']
+    assert imp['DadosExtraidos']=={**dados, 'versao':2, 'certificados':[], 'projetos':[]} and imp['TextoExtraido']=='original' and imp['DadosConfirmados']
+    assert json.loads(conn.execute("SELECT DadosExtraidos FROM Curriculo_Importacoes WHERE ID_Curriculos='cr1'").fetchone()[0]) == dados
     autenticar(c,'uc2','candidato');assert c.post('/curriculos/cr1/importacao/aplicar',json={}).status_code==403
 
 
@@ -177,8 +178,86 @@ def test_importacao_grupos_e_itens_confirmados_juntos(ambiente, autenticar, indi
     repetida = c.post('/curriculos/cr1/importacao/aplicar', json=payload)
     assert repetida.status_code == 200
     assert repetida.json()['importados'] == dict.fromkeys(selecionados, 0)
-    assert c.get('/curriculos/cr1/importacao').json()['DadosExtraidos'] == dados
+    assert c.get('/curriculos/cr1/importacao').json()['DadosExtraidos'] == {**dados, 'versao':2, 'certificados':[], 'projetos':[]}
+    assert json.loads(conn.execute("SELECT DadosExtraidos FROM Curriculo_Importacoes WHERE ID_Curriculos='cr1'").fetchone()[0]) == dados
     assert conn.execute("SELECT COUNT(*) FROM Experiencias WHERE ID_Candidatos='c2'").fetchone()[0] == 0
+
+
+@pytest.mark.parametrize('legado', [False, True])
+def test_importa_certificados_e_projetos_em_destinos_independentes(ambiente, autenticar, legado):
+    from app.core.resume_parser import analisar_curriculo
+    c, conn = ambiente
+    autenticar(c, 'uc1', 'candidato')
+    texto = '''Maria Silva
+Desenvolvedora Web
+Formação acadêmica
+Técnico em Sistemas | SENAC Minas | 2025 - 2027
+Certificados
+Python Avançado | IFMG | 2026
+Java Básico | IFRS | 2024
+Projetos
+Talentix — Plataforma de empregos
+Desenvolvida durante o curso no SENAC.
+https://github.com/exemplo/talentix
+Biblioteca — Gestão de empréstimos
+'''
+    dados = analisar_curriculo(texto)
+    if legado:
+        # A extração antiga incluía projetos no último grupo reconhecido.
+        dados.update(versao=1, formacoes=dados['formacoes'] + dados.pop('certificados') + [
+            {'instituicao':'SENAC', 'curso':'Projeto indevidamente classificado', 'nivel':'Certificado'}])
+        dados.pop('projetos')
+    conn.execute("INSERT INTO Curriculo_Importacoes(ID_Curriculo_Importacoes,ID_Curriculos,ID_Status_Processamento_IA,DadosExtraidos,TextoExtraido) VALUES ('imp','cr1',3,?,?)", (json.dumps(dados), texto))
+    conn.commit()
+    previa = c.get('/curriculos/cr1/importacao').json()['DadosExtraidos']
+    assert len(previa['formacoes']) == 1 and len(previa['certificados']) == 2 and len(previa['projetos']) == 2
+    assert c.post('/curriculos/cr1/analisar').json()['DadosExtraidos'] == previa
+    assert not c.get('/candidatos/c1/formacoes').json()
+    assert not c.get('/candidatos/c1/profissional').json()['itens']
+    # Confirmar só o certificado de índice 1 não importa formação nem projeto.
+    payload = {'versao_revisao':2, 'importar_certificados':True, 'selecionados':{'certificados':[1]}}
+    resposta = c.post('/curriculos/cr1/importacao/aplicar', json=payload)
+    assert resposta.status_code == 200, resposta.text
+    assert resposta.json()['importados']['certificados'] == 1
+    assert sum(resposta.json()['importados'].values()) == 1
+    formacoes = c.get('/candidatos/c1/formacoes').json()
+    assert [(f['Curso'], f['Nivel']) for f in formacoes] == [('Java Básico', 'Certificado')]
+    assert not c.get('/candidatos/c1/profissional').json()['itens']
+    payload = {'versao_revisao':2, 'importar_certificados':True, 'importar_projetos':True,
+               'selecionados':{'formacoes':[0], 'certificados':[0,1], 'projetos':[0]}}
+    resposta = c.post('/curriculos/cr1/importacao/aplicar', json=payload)
+    assert resposta.status_code == 200, resposta.text
+    assert {k:v for k,v in resposta.json()['importados'].items() if v} == {'formacoes':1, 'certificados':1, 'projetos':1}
+    profissional = c.get('/candidatos/c1/profissional').json()
+    assert len([f for f in profissional['formacoes'] if f['Nivel'] == 'Certificado']) == 2
+    assert len([f for f in profissional['formacoes'] if f['Nivel'] != 'Certificado']) == 1
+    assert [(i['Tipo'], i['Titulo']) for i in profissional['itens']] == [('projeto', 'Talentix')]
+    assert profissional['itens'][0]['Url'] == 'https://github.com/exemplo/talentix'
+    assert not any(f['campo'] in ('Projeto','Certificado','Formação acadêmica') for f in profissional['faltantes'])
+    assert sum(c.post('/curriculos/cr1/importacao/aplicar', json=payload).json()['importados'].values()) == 0
+    assert json.loads(conn.execute("SELECT DadosExtraidos FROM Curriculo_Importacoes WHERE ID_Curriculos='cr1'").fetchone()[0]) == dados
+    audit = json.loads(conn.execute("SELECT DadosConfirmados FROM Curriculo_Importacoes WHERE ID_Curriculos='cr1'").fetchone()[0])
+    assert audit['selecionados']['projetos'] == [previa['projetos'][0]]
+    autenticar(c, 'uc2', 'candidato')
+    assert c.post('/curriculos/cr1/importacao/aplicar', json=payload).status_code == 403
+    assert not c.get('/candidatos/c2/profissional').json()['itens']
+
+
+def test_importacao_projeto_invalido_nao_persiste_parcialmente(ambiente, autenticar):
+    c, conn = ambiente
+    autenticar(c, 'uc1', 'candidato')
+    dados = {'versao':2, 'certificados':[{'curso':'Python','instituicao':'IFMG'}],
+             'projetos':[{'titulo':'Link inválido','url':'javascript:alert(1)'}]}
+    conn.execute("INSERT INTO Curriculo_Importacoes(ID_Curriculo_Importacoes,ID_Curriculos,ID_Status_Processamento_IA,DadosExtraidos) VALUES ('imp','cr1',3,?)", (json.dumps(dados),))
+    conn.commit()
+    payload = {'versao_revisao':2, 'importar_certificados':True, 'importar_projetos':True,
+               'selecionados':{'certificados':[0], 'projetos':[0]}}
+    resposta = c.post('/curriculos/cr1/importacao/aplicar', json=payload)
+    assert resposta.status_code == 422 and 'Link inválido' in resposta.json()['detail']
+    assert not c.get('/candidatos/c1/formacoes').json()
+    assert not c.get('/candidatos/c1/profissional').json()['itens']
+    payload['selecionados']['projetos'] = []
+    assert c.post('/curriculos/cr1/importacao/aplicar', json=payload).json()['importados']['certificados'] == 1
 
 
 def test_erro_parser_compreensivel(ambiente):
