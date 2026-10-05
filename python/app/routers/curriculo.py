@@ -15,7 +15,7 @@ from copy import deepcopy
 from typing import Literal
 
 from fastapi import Depends, HTTPException, status, UploadFile, File, Form
-from pydantic import BaseModel, Field, model_validator, ConfigDict, ValidationError
+from pydantic import BaseModel, Field, model_validator, ConfigDict, ValidationError, StrictInt, StrictStr
 
 from app.db.database import fetch_one, fetch_all, execute
 from app.core.security import novo_uuid
@@ -23,7 +23,7 @@ from app.core.deps import usuario_atual
 from app.core.access import checar_leitura_candidato, checar_dono_candidato
 from app.core.upload import salvar_arquivo
 from app.core.config import settings
-from app.core.resume_parser import extrair_texto_curriculo, analisar_curriculo
+from app.core.resume_parser import extrair_texto_curriculo, analisar_curriculo, PARSER_VERSION
 from app.routers.perfis import CandidatoUpdate
 from app.routers.profissional import ItemProfissional
 
@@ -88,17 +88,17 @@ def _dados_revisao(importacao: dict) -> dict | None:
     dados = deepcopy(_json_importacao(importacao.get("DadosExtraidos")))
     if not dados:
         return dados
-    if dados.get("versao") == 1 and importacao.get("TextoExtraido"):
+    if dados.get("versao") != PARSER_VERSION and importacao.get("TextoExtraido"):
         # Recupera a separação de documentos já analisados pelo parser antigo.
         novos = analisar_curriculo(importacao["TextoExtraido"])
-        for secao in ("formacoes", "certificados", "projetos"):
-            dados[secao] = novos[secao]
-    else:
-        formacoes = dados.get("formacoes") or []
-        dados["certificados"] = (dados.get("certificados") or []) + [f for f in formacoes if f.get("nivel") == "Certificado"]
-        dados["formacoes"] = [f for f in formacoes if f.get("nivel") != "Certificado"]
-        dados.setdefault("projetos", [])
-    dados["versao"] = 2
+        if set(novos['meta']['secoes_identificadas']) & {'formacoes', 'certificados', 'projetos'}:
+            for secao in ("formacoes", "certificados", "projetos"):
+                dados[secao] = novos[secao]
+    formacoes = dados.get("formacoes") or []
+    dados["certificados"] = (dados.get("certificados") or []) + [f for f in formacoes if f.get("nivel") == "Certificado"]
+    dados["formacoes"] = [f for f in formacoes if f.get("nivel") != "Certificado"]
+    dados.setdefault("projetos", [])
+    dados["versao"] = PARSER_VERSION
     return dados
 
 
@@ -305,13 +305,22 @@ class CurriculoImportacaoAplicar(BaseModel):
     versao_revisao: Literal[1, 2] = 1
     # Índices escolhidos na prévia, e nomes de campos do perfil. Ausente mantém
     # compatibilidade com clientes anteriores que aprovam explicitamente categorias.
-    selecionados: dict[str, list[int | str]] | None = None
+    selecionados: dict[str, list[StrictInt | StrictStr]] | None = None
 
     @model_validator(mode="after")
     def selecao(self):
         if self.selecionados is not None:
-            if set(self.selecionados) - {"perfil", "experiencias", "formacoes", "certificados", "projetos", "habilidades", "idiomas"} or any(len(v)>50 for v in self.selecionados.values()):
-                raise ValueError("Seleção de dados inválida.")
+            if set(self.selecionados) - {"perfil", "experiencias", "formacoes", "certificados", "projetos", "habilidades", "idiomas"}:
+                raise ValueError("A seleção contém uma categoria desconhecida. Recarregue a página e abra a revisão novamente.")
+            for secao, indices in self.selecionados.items():
+                if len(indices) > 50:
+                    raise ValueError(f"A categoria {secao} aceita até 50 itens por confirmação.")
+                if secao == 'perfil':
+                    permitidos = {'titulo_profissional','resumo','cidade','estado','linkedin_url','github_url','portfolio_url','experiencia_anos'}
+                    if any(i not in permitidos for i in indices):
+                        raise ValueError("A seleção contém um campo de perfil desconhecido. Reabra a revisão.")
+                elif any(not isinstance(i, int) or i < 0 for i in indices):
+                    raise ValueError(f"A seleção de {secao} contém uma referência inválida. Reabra a revisão.")
         return self
 
 
@@ -335,13 +344,15 @@ async def aplicar_importacao_curriculo(
         )
 
     dados = _dados_revisao(importacao) if opcoes.versao_revisao == 2 else deepcopy(_json_importacao(importacao["DadosExtraidos"]))
-    if opcoes.versao_revisao == 1 and dados.get("versao") == 2:
+    if opcoes.versao_revisao == 1 and (dados.get("versao") or 1) >= 2:
         # Clientes anteriores têm um único grupo de formação/certificados.
         dados["formacoes"] = dados.get("formacoes", []) + dados.get("certificados", [])
         dados["certificados"] = []
     if opcoes.selecionados is not None:
         for secao in ("experiencias", "formacoes", "certificados", "projetos", "habilidades", "idiomas"):
             indices = opcoes.selecionados.get(secao, [])
+            if any(i >= len(dados.get(secao, [])) for i in indices):
+                raise HTTPException(409, "Os itens desta revisão mudaram. Feche e abra a revisão antes de confirmar novamente.")
             dados[secao] = [v for i, v in enumerate(dados.get(secao, [])) if i in indices]
         dados["perfil"] = {k: v for k, v in dados.get("perfil", {}).items() if k in opcoes.selecionados.get("perfil", [])}
     contadores = {"perfil": 0, "experiencias": 0, "formacoes": 0, "habilidades": 0, "idiomas": 0}

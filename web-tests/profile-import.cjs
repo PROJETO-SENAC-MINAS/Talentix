@@ -21,6 +21,7 @@ const server = http.createServer((req, res) => {
 });
 const controls = ['impPerfil', 'impExperiencias', 'impFormacoes', 'impCertificados', 'impProjetos', 'impHabilidades', 'impIdiomas'];
 const fixture = {
+  versao: 3,
   perfil: {titulo_profissional:'Analista de qualidade', cidade:'Contagem', estado:'MG', github_url:'https://github.com/exemplo', portfolio_url:'https://novo.example.com'},
   experiencias: [{empresa:'Empresa A',cargo:'Assistente',data_inicio:'2025-01-01'}, {empresa:'Empresa B',cargo:'Analista',data_inicio:'2026-01-01',atual:true}],
   formacoes: [{instituicao:'Escola A',curso:'Sistemas'}, {instituicao:'Escola B',curso:'Testes'}],
@@ -184,6 +185,16 @@ const fixture = {
       assert.deepEqual(complete.selecionados.habilidades, [0,1]);
       assert.equal(complete.importar_perfil, true);
       assert.equal(complete.importar_idiomas, false);
+      extracted = {...structuredClone(fixture), versao:1};
+      await page.locator('[data-revisar-importacao]').first().click();
+      await page.locator('#modalImportarCurriculo[open]').waitFor();
+      assert.ok((await page.locator('#curriculoImportacaoResumo').textContent()).includes('reinicie a API'));
+      assert.equal(await page.locator('#btnAplicarCurriculo').isDisabled(), true, 'Não envia índices de uma revisão incompatível.');
+      const beforeOld = applied.length;
+      await page.locator('#formAplicarCurriculo').evaluate(form => form.requestSubmit());
+      assert.equal(applied.length, beforeOld);
+      await page.locator('#cancelarImportacaoCurriculo').click();
+      extracted = structuredClone(fixture);
       await page.locator('#pTituloProfissional').fill('Alteração ainda não salva');
       await page.locator('#visualizarPerfil').click();
       await page.locator('#modalPerfilSalvo[open]').waitFor();

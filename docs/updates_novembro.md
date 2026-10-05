@@ -155,6 +155,15 @@ Quando o texto antigo não está disponível, os certificados são separados pel
 nível já identificado; projetos antes não extraídos podem ser adicionados na seção Projetos.
 Essa compatibilidade não reclassifica registros já confirmados no perfil.
 
+A extração v3 também reconhece cabeçalhos compostos, como **EXPERIÊNCIA PRÁTICA ·
+PRINCIPAIS PROJETOS PESSOAIS** e **CURSOS E CERTIFICAÇÕES COMPLEMENTARES**. Versões
+anteriores (inclusive sem versão) com texto armazenado recebem a nova separação
+ao reabrir a revisão. Anos em nomes de produtos, como Office 2016, não viram datas
+de estudo. A interface verifica a versão recebida e orienta a atualizar/reiniciar
+API e worker quando recebe uma revisão antiga, evitando enviar índices incompatíveis.
+Erros de seleção distinguem categoria desconhecida, limite de 50 itens por grupo
+e referências inválidas/desatualizadas; nenhum desses casos confirma dados parciais.
+
 ## Update 6: busca profissional
 
 `GET /vagas/busca` é paginado, público e preserva `/vagas` como API legada da

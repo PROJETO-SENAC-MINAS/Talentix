@@ -92,7 +92,8 @@ async function test(name,fn) {
     let cvUrl;
     await test('upload analisa, sugere preenchimento e só altera após confirmação',async()=> {
       await tab(candidate,'perfil');await candidate.locator('#secaoCurriculos').scrollIntoViewIfNeeded();await candidate.locator('#cvTitulo').fill('Currículo da apresentação');await candidate.locator('#cvPrincipal').check();
-      const pdf=spawnSync(process.env.TEST_PYTHON || 'python',['-c',"from io import BytesIO; from reportlab.pdfgen import canvas; import sys; out=BytesIO(); c=canvas.Canvas(out); lines=['Camila Reis','Analista de Qualidade','Contagem - MG','https://portfolio.example.com','https://github.com/camila-reis','Resumo','Profissional de QA com testes automatizados.','Formação acadêmica','Técnico em Sistemas | SENAC Minas | 2025 - 2027','Certificados','Python Avançado | IFMG | 2026','Java Básico | IFRS | 2024','Projetos','Talentix Importado - Portal de empregos','Desenvolvido durante o curso no SENAC.']; [c.drawString(72,800-i*24,line) for i,line in enumerate(lines)]; c.save(); sys.stdout.buffer.write(out.getvalue())"]);assert.equal(pdf.status,0,pdf.stderr);
+      const resumeText=fs.readFileSync(path.join(__dirname,'../python/tests/fixtures/resume_review_sections.txt'),'utf8').replace('Candidato de teste','Camila Reis').replace('Contagem - MG','Contagem - MG\nhttps://portfolio.example.com\nhttps://github.com/camila-reis');
+      const pdf=spawnSync(process.env.TEST_PYTHON || 'python',['-c',"from io import BytesIO; from reportlab.pdfgen import canvas; import sys; out=BytesIO(); c=canvas.Canvas(out); lines=sys.stdin.read().splitlines(); [c.drawString(30,800-i*22,line) for i,line in enumerate(lines)]; c.save(); sys.stdout.buffer.write(out.getvalue())"],{input:resumeText});assert.equal(pdf.status,0,pdf.stderr);
       await candidate.locator('#cvArquivo').setInputFiles({name:'curriculo.pdf',mimeType:'application/pdf',buffer:pdf.stdout});
       const cv=await submit(candidate,'#btnEnviarCurriculo','/curriculos');assert.ok(cv?.ID_Curriculos);cvUrl=cv.ArquivoUrl;
       const worker=spawnSync(process.env.TEST_PYTHON || 'python',['-m','app.worker_profissional','--once'],{cwd:path.join(__dirname,'../python'),env:process.env,encoding:'utf8',timeout:120000});assert.equal(worker.status,0,worker.stderr);
@@ -101,20 +102,21 @@ async function test(name,fn) {
       const githubSuggestion=candidate.locator('#curriculoImportacaoResumo input[data-campo="github_url"]');assert.equal(await githubSuggestion.isChecked(),true);
       assert.equal(await candidate.locator('#pGithub').inputValue(),'','O perfil não é alterado antes da confirmação do candidato.');
       assert.equal(await candidate.locator('#pPortfolio').inputValue(),'https://existing.example.com','Campos já preenchidos são preservados antes da confirmação.');
-      assert.equal(await candidate.locator('input[data-secao="formacoes"]').count(),1);
+      assert.equal(await candidate.locator('input[data-secao="formacoes"]').count(),2);
       assert.equal(await candidate.locator('input[data-secao="certificados"]').count(),2);
-      assert.equal(await candidate.locator('input[data-secao="projetos"]').count(),1);
-      await candidate.locator('input[data-secao="certificados"][data-indice="0"]').uncheck();
+      assert.equal(await candidate.locator('input[data-secao="projetos"]').count(),4);
+      for(const group of ['impPerfil','impExperiencias','impFormacoes','impCertificados','impProjetos','impHabilidades','impIdiomas']) assert.equal(await candidate.locator('#'+group).isChecked(),true,'Todas as categorias ativas: '+group);
       await candidate.locator('#modalImportarCurriculo').evaluate(dialog=>{dialog.scrollTop=dialog.scrollHeight});await candidate.locator('#btnAplicarCurriculo').scrollIntoViewIfNeeded();
       const applied=await submit(candidate,'#btnAplicarCurriculo','/importacao/aplicar');assert.ok(Number(applied.importados?.perfil)>0,'O backend deve confirmar campos aplicados ao perfil.');
-      assert.equal(applied.importados.certificados,1);assert.equal(applied.importados.projetos,1);assert.equal(applied.importados.formacoes,1);
+      assert.equal(applied.importados.certificados,2);assert.equal(applied.importados.projetos,4);assert.equal(applied.importados.formacoes,2);
       await candidate.waitForFunction(()=>document.querySelector('#pGithub').value==='https://github.com/camila-reis');
       assert.equal(await candidate.locator('#pPortfolio').inputValue(),'https://existing.example.com','A importação padrão preserva campos que já estavam preenchidos.');
       await candidate.locator('#listaCurriculos').filter({hasText:'Currículo da apresentação'}).waitFor();
-      await candidate.locator('#listaCertificados').filter({hasText:'Java Básico'}).waitFor();
-      assert.ok(!(await candidate.locator('#listaCertificados').textContent()).includes('Python Avançado'));
-      await candidate.locator('#listaFormacoes').filter({hasText:'Técnico em Sistemas'}).waitFor();
-      await candidate.locator('#listaItensProfissionais').filter({hasText:'Talentix Importado'}).waitFor();
+      await candidate.locator('#listaCertificados').filter({hasText:'Digital Safety and Security Awareness'}).waitFor();
+      await candidate.locator('#listaCertificados').filter({hasText:'Microsoft Office 2016 Avançado'}).waitFor();
+      await candidate.locator('#listaFormacoes').filter({hasText:'Curso Técnico em Desenvolvimento de Sistemas'}).waitFor();
+      assert.ok(!(await candidate.locator('#listaFormacoes').textContent()).includes('Certificado'));
+      await candidate.locator('#listaItensProfissionais').filter({hasText:'ChurrasPlan'}).waitFor();
     });
     let applicationId;
     await test('previa privada usa perfil salvo e versoes podem ser nomeadas sem alterar documentos',async()=> {

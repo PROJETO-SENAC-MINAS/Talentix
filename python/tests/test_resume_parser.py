@@ -1,4 +1,5 @@
 from app.core.resume_parser import analisar_curriculo
+from pathlib import Path
 
 
 def test_parser_curriculo_identifica_dados_principais():
@@ -116,3 +117,18 @@ def test_certificado_com_instituicao_em_outra_linha():
     assert dados['certificados'][0]['instituicao'] == 'IFMG'
     assert dados['formacoes'] == []
     assert dados['projetos'][0]['titulo'] == 'Talentix'
+
+
+def test_cabecalhos_compostos_das_imagens_nao_contaminam_formacao():
+    texto = (Path(__file__).parent / 'fixtures/resume_review_sections.txt').read_text()
+    dados = analisar_curriculo(texto)
+    assert len(dados['formacoes']) == 2
+    assert [f['nivel'] for f in dados['formacoes']] == ['Técnico', 'Ensino Médio']
+    assert dados['formacoes'][0]['data_inicio'] == '2025-01-01'
+    assert dados['formacoes'][0]['data_conclusao'] == '2027-01-01'
+    assert len(dados['certificados']) == 2
+    assert dados['certificados'][0]['curso'] == 'Microsoft Office 2016 Avançado'
+    assert dados['certificados'][0]['data_inicio'] is None
+    assert dados['certificados'][1]['instituicao'] == 'Cisco'
+    assert [p['titulo'] for p in dados['projetos']] == ['Talentix', 'LUMORA', 'AcademiaFit', 'ChurrasPlan']
+    assert all(f['nivel'] != 'Certificado' for f in dados['formacoes'])

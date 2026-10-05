@@ -52,6 +52,9 @@ document.addEventListener('DOMContentLoaded', () => {
       const msg = Array.isArray(corpo?.detail)
         ? corpo.detail.map((d) => d.msg).join(' ')
         : (corpo?.detail || 'Ocorreu um erro inesperado.');
+      if (path.endsWith('/importacao/aplicar') && msg.includes('Seleção de dados inválida')) {
+        throw new Error('A API recusou a seleção da revisão. Atualize o projeto, reinicie a API e reabra esta página com Ctrl+F5.');
+      }
       throw new Error(msg);
     }
 
@@ -465,6 +468,12 @@ document.addEventListener('DOMContentLoaded', () => {
     $('#impSobrescrever').checked = false;
     $('#curriculoImportacaoErro').hidden = true;
     $('#curriculoImportacaoErro').textContent = '';
+    if (dados?.versao !== 3) {
+      $('#curriculoImportacaoResumo').innerHTML = '<p>A revisão retornada está desatualizada. Atualize o projeto, reinicie a API e o worker e recarregue a página com Ctrl+F5. Depois abra “Revisar dados” novamente.</p>';
+      $('#curriculoSelecaoResumo').textContent = 'Aguardando a revisão atualizada.';
+      $('#btnAplicarCurriculo').disabled = true;
+      return;
+    }
     const perfil = dados?.perfil || {};
     const camposPerfil = [
       ['Título', perfil.titulo_profissional, 'titulo_profissional'],

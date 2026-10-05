@@ -2,6 +2,7 @@
 import asyncio
 import json
 from io import BytesIO
+from pathlib import Path
 from PIL import Image
 from pypdf import PdfReader
 import pytest
@@ -131,7 +132,7 @@ def test_confirmacao_seletiva_e_dados_separados(ambiente,autenticar):
     assert c.post('/curriculos/cr1/importacao/aplicar',json={'selecionados':{'perfil':['titulo_profissional']}}).status_code==200
     p=c.get('/candidatos/c1').json();assert p['TituloProfissional']=='Título aprovado' and p['Resumo'] is None
     imp=c.get('/curriculos/cr1/importacao').json()
-    assert imp['DadosExtraidos']=={**dados, 'versao':2, 'certificados':[], 'projetos':[]} and imp['TextoExtraido']=='original' and imp['DadosConfirmados']
+    assert imp['DadosExtraidos']=={**dados, 'versao':3, 'certificados':[], 'projetos':[]} and imp['TextoExtraido']=='original' and imp['DadosConfirmados']
     assert json.loads(conn.execute("SELECT DadosExtraidos FROM Curriculo_Importacoes WHERE ID_Curriculos='cr1'").fetchone()[0]) == dados
     autenticar(c,'uc2','candidato');assert c.post('/curriculos/cr1/importacao/aplicar',json={}).status_code==403
 
@@ -178,7 +179,7 @@ def test_importacao_grupos_e_itens_confirmados_juntos(ambiente, autenticar, indi
     repetida = c.post('/curriculos/cr1/importacao/aplicar', json=payload)
     assert repetida.status_code == 200
     assert repetida.json()['importados'] == dict.fromkeys(selecionados, 0)
-    assert c.get('/curriculos/cr1/importacao').json()['DadosExtraidos'] == {**dados, 'versao':2, 'certificados':[], 'projetos':[]}
+    assert c.get('/curriculos/cr1/importacao').json()['DadosExtraidos'] == {**dados, 'versao':3, 'certificados':[], 'projetos':[]}
     assert json.loads(conn.execute("SELECT DadosExtraidos FROM Curriculo_Importacoes WHERE ID_Curriculos='cr1'").fetchone()[0]) == dados
     assert conn.execute("SELECT COUNT(*) FROM Experiencias WHERE ID_Candidatos='c2'").fetchone()[0] == 0
 
@@ -258,6 +259,54 @@ def test_importacao_projeto_invalido_nao_persiste_parcialmente(ambiente, autenti
     assert not c.get('/candidatos/c1/profissional').json()['itens']
     payload['selecionados']['projetos'] = []
     assert c.post('/curriculos/cr1/importacao/aplicar', json=payload).json()['importados']['certificados'] == 1
+
+
+@pytest.mark.parametrize('versao_antiga', [None, 1, 2, 3])
+def test_revisao_com_todas_categorias_marcadas(ambiente, autenticar, versao_antiga):
+    c, conn = ambiente
+    autenticar(c, 'uc1', 'candidato')
+    texto = (Path(__file__).parent / 'fixtures/resume_review_sections.txt').read_text()
+    dados = analisar_curriculo(texto)
+    if versao_antiga != 3:
+        dados['versao'] = versao_antiga
+        dados['formacoes'] += dados.pop('certificados')
+        dados['formacoes'].extend({'curso':p['titulo'],'instituicao':p['descricao'],'nivel':'Certificado'} for p in dados.pop('projetos'))
+        dados['formacoes'][0].update(data_inicio='2027-01-01', data_conclusao='2025-01-01')
+    conn.execute("INSERT INTO Curriculo_Importacoes(ID_Curriculo_Importacoes,ID_Curriculos,ID_Status_Processamento_IA,DadosExtraidos,TextoExtraido) VALUES ('imp','cr1',3,?,?)", (json.dumps(dados), texto))
+    conn.commit()
+    previa = c.get('/curriculos/cr1/importacao').json()['DadosExtraidos']
+    assert previa['versao'] == 3
+    assert [len(previa[s]) for s in ('formacoes','certificados','projetos')] == [2,2,4]
+    secoes = ('perfil','experiencias','formacoes','certificados','projetos','habilidades','idiomas')
+    payload = {'versao_revisao':2, **{'importar_'+s:True for s in secoes}, 'selecionados':{
+        s:([k for k,v in previa[s].items() if v is not None] if s == 'perfil' else list(range(len(previa[s])))) for s in secoes}}
+    resposta = c.post('/curriculos/cr1/importacao/aplicar', json=payload)
+    assert resposta.status_code == 200, resposta.text
+    assert all(resposta.json()['importados'][s] > 0 for s in secoes)
+    oficial = c.get('/candidatos/c1/profissional').json()
+    assert len(oficial['formacoes']) == 4 and len(oficial['itens']) == 4
+    assert sum(f['Nivel']=='Certificado' for f in oficial['formacoes']) == 2
+    assert all(f['Curso'] not in ('Talentix','LUMORA','AcademiaFit','ChurrasPlan') for f in oficial['formacoes'])
+    assert sum(c.post('/curriculos/cr1/importacao/aplicar',json=payload).json()['importados'].values()) == 0
+    assert json.loads(conn.execute("SELECT DadosExtraidos FROM Curriculo_Importacoes WHERE ID_Curriculos='cr1'").fetchone()[0]) == dados
+
+
+@pytest.mark.parametrize('selecao,codigo,mensagem', [
+    ({'grupo_desconhecido':[0]},422,'categoria desconhecida'),
+    ({'formacoes':list(range(51))},422,'até 50 itens'),
+    ({'formacoes':['0']},422,'referência inválida'),
+    ({'formacoes':[-1]},422,'referência inválida'),
+    ({'formacoes':[50]},409,'itens desta revisão mudaram'),
+])
+def test_erro_de_selecao_identifica_a_causa_sem_alterar_perfil(ambiente, autenticar, selecao, codigo, mensagem):
+    c, conn = ambiente
+    autenticar(c, 'uc1', 'candidato')
+    dados = {'versao':3, 'formacoes':[{'curso':'Sistemas','instituicao':'SENAC'}]}
+    conn.execute("INSERT INTO Curriculo_Importacoes(ID_Curriculo_Importacoes,ID_Curriculos,ID_Status_Processamento_IA,DadosExtraidos) VALUES ('imp','cr1',3,?)", (json.dumps(dados),))
+    conn.commit()
+    resposta = c.post('/curriculos/cr1/importacao/aplicar', json={'versao_revisao':2,'selecionados':selecao})
+    assert resposta.status_code == codigo and mensagem in resposta.text
+    assert not c.get('/candidatos/c1/formacoes').json()
 
 
 def test_erro_parser_compreensivel(ambiente):

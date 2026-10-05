@@ -1,0 +1,24 @@
+Candidato de teste
+Desenvolvedor Web
+Contagem - MG
+Resumo
+Desenvolvedor de aplicações web para estudo.
+Experiência profissional
+Empresa Exemplo
+Desenvolvedor
+2025 - Atual
+FORMAÇÃO ACADÊMICA
+Curso Técnico em Desenvolvimento de Sistemas · SENAC MG · Conclusão 2027, início 2025
+Ensino Fundamental / Médio · Escola SESI Alvimar Carneiro de Rezende · 2025
+CURSOS E CERTIFICAÇÕES COMPLEMENTARES
+Microsoft Office 2016 Avançado · Fundação Bradesco
+Digital Safety and Security Awareness · Cisco · 12H
+EXPERIÊNCIA PRÁTICA · PRINCIPAIS PROJETOS PESSOAIS
+Talentix · Plataforma de empregos (em desenvolvimento / fase inicial)
+LUMORA · Gestão financeira (em desenvolvimento / fase inicial)
+AcademiaFit · Gestão de academia (em desenvolvimento / fase final)
+ChurrasPlan · Plataforma de Planejamento (em desenvolvimento / fase final)
+Habilidades
+Python | SQL
+Idiomas
+Português - Nativo

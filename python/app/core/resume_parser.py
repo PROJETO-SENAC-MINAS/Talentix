@@ -13,6 +13,7 @@ from typing import Iterable
 
 MAX_TEXT_CHARS = 100_000
 MAX_PDF_PAGES = 30
+PARSER_VERSION = 3
 
 _SECOES = {
     "resumo": {"resumo", "perfil", "perfil profissional", "objetivo", "objetivo profissional", "sobre mim"},
@@ -46,6 +47,8 @@ _NIVEL_FORMACAO = (
     ("tecnologo", "Graduação"),
     ("tecnico", "Técnico"),
     ("ensino medio", "Ensino Médio"),
+    ("ensino fundamental / medio", "Ensino Médio"),
+    ("ensino fundamental", "Ensino Fundamental"),
     ("curso livre", "Curso livre"),
 )
 _NIVEIS_IDIOMA = {
@@ -113,12 +116,32 @@ def extrair_texto_curriculo(caminho: str | Path) -> str:
     return texto[:MAX_TEXT_CHARS]
 
 
+def _identificar_secao(linha: str) -> str | None:
+    chave = _normalizar(linha).strip(' :–—-|•·')
+    chave = re.sub(r'^\d+[.)]\s*', '', chave)
+    exata = next((nome for nome, aliases in _SECOES.items() if chave in aliases), None)
+    if exata:
+        return exata
+    # Cabeçalhos compostos do currículo não são títulos de cursos. Aceitamos
+    # somente combinações completas de rótulos, não descrições com essas palavras.
+    chave = re.sub(r'\s*[/|•·–—-]\s*', ' ', chave)
+    chave = re.sub(r'\s+', ' ', chave).strip()
+    if re.fullmatch(r'(?:experiencia pratica\s+(?:e\s+)?)?(?:principais\s+)?projetos(?:\s+(?:pessoais|academicos|profissionais|praticos|relevantes))*', chave):
+        return 'projetos'
+    if chave == 'experiencia pratica':
+        return 'projetos'
+    if re.fullmatch(r'(?:principais\s+)?(?:cursos|certificados|certificacoes|capacitacoes)(?:\s+(?:e\s+)?(?:cursos|certificados|certificacoes|complementares|profissionais|adicionais|relevantes))*', chave):
+        return 'certificados'
+    if re.fullmatch(r'(?:formacao|formacoes)(?:\s+(?:academica|academicas|educacional|educacionais|e|escolaridade))*', chave):
+        return 'formacoes'
+    return None
+
+
 def _separar_secoes(linhas: list[str]) -> dict[str, list[str]]:
     secoes: dict[str, list[str]] = {"cabecalho": []}
     atual = "cabecalho"
     for linha in linhas:
-        chave = _normalizar(linha.rstrip(":"))
-        encontrada = next((nome for nome, aliases in _SECOES.items() if chave in aliases), None)
+        encontrada = _identificar_secao(linha)
         if encontrada:
             atual = encontrada
             secoes.setdefault(atual, [])
@@ -212,7 +235,10 @@ def _parse_formacoes(linhas: list[str], certificado: bool = False) -> list[dict]
 
         # Prefere o período da própria linha. Usa as linhas vizinhas somente
         # quando instituição/curso e datas foram separados pelo PDF/DOCX.
-        fonte_periodo = linha if re.search(r"\b(?:19|20)\d{2}\b", linha) else contexto
+        # Um ano no título (Office 2016, por exemplo) não é uma data de estudo.
+        fonte_periodo = ' | '.join(p for p in partes if metadado(p))
+        if not fonte_periodo:
+            fonte_periodo = ' | '.join(v for v in vizinhas if metadado(v))
         inicio, fim, _ = _periodo(fonte_periodo)
         resultado.append({
             "instituicao": instituicao,
@@ -231,7 +257,7 @@ def _parse_projetos(linhas: list[str]) -> list[dict]:
     for linha in linhas:
         url = re.search(r"https?://[^\s|<>]+", linha)
         sem_url = re.sub(r"https?://[^\s|<>]+", "", linha).strip(" |–—-")
-        partes = re.split(r"\s*[|]\s*|\s+[-–—]\s+|:\s+", sem_url, maxsplit=1)
+        partes = re.split(r"\s*[|•·]\s*|\s+[-–—]\s+|:\s+", sem_url, maxsplit=1)
         titulo = partes[0].strip()
         novo = bool(titulo and (not resultado or len(partes) > 1 or (len(titulo) <= 80 and not titulo.endswith('.'))))
         if novo:
@@ -381,7 +407,7 @@ def analisar_curriculo(
         experiencia_anos = max(0, min(80, date.today().year - min(anos)))
 
     dados = {
-        "versao": 2,
+        "versao": PARSER_VERSION,
         "contato": {
             "nome": cabecalho[0][:150] if cabecalho and "@" not in cabecalho[0] else None,
             "email": (re.search(r"[\w.+-]+@[\w.-]+\.[a-zA-Z]{2,}", texto).group(0) if re.search(r"[\w.+-]+@[\w.-]+\.[a-zA-Z]{2,}", texto) else None),
@@ -405,6 +431,7 @@ def analisar_curriculo(
         "idiomas": _parse_idiomas(texto, secoes.get("idiomas", []), idiomas_catalogo),
         "meta": {
             "linhas_analisadas": len(linhas),
+            "secoes_identificadas": [secao for secao in secoes if secao != "cabecalho"],
             "avisos": [
                 "Revise os dados antes de importar. Datas identificadas apenas pelo ano usam 1º de janeiro como referência."
             ],
