@@ -28,7 +28,7 @@ window.Talentix = (() => {
     clearTimeout(target._timer); target._timer = setTimeout(() => target.classList.remove('show'), 5000);
   }
   function bindTabs(onChange = () => {}) {
-    document.querySelectorAll('.nav-item').forEach(button => button.addEventListener('click', () => {
+    document.querySelectorAll('.nav-item[data-tab]').forEach(button => button.addEventListener('click', () => {
       document.querySelectorAll('.nav-item, .tab-panel').forEach(el => el.classList.remove('active'));
       button.classList.add('active'); $(`#tab-${button.dataset.tab}`)?.classList.add('active');
       Promise.resolve(onChange(button.dataset.tab)).catch(error => toast(error.message, true));

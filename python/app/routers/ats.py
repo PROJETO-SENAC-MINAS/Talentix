@@ -218,6 +218,8 @@ class Rating(BaseModel):
 @router.post('/candidaturas/{cid}/scorecards/{mid}/avaliacoes',status_code=201)
 async def rate(cid:str,mid:str,d:Rating,request:Request,s:dict=Depends(rh)):
     m=await model_for(mid,cid,s)
+    # Same lock order as cancellation: candidature, then card.
+    await fetch_one('SELECT ID_Candidaturas FROM Candidaturas WHERE ID_Candidaturas=%s FOR UPDATE',(cid,))
     await fetch_one('SELECT ID_Candidaturas FROM ATS_Cards WHERE ID_Candidaturas=%s FOR UPDATE',(cid,))
     criteria=unpack(m['Criterios'])
     if len(d.notas)!=len(criteria): fail(422,'Informe uma nota por critério.')

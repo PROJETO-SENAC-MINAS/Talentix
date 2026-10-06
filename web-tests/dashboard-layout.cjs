@@ -90,7 +90,8 @@ async function checkLayout(page, name) {
         await page.locator('.metric').first().waitFor();
         await checkLayout(page, role + '-initial-' + width);
         await page.screenshot({path:path.join(out,role+'-'+width+'.png'),fullPage:true});
-        const tabs = await page.locator('.nav-item').evaluateAll(items => items.map(el => el.dataset.tab));
+        assert.equal(await page.locator('a[href="ats.html"]').count(),1);
+        const tabs = await page.locator('.nav-item[data-tab]').evaluateAll(items => items.map(el => el.dataset.tab));
         for (const tab of tabs) {
           await page.locator('[data-tab="'+tab+'"]').click();
           await page.locator('#tab-'+tab+'.active').waitFor();
