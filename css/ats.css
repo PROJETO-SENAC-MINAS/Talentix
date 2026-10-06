@@ -1,0 +1,11 @@
+/* Somente a nova área ATS; os estilos aprovados dos painéis são preservados. */
+.ats-board { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr)); gap:16px; align-items:start; }
+.ats-column { min-width:0; }
+.ats-column .card { margin-bottom:12px; }
+.ats-column [draggable="true"] { cursor:grab; }
+.ats-column.ats-drop { outline:3px solid currentColor; outline-offset:2px; }
+.ats-criteria-row { border-bottom:1px solid currentColor; padding:16px 0; }
+#atsCriterios .grid-2 { align-items:start; }
+#atsBoard p, #atsHistorico p, #atsAvaliacoes p { overflow-wrap:anywhere; }
+#tab-talentos label, #tab-scorecards label { margin-right:12px; }
+@media (max-width:600px) { .ats-board { grid-template-columns:1fr; } }

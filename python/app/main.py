@@ -18,6 +18,7 @@ from app.core.logging_config import configurar_logging
 from app.core.middleware import RateLimitMiddleware, RequestContextMiddleware, SecurityMiddleware
 from app.db.database import close_pool, fetch_one, init_pool
 from app.routers import (
+    ats,
     admin,
     auth,
     avaliacoes_denuncias,
@@ -137,6 +138,7 @@ for categoria in ("logos",):
     )
 
 for router in (
+    ats.router,
     auth.router,
     dominios.router,
     perfis.router,

@@ -2,11 +2,12 @@
   "name": "talentix-web-tests",
   "private": true,
   "scripts": {
-    "test": "node profile-import.cjs && node dashboard-layout.cjs && node flow.cjs",
+    "test": "node profile-import.cjs && node dashboard-layout.cjs && node ats-layout.cjs && node flow.cjs && node ats-e2e.cjs",
     "test:profile": "node profile-import.cjs",
     "test:dashboards": "node dashboard-layout.cjs",
     "check": "node validate.mjs && node accessibility.mjs",
-    "check:a11y": "node accessibility.mjs"
+    "check:a11y": "node accessibility.mjs",
+    "test:ats": "node ats-layout.cjs"
   },
   "devDependencies": {
     "@axe-core/playwright": "4.13.0",

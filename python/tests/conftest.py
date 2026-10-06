@@ -77,7 +77,7 @@ CREATE TABLE Vagas (ID_Vagas TEXT PRIMARY KEY, ID_Empresas TEXT, Titulo TEXT, Lo
   ID_Status_Vaga INTEGER DEFAULT 2, Ativo INTEGER DEFAULT 1);
 CREATE TABLE Candidaturas (ID_Candidaturas TEXT PRIMARY KEY, ID_Candidatos TEXT, ID_Vagas TEXT,
   ID_Status_Candidatura INTEGER DEFAULT 1, CurriculoUrl TEXT, CartaApresentacao TEXT,
-  Ativo INTEGER DEFAULT 1, CriadaEm TEXT DEFAULT CURRENT_TIMESTAMP);
+  Ativo INTEGER DEFAULT 1, DeletadoEm TEXT, CriadaEm TEXT DEFAULT CURRENT_TIMESTAMP);
 CREATE TABLE Etapas_Processo (ID_Etapas_Processo TEXT PRIMARY KEY, ID_Candidaturas TEXT,
   ID_Status_Etapa INTEGER, Nome TEXT, Ordem INTEGER, InicioEm TEXT, FimEm TEXT);
 CREATE TABLE Entrevistas (ID_Entrevistas TEXT PRIMARY KEY, ID_Candidaturas TEXT, ID_Recrutadores TEXT,
@@ -129,6 +129,7 @@ def ambiente(monkeypatch, tmp_path):
     conn = sqlite3.connect(":memory:", check_same_thread=False)
     conn.row_factory = sqlite3.Row
     conn.executescript(SCHEMA)
+    conn.executescript((Path(__file__).parent / "fixtures/ats_sqlite.sql").read_text())
     for usuario in ("uc1", "uc2", "ue1", "ue2", "ua", "ur2", "desativado"):
         conn.execute("INSERT INTO Usuarios(ID_Usuarios, Nome, Email, SenhaHash, Ativo) VALUES (?, ?, ?, ?, ?)",
                      (usuario, usuario, usuario + "@example.com", SENHA_HASH, usuario != "desativado"))
@@ -205,6 +206,8 @@ def ambiente(monkeypatch, tmp_path):
         (Path(settings.UPLOAD_DIR) / categoria).mkdir(parents=True)
     for nome in (ARQUIVO_A, ARQUIVO_B):
         (Path(settings.UPLOAD_DIR) / "curriculos" / nome).write_bytes(b"%PDF-1.4\nCV ficticio de teste\n")
+    # Cada teste representa uma instância isolada, inclusive os buckets de rate limit.
+    app.middleware_stack = None
     with TestClient(app, base_url="https://testserver") as client:
         yield client, conn
     conn.close()

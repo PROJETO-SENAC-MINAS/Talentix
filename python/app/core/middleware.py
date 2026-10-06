@@ -112,7 +112,7 @@ class SecurityMiddleware(BaseHTTPMiddleware):
         response.headers["X-Frame-Options"] = "DENY"
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
         response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
-        if request.url.path.startswith("/auth/"):
+        if request.url.path.startswith(("/auth/", "/ats/")):
             response.headers["Cache-Control"] = "no-store"
         if settings.SESSION_COOKIE_SECURE:
             response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"

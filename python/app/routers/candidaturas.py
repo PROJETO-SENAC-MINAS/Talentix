@@ -3,7 +3,7 @@ CRUD de Candidaturas, Etapas do Processo Seletivo e Entrevistas.
 """
 from app.core.routes import AtomicRouter as APIRouter
 
-from fastapi import Depends, HTTPException, status, Query
+from fastapi import Depends, HTTPException, status, Query, Request
 from pydantic import BaseModel, Field
 from datetime import datetime
 
@@ -169,12 +169,15 @@ async def obter_candidatura(id_candidatura: str, sessao: dict = Depends(usuario_
     entrevistas = await fetch_all(
         "SELECT * FROM Entrevistas WHERE ID_Candidaturas=%s ORDER BY DataHora", (id_candidatura,)
     )
+    if sessao["tipo_usuario"] == "candidato":
+        for entrevista in entrevistas:
+            entrevista.pop("Observacoes",None)
     return {**candidatura, "etapas": etapas, "entrevistas": entrevistas}
 
 
 @router.patch("/candidaturas/{id_candidatura}/status", tags=["Candidaturas"])
 async def atualizar_status_candidatura(
-    id_candidatura: str, id_status_candidatura: int = Query(ge=1, le=7), sessao: dict = Depends(exigir_tipo("empresa", "recrutador", "administrador"))
+    id_candidatura: str, request: Request, id_status_candidatura: int = Query(ge=1, le=7), sessao: dict = Depends(exigir_tipo("empresa", "recrutador", "administrador"))
 ):
     candidatura = await fetch_one("SELECT * FROM Candidaturas WHERE ID_Candidaturas=%s", (id_candidatura,))
     if not candidatura:
@@ -184,6 +187,9 @@ async def atualizar_status_candidatura(
         "UPDATE Candidaturas SET ID_Status_Candidatura=%s WHERE ID_Candidaturas=%s",
         (id_status_candidatura, id_candidatura),
     )
+
+    from app.routers.ats import sync_legacy
+    await sync_legacy(id_candidatura,id_status_candidatura,sessao,request)
 
     # notifica o candidato sobre a mudança de status (in-app + e-mail)
     novo_status = await fetch_one(
@@ -208,7 +214,7 @@ async def atualizar_status_candidatura(
 
 
 @router.delete("/candidaturas/{id_candidatura}", tags=["Candidaturas"])
-async def cancelar_candidatura(id_candidatura: str, sessao: dict = Depends(usuario_atual)):
+async def cancelar_candidatura(id_candidatura: str, request: Request, sessao: dict = Depends(usuario_atual)):
     candidatura = await fetch_one("SELECT * FROM Candidaturas WHERE ID_Candidaturas=%s", (id_candidatura,))
     if not candidatura:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Candidatura não encontrada.")
@@ -217,6 +223,8 @@ async def cancelar_candidatura(id_candidatura: str, sessao: dict = Depends(usuar
         "UPDATE Candidaturas SET Ativo=0, DeletadoEm=NOW(), ID_Status_Candidatura=7 WHERE ID_Candidaturas=%s",
         (id_candidatura,),
     )
+    from app.routers.ats import sync_legacy
+    await sync_legacy(id_candidatura,7,sessao,request)
     return {"mensagem": "Candidatura cancelada."}
 
 
@@ -334,9 +342,13 @@ async def listar_entrevistas(id_candidatura: str, sessao: dict = Depends(usuario
     if not candidatura:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Candidatura não encontrada.")
     await _checar_acesso_candidatura(candidatura, sessao)
-    return await fetch_all(
+    entrevistas = await fetch_all(
         "SELECT * FROM Entrevistas WHERE ID_Candidaturas=%s ORDER BY DataHora", (id_candidatura,)
     )
+    if sessao["tipo_usuario"] == "candidato":
+        for entrevista in entrevistas:
+            entrevista.pop("Observacoes",None)
+    return entrevistas
 
 
 async def _obter_contexto_entrevista(id_entrevista: str) -> tuple[dict, dict, dict] | None:

@@ -37,7 +37,7 @@ jobs:
           conn = pymysql.connect(host=settings.DB_HOST, user=settings.DB_USER, password=settings.DB_PASSWORD, database=settings.DB_NAME)
           with conn.cursor() as cur:
               cur.execute('SELECT COUNT(*) FROM Schema_Migrations')
-              assert cur.fetchone()[0] == 5
+              assert cur.fetchone()[0] == 6
               cur.execute("SELECT COUNT(*) FROM Usuarios WHERE Email LIKE '%@demo.talentix.com' AND EmailConfirmadoEm IS NOT NULL")
               assert cur.fetchone()[0] == 3
               cur.execute('SHOW GRANTS FOR CURRENT_USER')
@@ -212,6 +212,7 @@ jobs:
           python tests/mysql/run_scenarios.py
           python tests/mysql/run_regressions.py
           python tests/mysql/run_november.py
+          python tests/mysql/run_december.py
       - name: Start frontend
         run: python -m http.server 5500 --bind 127.0.0.1 > "$TEST_RESULTS_DIR/frontend.log" 2>&1 &
       - name: Validate diagram, accessibility, files and complete browser flow

@@ -264,3 +264,9 @@ qualidade dos textos alternativos e zoom real do navegador requerem revisão man
 exige cookie seguro. Cada requisição recebe um `X-Request-ID`, também incluído
 nos logs JSON da API e nas respostas de erro, permitindo correlacionar falhas sem
 expor dados sensíveis.
+
+### ATS de dezembro
+
+Pipeline por vaga, scorecards com avaliação cega e Talent CRM por empresa.
+Acesse **ATS / Banco de talentos** nos painéis de empresa, recrutador e administrador.
+Instalação, funcionamento e controles: [Guia dos updates de dezembro](docs/updates-dezembro.md).
