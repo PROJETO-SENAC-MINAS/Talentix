@@ -11,7 +11,7 @@ for(const width of [390,768,1280,1440]){
  await ctx.route('http://127.0.0.1:8000/**',async route=>{const req=route.request(),url=new URL(req.url()),p=url.pathname,m=req.method(),d=req.postDataJSON();let data={};
  if(m==='OPTIONS'){await route.fulfill({status:200,headers:{'Access-Control-Allow-Origin':front,'Access-Control-Allow-Credentials':'true','Access-Control-Allow-Headers':'content-type,x-csrf-token','Access-Control-Allow-Methods':'GET,POST,PUT,DELETE'}});return;}
  if(p==='/auth/me')data={id_usuario:'u1',tipo_usuario:'empresa'};
- else if(p==='/ats/contexto')data={empresa:{ID_Empresas:'e1',NomeFantasia:'Empresa teste'},vagas:[{ID_Vagas:'v1',Titulo:'Backend'}],avaliadores:[{ID_Usuarios:'u1',Nome:'RH teste'}]};
+ else if(p==='/ats/contexto')data={empresa:{ID_Empresas:'e1',NomeFantasia:'Empresa teste'},vagas:[{ID_Vagas:'v1',Titulo:'Backend',Ativo:1,ID_Status_Vaga:2}],avaliadores:[{ID_Usuarios:'u1',Nome:'RH teste'}]};
  else if(p==='/ats/pools')data=m==='GET'?[pool]:pool;
  else if(p==='/ats/talentos')data={total:1,itens:[{ID_Candidatos:'c1',Nome:'Candidato teste',TituloProfissional:'Python',Cidade:'BH',Estado:'MG'}]};
  else if(p.endsWith('/pipeline'))data={etapas:stages,cards:[card]};

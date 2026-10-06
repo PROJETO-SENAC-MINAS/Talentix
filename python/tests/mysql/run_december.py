@@ -23,13 +23,15 @@ def account(role):
 try:
     e1,ed1=account('empresa');e2,ed2=account('empresa');c1,cd1=account('candidato');c2,cd2=account('candidato');r1,rd1=account('recrutador')
     eid=ed1['id_empresa'];cid=cd1['id_candidato']
-    call(e1,'POST','/recrutadores',201,json={'id_empresa':eid,'id_usuario':rd1['id_usuario'],'cargo':'RH ATS'})
+    call(e1,'POST',f'/empresas/{eid}/recrutadores',201,json={'id_usuario_recrutador':rd1['id_usuario'],'cargo':'RH ATS'})
     # Login again after linking updates the effective recruiter role.
     call(r1,'POST','/auth/login',json={'email':f'recrutador-5-{nonce}@december.example.com','senha':'Dezembro123!'})
     v=call(e1,'POST','/vagas',201,json={'id_empresa':eid,'titulo':'Backend ATS '+nonce,'descricao':'Python SQL','modalidade':'Remoto','nivel':'Junior'})['ID_Vagas']
     call(e1,'PATCH',f'/vagas/{v}/publicar')
     a=call(c1,'POST','/candidaturas',201,json={'id_vaga':v})['ID_Candidaturas']
-    call(e1,'POST',f'/ats/vagas/{v}/inicializar');call(e1,'POST',f'/ats/vagas/{v}/inicializar')
+    from concurrent.futures import ThreadPoolExecutor
+    with ThreadPoolExecutor(max_workers=2) as workers:
+        results=list(workers.map(lambda _: call(e1,'POST',f'/ats/vagas/{v}/inicializar'),range(2)))
     b=call(e1,'GET',f'/ats/vagas/{v}/pipeline');assert len(b['etapas'])==6 and len(b['cards'])==1
     first=b['etapas'][0]['ID_Etapa'];second=b['etapas'][1]['ID_Etapa']
     custom=call(e1,'POST',f'/ats/vagas/{v}/etapas',201,json={'nome':'Case técnico','ordem':3})['ID_Etapa']
@@ -47,8 +49,11 @@ try:
     call(r1,'POST',path,201,json={'notas':[2,4],'parecer':'Avaliar evolução','recomendacao':'Avaliar'})
     assert call(r1,'GET',path)['media']==3
     call(r1,'POST',path,409,json={'notas':[5,5],'parecer':'Repetido','recomendacao':'Aprovar'})
+    concurrent_model=call(e1,'POST',f'/ats/etapas/{second}/scorecards',201,json={'nome':'Rodada concorrente','cego':True,'criterios':[{'nome':'Python','peso':1}]})['ID_Modelo']
+    with ThreadPoolExecutor(max_workers=2) as workers:
+        scores=list(workers.map(lambda evaluator:call(evaluator,'POST',f'/ats/candidaturas/{a}/scorecards/{concurrent_model}/avaliacoes',201,json={'notas':[4],'parecer':'Avaliação independente','recomendacao':'Avaliar'}),[e1,r1]))
     call(e1,'PUT',f'/ats/candidaturas/{a}/card',json={**move,'versao':2,'estado':'reprovado','motivo':'Experiência para esta vaga'})
-    assert len(call(e1,'GET',f'/ats/candidaturas/{a}/historico'))==5
+    assert len(call(e1,'GET',f'/ats/candidaturas/{a}/historico'))==7
     pid=call(e1,'POST','/ats/pools',201,json={'nome':'Backend'})['ID_Pool']
     call(e1,'PUT',f'/ats/pools/{pid}',json={'nome':'Full Stack'})
     member=f'/ats/pools/{pid}/candidatos/{cid}'
@@ -73,7 +78,7 @@ try:
     # New tables and movement logs are present with MySQL foreign keys/indexes.
     conn=pymysql.connect(host=os.environ['DB_HOST'],port=int(os.environ['DB_PORT']),user=os.environ['DB_USER'],password=os.environ['DB_PASSWORD'],database=os.environ['DB_NAME'])
     with conn.cursor() as cur:
-        cur.execute('SELECT COUNT(*) FROM ATS_Eventos WHERE ID_Candidaturas=%s',(a,));assert cur.fetchone()[0]==5
+        cur.execute('SELECT COUNT(*) FROM ATS_Eventos WHERE ID_Candidaturas=%s',(a,));assert cur.fetchone()[0]==7
         cur.execute("SELECT COUNT(*) FROM Audit_Logs WHERE Acao LIKE 'ats.%'");assert cur.fetchone()[0]>=10
         cur.execute('SELECT Notas,Tags,Ativo FROM ATS_Membros WHERE ID_Pool=%s AND ID_Candidatos=%s',(pid,cid));row=cur.fetchone();assert row[0] is None and json.loads(row[1])==[] and row[2]==0
     conn.close()

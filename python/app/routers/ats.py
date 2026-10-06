@@ -52,9 +52,9 @@ async def pool(id,s):
     return p
 
 async def event(id,action,before,after,s,request):
-    seq=await fetch_one('SELECT COALESCE(MAX(Sequencia),0)+1 AS Proxima FROM ATS_Eventos WHERE ID_Candidaturas=%s',(id,))
+    seq=await fetch_one('SELECT Sequencia FROM ATS_Eventos WHERE ID_Candidaturas=%s ORDER BY Sequencia DESC LIMIT 1 FOR UPDATE',(id,))
     await execute('INSERT INTO ATS_Eventos(ID_Evento,ID_Candidaturas,ID_Usuarios,Acao,Antes,Depois,Sequencia) VALUES (%s,%s,%s,%s,%s,%s,%s)',
-        (novo_uuid(),id,s['id_usuario'],action,pack(before),pack(after),seq['Proxima']))
+        (novo_uuid(),id,s['id_usuario'],action,pack(before),pack(after),(seq['Sequencia'] if seq else 0)+1))
     await registrar_auditoria(request,action,'ATS',s['id_usuario'],id,before,after)
 
 class StageData(BaseModel):
@@ -65,7 +65,7 @@ class StageData(BaseModel):
 @router.get('/contexto')
 async def context(id_empresa: str|None=None,s:dict=Depends(rh)):
     e=await company(s,id_empresa)
-    return {'empresa':e,'vagas':await fetch_all('SELECT ID_Vagas,Titulo FROM Vagas WHERE ID_Empresas=%s ORDER BY CriadoEm DESC',(e['ID_Empresas'],)),
+    return {'empresa':e,'vagas':await fetch_all('SELECT ID_Vagas,Titulo,Ativo,ID_Status_Vaga FROM Vagas WHERE ID_Empresas=%s ORDER BY CriadoEm DESC',(e['ID_Empresas'],)),
         'avaliadores':await fetch_all("""SELECT u.ID_Usuarios,u.Nome FROM Usuarios u WHERE u.Ativo=1 AND
         (u.ID_Usuarios=%s OR EXISTS(SELECT 1 FROM Recrutadores r WHERE r.ID_Usuarios=u.ID_Usuarios AND r.ID_Empresas=%s AND r.Ativo=1))""",(e['ID_Usuarios'],e['ID_Empresas']))}
 
@@ -92,17 +92,17 @@ async def initialize(id:str,request:Request,s:dict=Depends(rh)):
     # Lock the job to serialize first initialization and concurrent moves.
     await job(id,s)
     await fetch_one('SELECT ID_Vagas FROM Vagas WHERE ID_Vagas=%s FOR UPDATE',(id,))
-    stages=await fetch_all('SELECT * FROM ATS_Etapas WHERE ID_Vagas=%s AND Ativa=1 ORDER BY Ordem,ID_Etapa',(id,))
+    stages=await fetch_all('SELECT * FROM ATS_Etapas WHERE ID_Vagas=%s AND Ativa=1 ORDER BY Ordem,ID_Etapa FOR UPDATE',(id,))
     if not stages:
         for i,name in enumerate(['Novos','Triagem','Entrevista RH','Entrevista técnica','Proposta','Contratado']):
             await execute('INSERT INTO ATS_Etapas(ID_Etapa,ID_Vagas,Nome,Ordem) VALUES (%s,%s,%s,%s)',(novo_uuid(),id,name,i))
-        stages=await fetch_all('SELECT * FROM ATS_Etapas WHERE ID_Vagas=%s AND Ativa=1 ORDER BY Ordem,ID_Etapa',(id,))
-    rows=await fetch_all('SELECT * FROM Candidaturas WHERE ID_Vagas=%s ORDER BY CriadaEm,ID_Candidaturas',(id,))
+        stages=await fetch_all('SELECT * FROM ATS_Etapas WHERE ID_Vagas=%s AND Ativa=1 ORDER BY Ordem,ID_Etapa FOR UPDATE',(id,))
+    rows=await fetch_all('SELECT * FROM Candidaturas WHERE ID_Vagas=%s ORDER BY CriadaEm,ID_Candidaturas FOR UPDATE',(id,))
     for i,c in enumerate(rows):
-        if await fetch_one('SELECT ID_Candidaturas FROM ATS_Cards WHERE ID_Candidaturas=%s',(c['ID_Candidaturas'],)): continue
+        if await fetch_one('SELECT ID_Candidaturas FROM ATS_Cards WHERE ID_Candidaturas=%s FOR UPDATE',(c['ID_Candidaturas'],)): continue
         state={5:'aprovado',6:'reprovado',7:'desistente'}.get(c['ID_Status_Candidatura'],'ativo')
         await execute('INSERT INTO ATS_Cards(ID_Candidaturas,ID_Etapa,Ordem,Estado,EntradaEm) VALUES (%s,%s,%s,%s,%s)',(c['ID_Candidaturas'],stages[0]['ID_Etapa'],i,state,c['CriadaEm']))
-        await event(c['ID_Candidaturas'],'ats.entrada',None,{'etapa':stages[0]['ID_Etapa'],'estado':state},s,request)
+        await event(c['ID_Candidaturas'],'ats.entrada',None,{'etapa':stages[0]['ID_Etapa'],'estado':state,'NomeEtapa':stages[0]['Nome']},s,request)
     return {'mensagem':'Pipeline atualizado; histórico preservado.'}
 
 @router.get('/vagas/{id}/pipeline')
@@ -140,6 +140,7 @@ async def move(id:str,d:Move,request:Request,s:dict=Depends(rh)):
     c=await application(id,s)
     v=await job(c['ID_Vagas'],s)
     await fetch_one('SELECT ID_Vagas FROM Vagas WHERE ID_Vagas=%s FOR UPDATE',(c['ID_Vagas'],))
+    c=await fetch_one('SELECT * FROM Candidaturas WHERE ID_Candidaturas=%s FOR UPDATE',(id,))
     target=await stage(d.id_etapa,s)
     if target['ID_Vagas']!=c['ID_Vagas'] or not target['Ativa']: fail(422,'Etapa não pertence à vaga ou está arquivada.')
     if not c['Ativo']: fail(409,'Candidato desistente; candidatura arquivada não pode ser reativada pelo RH.')
@@ -162,7 +163,8 @@ async def move(id:str,d:Move,request:Request,s:dict=Depends(rh)):
     status={'ativo':2,'aprovado':5,'reprovado':6,'retirado':7,'desistente':7}[d.estado]
     await execute('UPDATE Candidaturas SET ID_Status_Candidatura=%s WHERE ID_Candidaturas=%s',(status,id))
     new=await fetch_one('SELECT * FROM ATS_Cards WHERE ID_Candidaturas=%s',(id,))
-    await event(id,'ats.movimentacao',old,new,s,request)
+    previous=await fetch_one('SELECT Nome FROM ATS_Etapas WHERE ID_Etapa=%s',(old['ID_Etapa'],))
+    await event(id,'ats.movimentacao',{**old,'NomeEtapa':previous['Nome']},{**new,'NomeEtapa':target['Nome']},s,request)
     return new
 
 @router.get('/candidaturas/{id}/historico')
@@ -297,7 +299,7 @@ async def eligible(cid,eid):
     # Prior relationship alone does not imply authorization for the Talent CRM.
     c=await fetch_one("""SELECT p.ID_Candidatos FROM Candidatos p JOIN Usuarios u ON u.ID_Usuarios=p.ID_Usuarios AND u.Ativo=1
     JOIN ATS_Consentimentos co ON co.ID_Candidatos=p.ID_Candidatos AND co.ID_Empresas=%s AND co.Autorizado=1
-    WHERE p.ID_Candidatos=%s AND p.Ativo=1 AND EXISTS(SELECT 1 FROM Candidaturas ca JOIN Vagas v ON v.ID_Vagas=ca.ID_Vagas WHERE ca.ID_Candidatos=p.ID_Candidatos AND v.ID_Empresas=%s)""",(eid,cid,eid))
+    WHERE p.ID_Candidatos=%s AND p.Ativo=1 AND EXISTS(SELECT 1 FROM Candidaturas ca JOIN Vagas v ON v.ID_Vagas=ca.ID_Vagas WHERE ca.ID_Candidatos=p.ID_Candidatos AND v.ID_Empresas=%s) FOR UPDATE""",(eid,cid,eid))
     if not c: fail(403,'Candidato sem vínculo e autorização para o banco desta empresa.')
 
 class Member(BaseModel):
@@ -397,4 +399,5 @@ async def sync_legacy(id,status,s,request):
         fail(422,'Use o Pipeline ATS para reprovar e informar o motivo.')
     await execute('UPDATE ATS_Cards SET Estado=%s,Versao=Versao+1 WHERE ID_Candidaturas=%s',(state,id))
     new=await fetch_one('SELECT * FROM ATS_Cards WHERE ID_Candidaturas=%s',(id,))
-    await event(id,'ats.status',old,new,s,request)
+    etapa=await fetch_one('SELECT Nome FROM ATS_Etapas WHERE ID_Etapa=%s',(old['ID_Etapa'],))
+    await event(id,'ats.status',{**old,'NomeEtapa':etapa['Nome']},{**new,'NomeEtapa':etapa['Nome']},s,request)
