@@ -72,6 +72,7 @@ async def context(id_empresa: str|None=None,s:dict=Depends(rh)):
 @router.post('/vagas/{id}/etapas',status_code=201)
 async def create_stage(id:str,d:StageData,request:Request,s:dict=Depends(rh)):
     await job(id,s)
+    await fetch_one('SELECT ID_Vagas FROM Vagas WHERE ID_Vagas=%s FOR UPDATE',(id,))
     eid=novo_uuid()
     await execute('INSERT INTO ATS_Etapas(ID_Etapa,ID_Vagas,Nome,Ordem,Ativa) VALUES (%s,%s,%s,%s,%s)',(eid,id,d.nome.strip(),d.ordem,d.ativa))
     await registrar_auditoria(request,'ats.etapa.criar','ATS_Etapas',s['id_usuario'],eid,novo=d.model_dump())
@@ -80,8 +81,10 @@ async def create_stage(id:str,d:StageData,request:Request,s:dict=Depends(rh)):
 @router.put('/etapas/{id}')
 async def edit_stage(id:str,d:StageData,request:Request,s:dict=Depends(rh)):
     old=await stage(id,s)
+    await fetch_one('SELECT ID_Vagas FROM Vagas WHERE ID_Vagas=%s FOR UPDATE',(old['ID_Vagas'],))
+    old=await fetch_one('SELECT * FROM ATS_Etapas WHERE ID_Etapa=%s FOR UPDATE',(id,))
     # Soft archival preserves references and prevents stranding active candidates.
-    if not d.ativa and await fetch_one("SELECT ID_Candidaturas FROM ATS_Cards WHERE ID_Etapa=%s AND Estado='ativo' LIMIT 1",(id,)):
+    if not d.ativa and await fetch_one("SELECT ID_Candidaturas FROM ATS_Cards WHERE ID_Etapa=%s AND Estado='ativo' LIMIT 1 FOR UPDATE",(id,)):
         fail(409,'Movimente os candidatos ativos antes de arquivar a etapa.')
     await execute('UPDATE ATS_Etapas SET Nome=%s,Ordem=%s,Ativa=%s WHERE ID_Etapa=%s',(d.nome.strip(),d.ordem,d.ativa,id))
     await registrar_auditoria(request,'ats.etapa.editar','ATS_Etapas',s['id_usuario'],id,old,d.model_dump())
@@ -141,7 +144,8 @@ async def move(id:str,d:Move,request:Request,s:dict=Depends(rh)):
     v=await job(c['ID_Vagas'],s)
     await fetch_one('SELECT ID_Vagas FROM Vagas WHERE ID_Vagas=%s FOR UPDATE',(c['ID_Vagas'],))
     c=await fetch_one('SELECT * FROM Candidaturas WHERE ID_Candidaturas=%s FOR UPDATE',(id,))
-    target=await stage(d.id_etapa,s)
+    await stage(d.id_etapa,s)
+    target=await fetch_one('SELECT * FROM ATS_Etapas WHERE ID_Etapa=%s FOR UPDATE',(d.id_etapa,))
     if target['ID_Vagas']!=c['ID_Vagas'] or not target['Ativa']: fail(422,'Etapa não pertence à vaga ou está arquivada.')
     if not c['Ativo']: fail(409,'Candidato desistente; candidatura arquivada não pode ser reativada pelo RH.')
     if d.responsavel:
