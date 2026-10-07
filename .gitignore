@@ -7,10 +7,18 @@ __pycache__/
 *.pyo
 
 
-# Ambientes virtuais
+# Ambientes virtuais Python
 venv/
 .venv/
 env/
+
+venv*/
+.venv*/
+env*/
+
+python/venv*/
+python/.venv*/
+python/env*/
 
 # =========================
 # Variáveis de ambiente
