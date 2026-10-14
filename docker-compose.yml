@@ -84,14 +84,46 @@ services:
   frontend:
     image: python:3.12-alpine
     working_dir: /site
-    command: python -m http.server 5500 --bind 0.0.0.0
+    command: python serve_frontend.py --bind 0.0.0.0
     volumes:
       - ./html:/site/html:ro
       - ./css:/site/css:ro
       - ./js:/site/js:ro
       - ./docs:/site/docs:ro
+      - ./icons:/site/icons:ro
+      - ./manifest.webmanifest:/site/manifest.webmanifest:ro
+      - ./service-worker.js:/site/service-worker.js:ro
+      - ./serve_frontend.py:/site/serve_frontend.py:ro
     ports:
       - "127.0.0.1:5500:5500"
+    depends_on:
+      api:
+        condition: service_healthy
+
+  worker-plataforma:
+    build:
+      context: .
+      dockerfile: python/Dockerfile
+    restart: unless-stopped
+    env_file: ./python/.env
+    environment: *runtime-environment
+    command: ["python", "-m", "app.worker_platform"]
+    volumes:
+      - talentix_uploads:/app/uploads
+    depends_on:
+      api:
+        condition: service_healthy
+
+  worker-ia:
+    build:
+      context: .
+      dockerfile: python/Dockerfile
+    restart: unless-stopped
+    env_file: ./python/.env
+    environment: *runtime-environment
+    command: ["python", "-m", "app.worker_ia"]
+    volumes:
+      - talentix_uploads:/app/uploads
     depends_on:
       api:
         condition: service_healthy

@@ -52,20 +52,20 @@ pip install -r requirements-ia.txt
 python configure_dev.py
 ```
 
-No Windows/PowerShell, a ativação é `.venv\Scripts\Activate.ps1`.
+No Windows, não é preciso ativar scripts do PowerShell: use `.venv\Scripts\python.exe -m pip install -r requirements-ia.txt` e o mesmo interpretador para os comandos seguintes.
 Edite `python/.env` para preencher `DB_USER` e `DB_PASSWORD`. O configurador não
 sobrescreve um arquivo existente sem `--rotate-keys`.
 
 Ainda dentro de `python/`, inicie a API:
 
 ```bash
-uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
+python -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
 ```
 
 Em outro terminal, na raiz do repositório:
 
 ```bash
-python -m http.server 5500 --bind 127.0.0.1
+python serve_frontend.py
 ```
 
 Abra `http://127.0.0.1:5500/html/index.html`. A documentação interativa da API fica
@@ -186,8 +186,7 @@ callback usam tokens isolados e não movimentam dinheiro.
 
 Updates 4–6 (perfil profissional, currículo inteligente e busca profissional):
 consulte [o contrato das APIs e a atualização segura](docs/updates_novembro.md).
-O Compose inicia também o `worker-profissional` e aplica a migration 005 sem
-apagar os dados existentes.
+O Compose inicia os workers profissional, IA e plataforma e aplica as migrations pendentes, incluindo a 007, sem apagar os dados existentes.
 
 O ambiente local usa Docker Compose v2 com MySQL 8.4, bootstrap, FastAPI e frontend.
 Na raiz, faça a configuração inicial uma única vez:
@@ -213,7 +212,7 @@ somente SELECT/INSERT/UPDATE/DELETE → seed opcional → API saudável → fron
 Qualquer falha do bootstrap impede o início da API. A conta administrativa do
 banco só entra no serviço de bootstrap; não é repassada à API.
 O MySQL não publica porta no host. API e frontend escutam somente em localhost.
-O frontend serve apenas html/css/js/docs, sem expor `.env`, código Python ou Git.
+O frontend usa `serve_frontend.py`, com allowlist de páginas, estilos, scripts, ícones e imagens de documentação. Não expõe `.env`, SQL, código Python, documentação interna ou Git.
 Abra `http://127.0.0.1:5500/html/index.html`; API em `http://127.0.0.1:8000`.
 
 Contas fictícias (senha definida em `DEMO_PASSWORD`):
@@ -270,3 +269,44 @@ expor dados sensíveis.
 Pipeline por vaga, scorecards com avaliação cega e Talent CRM por empresa.
 Acesse **ATS / Banco de talentos** nos painéis de empresa, recrutador e administrador.
 Instalação, funcionamento e controles: [Guia dos updates de dezembro](docs/updates-dezembro.md).
+
+
+## Central integrada e plataforma
+
+Nos painéis, abra **Central integrada** (`html/central.html`). O contexto empresarial
+é selecionável para contas com vários vínculos e é sempre revalidado na API.
+A migration `007_integrated_platform.sql` acrescenta equipes, agenda, preferências,
+comunicação, automações, publicação, IA explicável e privacidade; 001–006 foram preservadas.
+
+- Agenda manual com fuso IANA, duração, conflitos e reagendamento/cancelamento com versão.
+- Conversas por processo, PDFs privados, modelos e lotes autorizados com consentimento.
+- Regras determinísticas de mudança de etapa/inatividade, tarefas e lembretes; nenhuma decisão automática de seleção.
+- Orientações locais V2 com fatores, lacunas, histórico e perguntas para entrevistas. TF-IDF e aliases; sem modelo generativo/embeddings treinados.
+- Publicação explícita de empresa/vaga em `/p/empresa/{slug}` e `/p/vaga/{slug}`, SEO, sitemap, expiração e moderação de avaliações.
+- Analytics por coorte, exportações CSV/PDF, equipes Owner/RH Admin/Recrutador/Hiring Manager/Entrevistador e trilha de auditoria.
+- Exportação de dados próprios, consentimentos, exclusão cancelável e anonimização pelo worker.
+- Aplicativo instalável com tela offline pública; push opcional, sem conteúdo privado no aviso externo.
+
+Inicie mais este processo dentro de `python/`, usando o mesmo ambiente da API:
+
+```bash
+python -m app.worker_platform
+```
+
+`--once` executa um ciclo e retorna erro se houver falha. Sem o worker, a API continua
+atendendo, mas filas, lembretes, anonimização e retenção não avançam. E-mail exige SMTP
+ativo, endereço confirmado e preferência habilitada. Entrega externa SMTP/push não
+foi homologada com provedores reais nesta entrega.
+
+Para push opcional, execute `python configure_push.py` dentro de `python/`, revise
+`VAPID_SUBJECT` com o contato do responsável e reinicie API/worker. A chave privada
+permanece no `.env`. A ativação ocorre por ação do usuário na Central e requer HTTPS
+ou localhost. Desativar na Central interrompe as inscrições de toda a conta.
+Configure `PUBLIC_SITE_URL` com a URL pública da API; a primeira origem de
+`FRONTEND_ORIGIN` é usada para links de login. O servidor estático incluído é para
+localhost/demonstração; produção precisa de HTTPS e CSP compatível com seus domínios.
+
+Contratos, operação e ensaio: [plataforma integrada](docs/plataforma_integrada.md).
+Evidências e pendências por update: [agenda oficial](docs/ROADMAP_STATUS.md).
+Revisão de segurança: [controles e limites](docs/revisao_seguranca.md).
+As instruções para agentes estão somente em [TALENTIX.md](TALENTIX.md).

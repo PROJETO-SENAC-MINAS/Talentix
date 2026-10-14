@@ -11,6 +11,7 @@ RUN pip install --no-cache-dir -r requirements-ia.txt
 COPY python/app ./app
 COPY python/bootstrap.py python/migrate.py python/create_admin.py python/configure_dev.py python/seed_demo.py ./
 COPY sql /sql
+COPY css /css
 
 RUN mkdir -p /app/uploads/fotos /app/uploads/logos /app/uploads/curriculos
 

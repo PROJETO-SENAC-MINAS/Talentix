@@ -37,7 +37,8 @@ jobs:
           conn = pymysql.connect(host=settings.DB_HOST, user=settings.DB_USER, password=settings.DB_PASSWORD, database=settings.DB_NAME)
           with conn.cursor() as cur:
               cur.execute('SELECT COUNT(*) FROM Schema_Migrations')
-              assert cur.fetchone()[0] == 6
+              from migrate import discover_migrations
+              assert cur.fetchone()[0] == len(discover_migrations())
               cur.execute("SELECT COUNT(*) FROM Usuarios WHERE Email LIKE '%@demo.talentix.com' AND EmailConfirmadoEm IS NOT NULL")
               assert cur.fetchone()[0] == 3
               cur.execute('SHOW GRANTS FOR CURRENT_USER')
@@ -130,6 +131,13 @@ jobs:
         run: python -m pip install -r python/requirements-dev.txt
       - name: Compile Python sources
         run: python -m compileall -q python/app python/*.py
+      - name: Review static security findings
+        run: python python/check_sast.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: static-security-review
+          path: test-results/bandit.json
       - name: Run security regression tests
         working-directory: python
         run: python -m pytest tests -q
@@ -213,15 +221,15 @@ jobs:
           python tests/mysql/run_regressions.py
           python tests/mysql/run_november.py
           python tests/mysql/run_december.py
+          python tests/mysql/run_platform.py
       - name: Start frontend
-        run: python -m http.server 5500 --bind 127.0.0.1 > "$TEST_RESULTS_DIR/frontend.log" 2>&1 &
+        run: python serve_frontend.py > "$TEST_RESULTS_DIR/frontend.log" 2>&1 &
       - name: Validate diagram, accessibility, files and complete browser flow
         run: |
           npm run check --prefix web-tests
           npm test --prefix web-tests
       - name: Audit dependencies
         run: |
-          python -m pip install pip-audit
           python -m pip_audit -r python/requirements-dev.txt
           npm audit --prefix web-tests --audit-level=low
       - uses: actions/upload-artifact@v4

@@ -1,0 +1,276 @@
+{
+  "reviewed_at": "2026-10-14",
+  "scope": "python/app; Bandit 1.9.4; revisão manual de SQL dinâmico, sem supressão de testes",
+  "reviewed": [
+    {
+      "file": "python/app/core/agenda.py",
+      "file_sha256": "c402cb0af8b4b5e07c6eafeccfbec026a042a43c754789f8b537d3ebb0f9baad",
+      "test_id": "B608",
+      "severity": "MEDIUM",
+      "confidence": "LOW",
+      "line": 80,
+      "reason": "IN contém apenas marcadores %s gerados da quantidade de IDs; os IDs são argumentos separados."
+    },
+    {
+      "file": "python/app/core/crud_helper.py",
+      "file_sha256": "bccbfcace41b1f7d32173ba73e13777d103fc30899eb8e1545f680664f178cfa",
+      "test_id": "B608",
+      "severity": "MEDIUM",
+      "confidence": "LOW",
+      "line": 18,
+      "reason": "Factory sem entradas HTTP; identificadores validados por regex de identificador SQL, sem valores interpolados."
+    },
+    {
+      "file": "python/app/core/deps.py",
+      "file_sha256": "3baf98f3d8731f2bbdd5a47bbb1881a97868f56f2782a5b0cf10b0b8f0edc225",
+      "test_id": "B608",
+      "severity": "MEDIUM",
+      "confidence": "LOW",
+      "line": 35,
+      "reason": "Tabela e chave vêm exclusivamente das listas literais de perfis; ID do usuário é parametrizado."
+    },
+    {
+      "file": "python/app/core/deps.py",
+      "file_sha256": "3baf98f3d8731f2bbdd5a47bbb1881a97868f56f2782a5b0cf10b0b8f0edc225",
+      "test_id": "B608",
+      "severity": "MEDIUM",
+      "confidence": "LOW",
+      "line": 46,
+      "reason": "Tabela e chave vêm exclusivamente das listas literais de perfis; ID do usuário é parametrizado."
+    },
+    {
+      "file": "python/app/core/privacy.py",
+      "file_sha256": "b8fe520ee220568d25601e6ee3b36b083987244b02a39ca79959fada3684629e",
+      "test_id": "B608",
+      "severity": "MEDIUM",
+      "confidence": "MEDIUM",
+      "line": 109,
+      "reason": "Tabela vem da tupla literal de coleções do perfil; candidato é argumento parametrizado."
+    },
+    {
+      "file": "python/app/routers/admin.py",
+      "file_sha256": "a4aa007701b80d779e4f1ff010f346869e1c242a90fd5122903e444a4889f4ac",
+      "test_id": "B608",
+      "severity": "MEDIUM",
+      "confidence": "LOW",
+      "line": 55,
+      "reason": "Filtros são fragmentos literais booleanos; colunas vêm de mapas fixos de modelos Pydantic; valores e IDs são parametrizados; rota exige administrador."
+    },
+    {
+      "file": "python/app/routers/admin.py",
+      "file_sha256": "a4aa007701b80d779e4f1ff010f346869e1c242a90fd5122903e444a4889f4ac",
+      "test_id": "B608",
+      "severity": "MEDIUM",
+      "confidence": "MEDIUM",
+      "line": 95,
+      "reason": "Filtros são fragmentos literais booleanos; colunas vêm de mapas fixos de modelos Pydantic; valores e IDs são parametrizados; rota exige administrador."
+    },
+    {
+      "file": "python/app/routers/admin.py",
+      "file_sha256": "a4aa007701b80d779e4f1ff010f346869e1c242a90fd5122903e444a4889f4ac",
+      "test_id": "B608",
+      "severity": "MEDIUM",
+      "confidence": "MEDIUM",
+      "line": 130,
+      "reason": "Filtros são fragmentos literais booleanos; colunas vêm de mapas fixos de modelos Pydantic; valores e IDs são parametrizados; rota exige administrador."
+    },
+    {
+      "file": "python/app/routers/admin.py",
+      "file_sha256": "a4aa007701b80d779e4f1ff010f346869e1c242a90fd5122903e444a4889f4ac",
+      "test_id": "B608",
+      "severity": "MEDIUM",
+      "confidence": "LOW",
+      "line": 162,
+      "reason": "Filtros são fragmentos literais booleanos; colunas vêm de mapas fixos de modelos Pydantic; valores e IDs são parametrizados; rota exige administrador."
+    },
+    {
+      "file": "python/app/routers/admin.py",
+      "file_sha256": "a4aa007701b80d779e4f1ff010f346869e1c242a90fd5122903e444a4889f4ac",
+      "test_id": "B608",
+      "severity": "MEDIUM",
+      "confidence": "MEDIUM",
+      "line": 199,
+      "reason": "Filtros são fragmentos literais booleanos; colunas vêm de mapas fixos de modelos Pydantic; valores e IDs são parametrizados; rota exige administrador."
+    },
+    {
+      "file": "python/app/routers/analytics.py",
+      "file_sha256": "aaefa834699ffe307018c3cb7cd841f18507506e06c73bd3d2f255e2b88fd677",
+      "test_id": "B608",
+      "severity": "MEDIUM",
+      "confidence": "LOW",
+      "line": 67,
+      "reason": "IN contém somente marcadores %s gerados do tamanho da coorte; IDs são argumentos separados e a coorte foi limitada à empresa autorizada."
+    },
+    {
+      "file": "python/app/routers/ats.py",
+      "file_sha256": "20949c23ff44fede28dc70c2b64160be9332542cc3c5203074a2cca20544e297",
+      "test_id": "B608",
+      "severity": "MEDIUM",
+      "confidence": "MEDIUM",
+      "line": 164,
+      "reason": "Única interpolação é o fragmento literal EntradaEm=NOW() escolhido por booleano; todos os dados são parametrizados."
+    },
+    {
+      "file": "python/app/routers/busca.py",
+      "file_sha256": "9728bb2e0641879a2d9cd90fb695ccf409e0195ade1f63b292e4a08487a5e4b7",
+      "test_id": "B608",
+      "severity": "MEDIUM",
+      "confidence": "LOW",
+      "line": 108,
+      "reason": "Ordenação e subquery são fragmentos estáticos escolhidos por enum; candidato é argumento %s."
+    },
+    {
+      "file": "python/app/routers/curriculo.py",
+      "file_sha256": "08ade423e7d26e5297056b2f9a0d8ab563e384350bc01389a04497c52424af3d",
+      "test_id": "B608",
+      "severity": "MEDIUM",
+      "confidence": "MEDIUM",
+      "line": 390,
+      "reason": "Colunas são percorridas no mapa literal de campos importáveis, após validação Pydantic e revisão do dono; valores parametrizados."
+    },
+    {
+      "file": "python/app/routers/dominios.py",
+      "file_sha256": "508e6afa0179bc275d0453453ba2df12d478931fbf51810f4c7c76d868236f1c",
+      "test_id": "B608",
+      "severity": "MEDIUM",
+      "confidence": "LOW",
+      "line": 28,
+      "reason": "Tabela e PK vêm exclusivamente do dicionário literal _TABELAS; chave desconhecida não chega à query."
+    },
+    {
+      "file": "python/app/routers/dominios.py",
+      "file_sha256": "508e6afa0179bc275d0453453ba2df12d478931fbf51810f4c7c76d868236f1c",
+      "test_id": "B608",
+      "severity": "MEDIUM",
+      "confidence": "LOW",
+      "line": 36,
+      "reason": "Tabela e PK vêm exclusivamente do dicionário literal _TABELAS; chave desconhecida não chega à query."
+    },
+    {
+      "file": "python/app/routers/governance.py",
+      "file_sha256": "329fe280cf18bf690b6823172e7de9ea50e4379186a1f589d8171ec1678ac535",
+      "test_id": "B608",
+      "severity": "MEDIUM",
+      "confidence": "LOW",
+      "line": 43,
+      "reason": "Tabelas vêm de tupla literal; coluna é um de dois nomes literais selecionados por finalidade enum; valores e usuário parametrizados."
+    },
+    {
+      "file": "python/app/routers/governance.py",
+      "file_sha256": "329fe280cf18bf690b6823172e7de9ea50e4379186a1f589d8171ec1678ac535",
+      "test_id": "B608",
+      "severity": "MEDIUM",
+      "confidence": "MEDIUM",
+      "line": 99,
+      "reason": "Tabelas vêm de tupla literal; coluna é um de dois nomes literais selecionados por finalidade enum; valores e usuário parametrizados."
+    },
+    {
+      "file": "python/app/routers/governance.py",
+      "file_sha256": "329fe280cf18bf690b6823172e7de9ea50e4379186a1f589d8171ec1678ac535",
+      "test_id": "B608",
+      "severity": "MEDIUM",
+      "confidence": "MEDIUM",
+      "line": 104,
+      "reason": "Tabelas vêm de tupla literal; coluna é um de dois nomes literais selecionados por finalidade enum; valores e usuário parametrizados."
+    },
+    {
+      "file": "python/app/routers/perfis.py",
+      "file_sha256": "42c014422a05bb5f6ad1dfb774462dc58e8344724f560e5aa8df21b19012c29f",
+      "test_id": "B608",
+      "severity": "MEDIUM",
+      "confidence": "MEDIUM",
+      "line": 111,
+      "reason": "Colunas vêm dos mapas fixos indexados pelas chaves dos modelos Pydantic; valores e IDs parametrizados; acesso validado antes da escrita."
+    },
+    {
+      "file": "python/app/routers/perfis.py",
+      "file_sha256": "42c014422a05bb5f6ad1dfb774462dc58e8344724f560e5aa8df21b19012c29f",
+      "test_id": "B608",
+      "severity": "MEDIUM",
+      "confidence": "MEDIUM",
+      "line": 182,
+      "reason": "Colunas vêm dos mapas fixos indexados pelas chaves dos modelos Pydantic; valores e IDs parametrizados; acesso validado antes da escrita."
+    },
+    {
+      "file": "python/app/routers/profissional.py",
+      "file_sha256": "85cde407e3661de237fad6ee0575a00115647fcaea0099cef96321b21277da3b",
+      "test_id": "B608",
+      "severity": "MEDIUM",
+      "confidence": "LOW",
+      "line": 23,
+      "reason": "Sondagem de esquema percorre somente a tupla literal de quatro tabelas; não recebe identificador do usuário."
+    },
+    {
+      "file": "python/app/routers/vagas.py",
+      "file_sha256": "7136f28dc7fe9ac2369e0c0fc8de32e51c29732c740099d7e9c600953d87abac",
+      "test_id": "B608",
+      "severity": "MEDIUM",
+      "confidence": "MEDIUM",
+      "line": 174,
+      "reason": "Colunas vêm do mapa fixo de campos do modelo VagaUpdate; valores e ID parametrizados, empresa autorizada antes da escrita."
+    },
+    {
+      "file": "python/app/worker_ia.py",
+      "file_sha256": "00d927d0178d5f1c668c75263dca41d7f3eac03bb548bf1a4fb34ae9cd0c2970",
+      "test_id": "B608",
+      "severity": "MEDIUM",
+      "confidence": "LOW",
+      "line": 20,
+      "reason": "Tabela e PK vêm de JOBS literal ou de claim_job, sem entrada HTTP; created é escolha entre dois literais; valores parametrizados."
+    },
+    {
+      "file": "python/app/worker_ia.py",
+      "file_sha256": "00d927d0178d5f1c668c75263dca41d7f3eac03bb548bf1a4fb34ae9cd0c2970",
+      "test_id": "B608",
+      "severity": "MEDIUM",
+      "confidence": "MEDIUM",
+      "line": 25,
+      "reason": "Tabela e PK vêm de JOBS literal ou de claim_job, sem entrada HTTP; created é escolha entre dois literais; valores parametrizados."
+    },
+    {
+      "file": "python/app/worker_ia.py",
+      "file_sha256": "00d927d0178d5f1c668c75263dca41d7f3eac03bb548bf1a4fb34ae9cd0c2970",
+      "test_id": "B608",
+      "severity": "MEDIUM",
+      "confidence": "LOW",
+      "line": 26,
+      "reason": "Tabela e PK vêm de JOBS literal ou de claim_job, sem entrada HTTP; created é escolha entre dois literais; valores parametrizados."
+    },
+    {
+      "file": "python/app/worker_ia.py",
+      "file_sha256": "00d927d0178d5f1c668c75263dca41d7f3eac03bb548bf1a4fb34ae9cd0c2970",
+      "test_id": "B608",
+      "severity": "MEDIUM",
+      "confidence": "LOW",
+      "line": 78,
+      "reason": "Tabela e PK vêm de JOBS literal ou de claim_job, sem entrada HTTP; created é escolha entre dois literais; valores parametrizados."
+    },
+    {
+      "file": "python/app/worker_ia.py",
+      "file_sha256": "00d927d0178d5f1c668c75263dca41d7f3eac03bb548bf1a4fb34ae9cd0c2970",
+      "test_id": "B608",
+      "severity": "MEDIUM",
+      "confidence": "MEDIUM",
+      "line": 95,
+      "reason": "Tabela e PK vêm de JOBS literal ou de claim_job, sem entrada HTTP; created é escolha entre dois literais; valores parametrizados."
+    },
+    {
+      "file": "python/app/worker_profissional.py",
+      "file_sha256": "8b41e76a38f1e92e7466b0876384844bd4b1578d8da2aaacdb7827000436df52",
+      "test_id": "B608",
+      "severity": "MEDIUM",
+      "confidence": "LOW",
+      "line": 39,
+      "reason": "predicado gera apenas fragmentos literais e placeholders; filtros são validados por BuscaFiltros; valores seguem em args separados."
+    },
+    {
+      "file": "python/app/worker_profissional.py",
+      "file_sha256": "8b41e76a38f1e92e7466b0876384844bd4b1578d8da2aaacdb7827000436df52",
+      "test_id": "B608",
+      "severity": "MEDIUM",
+      "confidence": "LOW",
+      "line": 40,
+      "reason": "predicado gera apenas fragmentos literais e placeholders; filtros são validados por BuscaFiltros; valores seguem em args separados."
+    }
+  ]
+}
