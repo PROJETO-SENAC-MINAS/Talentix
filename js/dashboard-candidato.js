@@ -75,9 +75,9 @@ document.addEventListener('DOMContentLoaded', () => {
      Navegação entre abas
      ============================================================ */
 
-  $all('.nav-item').forEach((botao) => {
+  $all('.nav-item[data-tab]').forEach((botao) => {
     botao.addEventListener('click', () => {
-      $all('.nav-item').forEach((b) => b.classList.remove('active'));
+      $all('.nav-item[data-tab]').forEach((b) => b.classList.remove('active'));
       $all('.tab-panel').forEach((p) => p.classList.remove('active'));
       botao.classList.add('active');
       $(`#tab-${botao.dataset.tab}`).classList.add('active');

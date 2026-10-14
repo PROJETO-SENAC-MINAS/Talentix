@@ -55,13 +55,16 @@
         tab.addEventListener('keydown', event => {
           if (!['ArrowDown','ArrowRight','ArrowUp','ArrowLeft','Home','End'].includes(event.key)) return;
           event.preventDefault();
-          let target = index;
+          const visibleTabs = tabs.filter(item => !item.hidden && item.getClientRects().length > 0);
+          const current = visibleTabs.indexOf(tab);
+          if (!visibleTabs.length || current < 0) return;
+          let target = current;
           if (event.key === 'Home') target = 0;
-          else if (event.key === 'End') target = tabs.length - 1;
-          else if (['ArrowDown','ArrowRight'].includes(event.key)) target = (index + 1) % tabs.length;
-          else target = (index - 1 + tabs.length) % tabs.length;
-          tabs.forEach((item, i) => { item.tabIndex = i === target ? 0 : -1; });
-          tabs[target].focus();
+          else if (event.key === 'End') target = visibleTabs.length - 1;
+          else if (['ArrowDown','ArrowRight'].includes(event.key)) target = (current + 1) % visibleTabs.length;
+          else target = (current - 1 + visibleTabs.length) % visibleTabs.length;
+          tabs.forEach(item => { item.tabIndex = item === visibleTabs[target] ? 0 : -1; });
+          visibleTabs[target].focus();
         });
       });
     });

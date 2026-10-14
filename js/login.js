@@ -274,7 +274,13 @@ document.addEventListener('DOMContentLoaded', () => {
     switch (tipoUsuario) {
       case 'empresa': return 'dashboard-empresa.html';
       case 'administrador': return 'dashboard-admin.html';
-      case 'candidato': return 'dashboard-candidato.html';
+      case 'candidato': {
+        const source=new URLSearchParams(window.location.search),params=new URLSearchParams();
+        const vacancy=source.get('vaga'),cargo=source.get('cargo');
+        if(vacancy && /^[a-zA-Z0-9-]{1,36}$/.test(vacancy))params.set('vaga',vacancy);
+        if(cargo)params.set('cargo',cargo.slice(0,200));
+        return 'dashboard-candidato.html'+(params.size?'?'+params:'');
+      }
       case 'recrutador': return 'dashboard-recrutador.html';
       default: return 'dashboard.html';
     }

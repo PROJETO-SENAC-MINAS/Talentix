@@ -34,7 +34,7 @@ window.Talentix = (() => {
       Promise.resolve(onChange(button.dataset.tab)).catch(error => toast(error.message, true));
     }));
   }
-  function bindLogout() { $('#btnLogout')?.addEventListener('click', async () => { try { await api('/auth/logout', {method:'POST'}); window.location.assign('login.html'); } catch(error) { toast(error.message, true); } }); }
+  function bindLogout() { $('#btnLogout')?.addEventListener('click', async () => { try { await api('/auth/logout', {method:'POST'}); localStorage.removeItem('talentix_organizacao'); window.location.assign('login.html'); } catch(error) { toast(error.message, true); } }); }
   async function notifications() {
     const target = $('#listaNotificacoes'); if (!target) return;
     const records = await api('/notificacoes');

@@ -32,10 +32,16 @@ const API_BASE_URL = (() => {
     const metodo = String(opcoes.method || 'GET').toUpperCase();
     if (mesmaApi(input)) {
       opcoes.credentials = 'include';
+      const headers = new Headers(opcoes.headers || {});
+      const requestUrl = new URL(typeof input === 'string' ? input : input.url, window.location.href);
+      const organizacao = localStorage.getItem('talentix_organizacao');
+      if (organizacao && !headers.has('X-Organization-ID') && !['/auth/login','/auth/logout','/organizacoes/convites/aceitar'].includes(requestUrl.pathname)) {
+        headers.set('X-Organization-ID', organizacao);
+      }
+      opcoes.headers = headers;
       if (metodosMutaveis.has(metodo)) {
         const csrf = lerCookie('talentix_csrf');
         if (csrf) {
-          const headers = new Headers(opcoes.headers || {});
           headers.set('X-CSRF-Token', csrf);
           opcoes.headers = headers;
         }
