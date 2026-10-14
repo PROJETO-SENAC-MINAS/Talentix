@@ -130,7 +130,7 @@ Para processar a fila existente e sair, use `python -m app.worker_ia --once`.
 O worker usa o mesmo banco, não envia dados a serviços externos e não precisa de
 chave de provedor de IA. O modelo TF-IDF e as habilidades fornecem um índice
 explicável; não são uma previsão de contratação. A metodologia e o roteiro estão
-em [docs/andamento_inicial.md](docs/andamento_inicial.md).
+em [TALENTIX.md — fluxo inicial](TALENTIX.md#fluxo-inicial).
 
 As empresas e os candidatos fazem cadastro na interface. Recrutadores têm uma
 conta própria e aguardam o vínculo concedido no painel da empresa. Os painéis
@@ -185,7 +185,7 @@ callback usam tokens isolados e não movimentam dinheiro.
 ## Execução com Docker Compose
 
 Updates 4–6 (perfil profissional, currículo inteligente e busca profissional):
-consulte [o contrato das APIs e a atualização segura](docs/updates_novembro.md).
+consulte [o contrato das APIs e a atualização segura](TALENTIX.md#historico-novembro).
 O Compose inicia os workers profissional, IA e plataforma e aplica as migrations pendentes, incluindo a 007, sem apagar os dados existentes.
 
 O ambiente local usa Docker Compose v2 com MySQL 8.4, bootstrap, FastAPI e frontend.
@@ -268,7 +268,7 @@ expor dados sensíveis.
 
 Pipeline por vaga, scorecards com avaliação cega e Talent CRM por empresa.
 Acesse **ATS / Banco de talentos** nos painéis de empresa, recrutador e administrador.
-Instalação, funcionamento e controles: [Guia dos updates de dezembro](docs/updates-dezembro.md).
+Instalação, funcionamento e controles: [TALENTIX.md — histórico de dezembro](TALENTIX.md#historico-dezembro).
 
 
 ## Central integrada e plataforma
@@ -306,7 +306,7 @@ Configure `PUBLIC_SITE_URL` com a URL pública da API; a primeira origem de
 `FRONTEND_ORIGIN` é usada para links de login. O servidor estático incluído é para
 localhost/demonstração; produção precisa de HTTPS e CSP compatível com seus domínios.
 
-Contratos, operação e ensaio: [plataforma integrada](docs/plataforma_integrada.md).
-Evidências e pendências por update: [agenda oficial](docs/ROADMAP_STATUS.md).
-Revisão de segurança: [controles e limites](docs/revisao_seguranca.md).
+Contratos, operação e ensaio: [plataforma integrada](TALENTIX.md#plataforma-integrada).
+Evidências e pendências por update: [agenda oficial](TALENTIX.md#estado-roadmap).
+Revisão de segurança: [controles e limites](TALENTIX.md#revisao-seguranca).
 As instruções para agentes estão somente em [TALENTIX.md](TALENTIX.md).

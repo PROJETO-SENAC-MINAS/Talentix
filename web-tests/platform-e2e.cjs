@@ -53,7 +53,7 @@ process.env.A11Y_REPORT='central';
   await publicPage.close();
   const login=await context.request.post(api+'/auth/login',{data:{email:fixture.email_candidato,senha:'Plataforma123!'}});assert.equal(login.status(),200);
   const page=await context.newPage();await page.goto(front+'/html/central.html');await page.locator('#processosCentral button').first().waitFor();
-  for(const privatePath of ['/python/.env','/.git/config','/sql/talentix_db.sql','/docs/updates_novembro.md'])assert.equal((await context.request.get(front+privatePath)).status(),404);
+  for(const privatePath of ['/python/.env','/.git/config','/sql/talentix_db.sql','/TALENTIX.md'])assert.equal((await context.request.get(front+privatePath)).status(),404);
   await page.locator('[data-tab="comunicacao"]').click();await page.locator('#comProcesso').selectOption(fixture.candidatura);
   await page.locator('#carregarTimeline').click();await page.locator('#timelineCentral [data-read]').first().waitFor();
   await page.locator('#timelineCentral [data-read]').first().click();await page.waitForLoadState('networkidle');
