@@ -81,6 +81,19 @@ def seed(password: str) -> None:
                 )
 
             admin_id = deterministic_uuid("admin-profile")
+            cur.execute(
+                "SELECT ID_Empresas FROM Empresas WHERE ID_Usuarios=%s", (ids["empresa"],)
+            )
+            actual_company = cur.fetchone()[0]
+            cur.execute(
+                "SELECT 1 FROM Org_Membros WHERE ID_Empresas=%s AND ID_Usuarios=%s",
+                (actual_company, ids["empresa"]),
+            )
+            if not cur.fetchone():
+                cur.execute(
+                    "INSERT INTO Org_Membros(ID_Empresas,ID_Usuarios,Papel) VALUES (%s,%s,'owner')",
+                    (actual_company, ids["empresa"]),
+                )
             cur.execute("SELECT 1 FROM Administradores WHERE ID_Usuarios=%s", (ids["admin"],))
             if not cur.fetchone():
                 cur.execute(

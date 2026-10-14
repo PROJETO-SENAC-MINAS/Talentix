@@ -5,7 +5,7 @@ por uma candidatura.
 from app.core.routes import AtomicRouter as APIRouter
 
 from fastapi import Depends, HTTPException, status
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 
 from app.db.database import fetch_one, fetch_all, execute
 from app.core.security import novo_uuid
@@ -19,9 +19,10 @@ router = APIRouter(prefix="/mensagens", tags=["Mensagens"])
 
 
 class MensagemCreate(BaseModel):
-    id_destinatario: str
+    model_config=ConfigDict(extra='forbid',str_strip_whitespace=True)
+    id_destinatario: str=Field(min_length=1,max_length=36)
     conteudo: str = Field(min_length=1, max_length=10000)
-    id_candidatura: str | None = None
+    id_candidatura: str | None = Field(None,min_length=1,max_length=36)
 
 
 @router.post("", status_code=201)
@@ -38,9 +39,18 @@ async def enviar_mensagem(dados: MensagemCreate, sessao: dict = Depends(usuario_
         empresa = await fetch_one("SELECT ID_Usuarios FROM Empresas WHERE ID_Empresas=%s AND Ativo=1", (vaga["ID_Empresas"],))
         recrutador = await fetch_one("SELECT ID_Usuarios FROM Recrutadores WHERE ID_Usuarios=%s AND ID_Empresas=%s AND Ativo=1",
                                    (dados.id_destinatario, vaga["ID_Empresas"]))
+        member=await fetch_one('SELECT Papel,Ativo FROM Org_Membros WHERE ID_Empresas=%s AND ID_Usuarios=%s',(vaga['ID_Empresas'],dados.id_destinatario))
+        if member:
+            recrutador=member if member['Ativo'] and member['Papel'] in {'owner','rh_admin','recrutador'} else None
         participantes = {candidato["ID_Usuarios"] if candidato else None, empresa["ID_Usuarios"] if empresa else None}
         if dados.id_destinatario not in participantes and not recrutador:
             raise HTTPException(status.HTTP_403_FORBIDDEN, "Destinatário não participa desta candidatura.")
+    elif sessao['tipo_usuario']!='administrador':
+        existing=await fetch_one('''SELECT ID_Mensagens FROM Mensagens WHERE
+            (ID_Remetente=%s AND ID_Destinatario=%s) OR (ID_Remetente=%s AND ID_Destinatario=%s) LIMIT 1''',
+            (sessao['id_usuario'],dados.id_destinatario,dados.id_destinatario,sessao['id_usuario']))
+        if not existing:
+            raise HTTPException(403,'Inicie a conversa pelo contexto de um processo autorizado.')
     id_msg = novo_uuid()
     await execute(
         """INSERT INTO Mensagens (ID_Mensagens, ID_Remetente, ID_Destinatario, ID_Candidaturas, Conteudo)

@@ -95,12 +95,25 @@ async def usuario_atual(request: Request) -> dict:
 
     modo_usuario = bool(sessao.get("modo_usuario")) and tipo_principal == "administrador"
     tipo_efetivo = await descobrir_tipo_usuario_comum(sessao["id_usuario"]) if modo_usuario else tipo_principal
+    from app.core.organizations import papel_empresa, permissao_da_rota
+    selecionada = request.headers.get('X-Organization-ID')
+    papel = None
+    if selecionada:
+        empresa = await fetch_one('SELECT * FROM Empresas WHERE ID_Empresas=%s AND Ativo=1', (selecionada,))
+        if not empresa:
+            raise HTTPException(403, 'Organização indisponível.')
+        papel = await papel_empresa(empresa, {**sessao, 'tipo_usuario': tipo_efetivo})
+        if tipo_efetivo != 'administrador':
+            tipo_efetivo = 'empresa' if papel == 'owner' else 'recrutador'
     return {
         **sessao,
         "tipo_usuario": tipo_efetivo,
         "tipo_principal": tipo_principal,
         "modo_usuario": modo_usuario,
         "permissoes": permissoes_usuario(tipo_efetivo),
+        'empresa_selecionada': selecionada,
+        'papel_empresa': papel,
+        '_enterprise_permission': permissao_da_rota(request.method, request.url.path),
     }
 
 

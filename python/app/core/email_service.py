@@ -31,7 +31,7 @@ def enviar_email(destinatario: str, assunto: str, corpo_html: str) -> bool:
     Retorna True se enviado com sucesso, False em caso de falha (não lança exceção).
     """
     if not settings.SMTP_ENABLED:
-        logger.info(f"[EMAIL DESATIVADO] Para: {destinatario} | Assunto: {assunto}")
+        logger.info('Envio SMTP desativado.')
         return False
 
     try:
@@ -40,10 +40,10 @@ def enviar_email(destinatario: str, assunto: str, corpo_html: str) -> bool:
             servidor.starttls(context=ssl.create_default_context())
             servidor.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
             servidor.sendmail(settings.SMTP_FROM_EMAIL, [destinatario], msg.as_string())
-        logger.info(f"E-mail enviado para {destinatario} | Assunto: {assunto}")
+        logger.info('Mensagem aceita pelo servidor SMTP.')
         return True
     except Exception as erro:
-        logger.error(f"Falha ao enviar e-mail para {destinatario}: {erro}")
+        logger.warning('Falha SMTP.', extra={'smtp_error_type':type(erro).__name__})
         return False
 
 

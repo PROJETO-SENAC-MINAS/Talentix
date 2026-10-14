@@ -12,6 +12,13 @@ async def checar_habilidade_ativa(id_habilidade: str) -> dict:
 
 
 async def empresa_da_sessao(sessao: dict) -> dict:
+    if sessao.get('empresa_selecionada'):
+        empresa = await fetch_one('SELECT * FROM Empresas WHERE ID_Empresas=%s AND Ativo=1', (sessao['empresa_selecionada'],))
+        if not empresa:
+            raise HTTPException(403, 'Organização indisponível.')
+        from app.core.organizations import autorizar_empresa
+        sessao['papel_empresa'] = await autorizar_empresa(empresa, sessao, sessao.get('_enterprise_permission','ler'))
+        return empresa
     if sessao["tipo_usuario"] == "empresa":
         empresa = await fetch_one("SELECT * FROM Empresas WHERE ID_Usuarios=%s AND Ativo=1", (sessao["id_usuario"],))
     elif sessao["tipo_usuario"] == "recrutador":
@@ -22,6 +29,8 @@ async def empresa_da_sessao(sessao: dict) -> dict:
         empresa = None
     if not empresa:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Empresa ou vínculo ativo não encontrado.")
+    from app.core.organizations import autorizar_empresa
+    sessao['papel_empresa'] = await autorizar_empresa(empresa, sessao, sessao.get('_enterprise_permission','ler'))
     return empresa
 
 
@@ -36,6 +45,8 @@ async def checar_empresa(id_empresa: str, sessao: dict, permitir_recrutador: boo
     vinculada = await empresa_da_sessao(sessao)
     if vinculada["ID_Empresas"] != id_empresa:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Sem permissão sobre esta empresa.")
+    from app.core.organizations import autorizar_empresa
+    await autorizar_empresa(empresa, sessao, sessao.get('_enterprise_permission', 'ler'))
     return empresa
 
 
@@ -57,6 +68,8 @@ async def checar_leitura_candidato(id_candidato: str, sessao: dict) -> dict:
     if sessao["tipo_usuario"] not in {"empresa", "recrutador"}:
         return await checar_dono_candidato(id_candidato, sessao)
     empresa = await empresa_da_sessao(sessao)
+    from app.core.organizations import autorizar_empresa
+    await autorizar_empresa(empresa, sessao, 'ler')
     candidato = await fetch_one(
         """SELECT c.* FROM Candidatos c
            JOIN Candidaturas ca ON ca.ID_Candidatos=c.ID_Candidatos AND ca.Ativo=1

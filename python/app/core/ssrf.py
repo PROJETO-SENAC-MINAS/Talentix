@@ -28,6 +28,7 @@ def validar_url_saida(url: str, hosts_permitidos: set[str] | None = None) -> str
     """
     try:
         parsed = urlsplit(url)
+        port = parsed.port
     except ValueError as exc:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "URL inválida.") from exc
 
@@ -46,7 +47,7 @@ def validar_url_saida(url: str, hosts_permitidos: set[str] | None = None) -> str
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Destino interno não permitido.")
 
     try:
-        infos = socket.getaddrinfo(host, parsed.port or 443, type=socket.SOCK_STREAM)
+        infos = socket.getaddrinfo(host, port or 443, type=socket.SOCK_STREAM)
     except socket.gaierror as exc:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Não foi possível resolver o destino.") from exc
 

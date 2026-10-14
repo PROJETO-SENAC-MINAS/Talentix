@@ -20,6 +20,7 @@ async def init_pool() -> None:
         password=settings.DB_PASSWORD, db=settings.DB_NAME, autocommit=True,
         charset="utf8mb4", cursorclass=aiomysql.cursors.DictCursor,
         minsize=1, maxsize=10, pool_recycle=1800,
+        init_command="SET time_zone='+00:00'",
     )
 
 

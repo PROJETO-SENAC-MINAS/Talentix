@@ -18,14 +18,18 @@ async def registrar_auditoria(
 ) -> None:
     request_id = getattr(getattr(request, "state", None), "request_id", None) if request else None
     user_agent = request.headers.get("user-agent", "")[:500] if request else None
+    audit_id = novo_uuid()
     await execute(
         """INSERT INTO Audit_Logs
            (ID_Audit_Logs, ID_Usuarios, Acao, Recurso, RecursoId, RequestId, UserAgent, ValorAnterior, ValorNovo)
            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)""",
         (
-            novo_uuid(), id_usuario, acao[:100], recurso[:100], recurso_id,
+            audit_id, id_usuario, acao[:100], recurso[:100], recurso_id,
             request_id, user_agent,
             json.dumps(anterior, ensure_ascii=False, default=str) if anterior is not None else None,
             json.dumps(novo, ensure_ascii=False, default=str) if novo is not None else None,
         ),
     )
+    if request:
+        await execute('INSERT INTO Audit_Contexto(ID_Audit_Logs,IP) VALUES (%s,%s)',
+                      (audit_id, request.client.host[:45] if request.client else None))

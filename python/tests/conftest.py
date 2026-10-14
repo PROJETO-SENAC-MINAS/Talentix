@@ -94,7 +94,7 @@ CREATE TABLE Habilidades (ID_Habilidades TEXT PRIMARY KEY, Nome TEXT, Categoria 
 CREATE TABLE Candidato_Habilidades (ID_Candidato_Habilidades TEXT PRIMARY KEY, ID_Candidatos TEXT, ID_Habilidades TEXT,Nivel INTEGER,AnosExperiencia INTEGER);
 CREATE TABLE Idiomas (ID_Idiomas TEXT PRIMARY KEY, Nome TEXT);
 CREATE TABLE Candidato_Idiomas (ID_Candidato_Idiomas TEXT PRIMARY KEY, ID_Candidatos TEXT, ID_Idiomas TEXT,Nivel TEXT);
-CREATE TABLE Vaga_Habilidades (ID_Vaga_Habilidades TEXT PRIMARY KEY, ID_Vagas TEXT,ID_Habilidades TEXT,NivelMinimo INTEGER,Obrigatoria INTEGER);
+CREATE TABLE Vaga_Habilidades (ID_Vaga_Habilidades TEXT PRIMARY KEY, ID_Vagas TEXT,ID_Habilidades TEXT,NivelMinimo INTEGER,Obrigatoria INTEGER,Peso INTEGER DEFAULT 1);
 CREATE TABLE Candidato_Itens(ID_Item TEXT PRIMARY KEY,ID_Candidatos TEXT,Tipo TEXT,Titulo TEXT,Instituicao TEXT,Descricao TEXT,Url TEXT,DataInicio TEXT,DataFim TEXT,CriadoEm TEXT DEFAULT CURRENT_TIMESTAMP);
 CREATE TABLE Buscas_Salvas(ID_Busca TEXT PRIMARY KEY,ID_Usuarios TEXT,Nome TEXT,Filtros TEXT,Ativa INTEGER DEFAULT 0,CriadoEm TEXT DEFAULT CURRENT_TIMESTAMP);
 CREATE TABLE Historico_Buscas(ID_Historico TEXT PRIMARY KEY,ID_Usuarios TEXT,Filtros TEXT,CriadoEm TEXT DEFAULT CURRENT_TIMESTAMP);
@@ -130,6 +130,7 @@ def ambiente(monkeypatch, tmp_path):
     conn.row_factory = sqlite3.Row
     conn.executescript(SCHEMA)
     conn.executescript((Path(__file__).parent / "fixtures/ats_sqlite.sql").read_text())
+    conn.executescript((Path(__file__).parent / "fixtures/platform_sqlite.sql").read_text())
     for usuario in ("uc1", "uc2", "ue1", "ue2", "ua", "ur2", "desativado"):
         conn.execute("INSERT INTO Usuarios(ID_Usuarios, Nome, Email, SenhaHash, Ativo) VALUES (?, ?, ?, ?, ?)",
                      (usuario, usuario, usuario + "@example.com", SENHA_HASH, usuario != "desativado"))
@@ -164,7 +165,7 @@ def ambiente(monkeypatch, tmp_path):
 
     def consulta(query, params=()):
         # SQLite executa as queries reais, adaptando somente placeholders e NOW().
-        return conn.execute(query.replace("%s", "?").replace("NOW()", "CURRENT_TIMESTAMP").replace(" FOR UPDATE", ""), params)
+        return conn.execute(query.replace("%s", "?").replace("NOW()", "CURRENT_TIMESTAMP").replace(" FOR UPDATE SKIP LOCKED", "").replace(" FOR UPDATE", ""), params)
 
     async def fetch_one(query, params=()):
         row = consulta(query, params).fetchone()
@@ -174,7 +175,10 @@ def ambiente(monkeypatch, tmp_path):
         return [dict(row) for row in consulta(query, params).fetchall()]
 
     async def execute(query, params=()):
+        in_transaction = conn.in_transaction
         cur = consulta(query, params)
+        if not in_transaction:
+            conn.commit()  # Mesma política de autocommit das escritas isoladas do MySQL.
         return cur.rowcount
 
     @asynccontextmanager
@@ -196,7 +200,7 @@ def ambiente(monkeypatch, tmp_path):
     for modulo in list(sys.modules.values()):
         if modulo and getattr(modulo, "__name__", "").startswith("app."):
             for nome, funcao in (("fetch_one", fetch_one), ("fetch_all", fetch_all), ("execute", execute),
-                                 ("notificar_usuario", sem_efeito)):
+                                 ("notificar_usuario", sem_efeito), ("transaction", transaction)):
                 if hasattr(modulo, nome):
                     monkeypatch.setattr(modulo, nome, funcao)
     monkeypatch.setattr(main, "init_pool", sem_efeito)

@@ -64,6 +64,10 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         partes = [parte for parte in request.url.path.split("/") if parte]
         eh_auth = bool(partes and partes[0] == "auth")
         limite = settings.RATE_LIMIT_AUTH_REQUESTS if eh_auth else settings.RATE_LIMIT_REQUESTS
+        sensivel = partes and (partes[0] == 'inteligencia' or
+            (request.method in {'POST','PUT','PATCH','DELETE'} and partes[0] in {'mensagens','comunicacao','agenda','automacoes','privacidade','organizacoes','publicacao'}))
+        if sensivel:
+            limite = min(limite, settings.RATE_LIMIT_SENSITIVE_REQUESTS)
         if eh_auth:
             # Autenticação precisa de limite mais rígido, mas não deve colocar
             # cadastro, login, recuperação e 2FA no mesmo balde.
@@ -74,6 +78,8 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         key = f"{client}:{grupo}"
         now = time.monotonic()
         async with self._lock:
+            if len(self._hits) > 5000:
+                self._hits = defaultdict(deque, {k:v for k,v in self._hits.items() if v and now-v[-1]<settings.RATE_LIMIT_WINDOW_SECONDS})
             bucket = self._hits[key]
             while bucket and now - bucket[0] >= settings.RATE_LIMIT_WINDOW_SECONDS:
                 bucket.popleft()
@@ -114,6 +120,8 @@ class SecurityMiddleware(BaseHTTPMiddleware):
         response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
         if request.url.path.startswith(("/auth/", "/ats/")):
             response.headers["Cache-Control"] = "no-store"
+        if not request.url.path.startswith(('/p/','/publico-estatico/','/auth/','/ats/')) and request.url.path not in {'/sitemap.xml','/robots.txt'}:
+            response.headers['Cache-Control'] = 'private, no-store'
         if settings.SESSION_COOKIE_SECURE:
             response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
         return response

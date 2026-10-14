@@ -88,15 +88,17 @@ async def criar_candidatura(dados: CandidaturaCreate, sessao: dict = Depends(exi
     candidato_usuario = await fetch_one("SELECT Nome FROM Usuarios WHERE ID_Usuarios=%s", (sessao["id_usuario"],))
     if empresa:
         nome_candidato = candidato_usuario["Nome"] if candidato_usuario else "Um candidato"
-        await notificar_usuario(
-            id_usuario=empresa["ID_Usuarios"],
-            titulo="Nova candidatura recebida",
-            mensagem=f"{nome_candidato} se candidatou à vaga '{vaga['Titulo']}'.",
-            tipo="candidatura",
-            enviar_email_fn=lambda email: email_nova_candidatura(
-                email, empresa["NomeFantasia"] or empresa["RazaoSocial"], vaga["Titulo"], nome_candidato
-            ),
-        )
+        from app.core.organizations import responsaveis_empresa
+        for owner in await responsaveis_empresa(empresa['ID_Empresas']):
+            await notificar_usuario(
+                id_usuario=owner,
+                titulo="Nova candidatura recebida",
+                mensagem=f"{nome_candidato} se candidatou à vaga '{vaga['Titulo']}'.",
+                tipo="candidatura",
+                enviar_email_fn=lambda email: email_nova_candidatura(
+                    email, empresa["NomeFantasia"] or empresa["RazaoSocial"], vaga["Titulo"], nome_candidato
+                ),
+            )
 
     return await fetch_one("SELECT * FROM Candidaturas WHERE ID_Candidaturas=%s", (id_candidatura,))
 
@@ -169,6 +171,8 @@ async def obter_candidatura(id_candidatura: str, sessao: dict = Depends(usuario_
     entrevistas = await fetch_all(
         "SELECT * FROM Entrevistas WHERE ID_Candidaturas=%s ORDER BY DataHora", (id_candidatura,)
     )
+    from app.core.agenda import projetar_entrevistas
+    entrevistas = await projetar_entrevistas(entrevistas)
     if sessao["tipo_usuario"] == "candidato":
         for entrevista in entrevistas:
             entrevista.pop("Observacoes",None)
@@ -308,13 +312,17 @@ async def agendar_entrevista(
         (dados.id_recrutador, vaga["ID_Empresas"]))
     if not recrutador:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Recrutador deve estar ativo e vinculado à empresa da vaga.")
+    from app.core.agenda import horario_utc, validar_conflito
+    start=horario_utc(dados.data_hora)
+    await validar_conflito(candidatura,dados.id_recrutador,start)
     await execute(
         """INSERT INTO Entrevistas (ID_Entrevistas, ID_Candidaturas, ID_Recrutadores, ID_Status_Entrevista,
                DataHora, Tipo, LocalOuLink, Observacoes)
            VALUES (%s, %s, %s, 1, %s, %s, %s, %s)""",
-        (id_entrevista, id_candidatura, dados.id_recrutador, dados.data_hora,
+        (id_entrevista, id_candidatura, dados.id_recrutador, start,
          dados.tipo, dados.local_ou_link, dados.observacoes),
     )
+    await execute("INSERT INTO Agenda_Detalhes(ID_Entrevistas,Fuso,DuracaoMin,Chave,PayloadHash) VALUES (%s,'America/Sao_Paulo',30,%s,%s)",(id_entrevista,'legado:'+id_entrevista,'0'*64))
 
     # notifica o candidato sobre a entrevista agendada (in-app + e-mail)
     candidato = await fetch_one("SELECT * FROM Candidatos WHERE ID_Candidatos=%s", (candidatura["ID_Candidatos"],))
@@ -333,7 +341,9 @@ async def agendar_entrevista(
             ),
         )
 
-    return await fetch_one("SELECT * FROM Entrevistas WHERE ID_Entrevistas=%s", (id_entrevista,))
+    from app.core.agenda import projetar_entrevistas
+    rows=await projetar_entrevistas([await fetch_one("SELECT * FROM Entrevistas WHERE ID_Entrevistas=%s", (id_entrevista,))])
+    return rows[0]
 
 
 @router.get("/candidaturas/{id_candidatura}/entrevistas", tags=["Entrevistas"])
@@ -345,6 +355,8 @@ async def listar_entrevistas(id_candidatura: str, sessao: dict = Depends(usuario
     entrevistas = await fetch_all(
         "SELECT * FROM Entrevistas WHERE ID_Candidaturas=%s ORDER BY DataHora", (id_candidatura,)
     )
+    from app.core.agenda import projetar_entrevistas
+    entrevistas = await projetar_entrevistas(entrevistas)
     if sessao["tipo_usuario"] == "candidato":
         for entrevista in entrevistas:
             entrevista.pop("Observacoes",None)
@@ -371,6 +383,14 @@ async def reagendar_entrevista(
     id_entrevista: str, nova_data_hora: datetime, sessao: dict = Depends(exigir_tipo("empresa", "recrutador", "administrador"))
 ):
     await _checar_acesso_entrevista(id_entrevista, sessao)
+    from app.core.agenda import horario_utc, validar_conflito
+    old = await fetch_one('SELECT * FROM Entrevistas WHERE ID_Entrevistas=%s FOR UPDATE',(id_entrevista,))
+    application = await fetch_one('SELECT * FROM Candidaturas WHERE ID_Candidaturas=%s',(old['ID_Candidaturas'],))
+    detail = await fetch_one('SELECT * FROM Agenda_Detalhes WHERE ID_Entrevistas=%s FOR UPDATE',(id_entrevista,))
+    await validar_conflito(application,old['ID_Recrutadores'],horario_utc(nova_data_hora),detail['DuracaoMin'] if detail else 30,id_entrevista)
+    if detail:
+        nova_data_hora = horario_utc(nova_data_hora)
+        await execute('UPDATE Agenda_Detalhes SET Versao=Versao+1 WHERE ID_Entrevistas=%s',(id_entrevista,))
     await execute(
         "UPDATE Entrevistas SET DataHora=%s, ID_Status_Entrevista=3 WHERE ID_Entrevistas=%s",
         (nova_data_hora, id_entrevista),

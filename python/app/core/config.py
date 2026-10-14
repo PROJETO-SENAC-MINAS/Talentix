@@ -39,7 +39,7 @@ class Settings(BaseSettings):
 
     FRONTEND_ORIGIN: str = "http://localhost:3000"
     CORS_ALLOW_METHODS: str = "GET,POST,PUT,PATCH,DELETE,OPTIONS"
-    CORS_ALLOW_HEADERS: str = "Content-Type,Accept,X-CSRF-Token,X-Request-ID"
+    CORS_ALLOW_HEADERS: str = "Content-Type,Accept,X-CSRF-Token,X-Request-ID,X-Organization-ID"
     TRUSTED_HOSTS: str = "127.0.0.1,localhost,testserver"
 
     SMTP_ENABLED: bool = False
@@ -56,6 +56,13 @@ class Settings(BaseSettings):
     RATE_LIMIT_WINDOW_SECONDS: int = 60
     MAX_REQUEST_SIZE_MB: int = 12
     EMAIL_CONFIRMATION_REQUIRED: bool = False
+    PUBLIC_SITE_URL: str = 'http://127.0.0.1:8000'
+    DATA_RETENTION_DAYS: int = Field(default=365, ge=30, le=3650)
+    PRIVACY_DELETE_GRACE_DAYS: int = Field(default=7, ge=1, le=30)
+    RATE_LIMIT_SENSITIVE_REQUESTS: int = 20
+    VAPID_PRIVATE_KEY: str = Field(default='',repr=False)
+    VAPID_PUBLIC_KEY: str = ''
+    VAPID_SUBJECT: str = ''
 
     @field_validator("SECRET_KEY", "IA_WORKER_TOKEN", "PAYMENT_WEBHOOK_TOKEN")
     @classmethod
@@ -87,7 +94,10 @@ class Settings(BaseSettings):
 
     @property
     def cors_headers(self) -> list[str]:
-        return [x.strip() for x in self.CORS_ALLOW_HEADERS.split(",") if x.strip()]
+        values = [x.strip() for x in self.CORS_ALLOW_HEADERS.split(",") if x.strip()]
+        if not any(v.lower() == 'x-organization-id' for v in values):
+            values.append('X-Organization-ID')
+        return values
 
     @property
     def trusted_hosts(self) -> list[str]:

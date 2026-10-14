@@ -41,6 +41,7 @@ EXTENSOES_PERMITIDAS = {
     # SVG não é aceito: pode conter scripts quando servido no mesmo domínio.
     "logos": {".jpg", ".jpeg", ".png", ".webp"},
     "curriculos": {".pdf", ".doc", ".docx"},
+    "comunicacao": {".pdf"},
 }
 
 _MIME_REAL = {

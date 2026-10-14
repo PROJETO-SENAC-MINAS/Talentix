@@ -163,11 +163,11 @@ async def obter_empresa(id_empresa: str):
 
 @router.put("/empresas/{id_empresa}", tags=["Empresas"])
 async def atualizar_empresa(id_empresa: str, dados: EmpresaUpdate, sessao: dict = Depends(usuario_atual)):
-    empresa = await fetch_one("SELECT * FROM Empresas WHERE ID_Empresas=%s", (id_empresa,))
+    empresa = await checar_empresa(id_empresa,sessao)
     if not empresa:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Empresa não encontrada.")
-    if empresa["ID_Usuarios"] != sessao["id_usuario"] and sessao["tipo_usuario"] != "administrador":
-        raise HTTPException(status.HTTP_403_FORBIDDEN, "Sem permissão.")
+    from app.core.organizations import autorizar_empresa
+    await autorizar_empresa(empresa,sessao,'publicacao')
 
     campos = dados.model_dump(exclude_unset=True)
     if not campos:

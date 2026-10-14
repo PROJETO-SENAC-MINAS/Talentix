@@ -179,6 +179,7 @@ async def cadastrar_empresa(dados: CadastroEmpresa):
            VALUES (%s,%s,%s,%s,%s)""",
         (id_empresa, id_usuario, dados.razao_social, dados.nome_fantasia, dados.cnpj),
     )
+    await execute("INSERT INTO Org_Membros(ID_Empresas,ID_Usuarios,Papel) VALUES (%s,%s,'owner')",(id_empresa,id_usuario))
     return {"id_usuario": id_usuario, "id_empresa": id_empresa, "tipo_usuario": "empresa"}
 
 

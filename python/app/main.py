@@ -11,13 +11,14 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.trustedhost import TrustedHostMiddleware
-from pymysql.err import DataError, IntegrityError
+from pymysql.err import DataError, IntegrityError, OperationalError
 
 from app.core.config import settings
 from app.core.logging_config import configurar_logging
 from app.core.middleware import RateLimitMiddleware, RequestContextMiddleware, SecurityMiddleware
 from app.db.database import close_pool, fetch_one, init_pool
 from app.routers import (
+    organizations, agenda, communication, automations, intelligence, public_pages, analytics, governance, push,
     ats,
     admin,
     auth,
@@ -68,7 +69,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="Talentix API",
     description="API REST da plataforma de recrutamento Talentix.",
-    version="1.2.0",
+    version="1.3.0",
     lifespan=lifespan,
     openapi_tags=TAGS_METADATA,
     docs_url="/docs" if settings.API_DOCS_ENABLED else None,
@@ -114,7 +115,13 @@ async def data_error(request: Request, exc):
     return erro(request, 422, "data_error", "Dados fora dos limites permitidos.")
 
 
-app.add_middleware(RequestContextMiddleware)
+@app.exception_handler(OperationalError)
+async def operational_error(request: Request, exc):
+    if exc.args and exc.args[0] in {1205,1213}:
+        return erro(request,409,'concurrent_update','Outra operação alterou os dados. Recarregue e tente novamente.')
+    return erro(request,503,'database_unavailable','Serviço temporariamente indisponível. Tente novamente.')
+
+
 app.add_middleware(RateLimitMiddleware)
 app.add_middleware(SecurityMiddleware)
 app.add_middleware(TrustedHostMiddleware, allowed_hosts=settings.trusted_hosts)
@@ -127,6 +134,7 @@ app.add_middleware(
     expose_headers=["X-Request-ID"],
     max_age=600,
 )
+app.add_middleware(RequestContextMiddleware)
 
 for categoria in ("fotos", "logos", "curriculos"):
     (Path(settings.UPLOAD_DIR) / categoria).mkdir(parents=True, exist_ok=True)
@@ -138,6 +146,8 @@ for categoria in ("logos",):
     )
 
 for router in (
+    organizations.router, agenda.router, communication.router, automations.router,
+    intelligence.router, public_pages.router, analytics.router, governance.router, push.router,
     ats.router,
     auth.router,
     dominios.router,
@@ -161,6 +171,8 @@ for router in (
     admin.router,
 ):
     app.include_router(router)
+
+app.mount('/publico-estatico', StaticFiles(directory=Path(__file__).resolve().parents[2] / 'css'), name='publico-estatico')
 
 
 @app.get("/", tags=["Status"])

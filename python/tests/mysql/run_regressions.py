@@ -133,7 +133,9 @@ try:
     check('recrutador pode ler proprio rascunho',recruit.get('/vagas/'+vid).status_code==200)
     check('recrutador nao le rascunho de outra empresa',recruit.get('/vagas/'+foreign.json()['ID_Vagas']).status_code==404)
     check('recrutador nao administra financeiro',recruit.get(f"/empresas/{e['id_empresa']}/assinatura").status_code==403)
-    check('recrutador pode publicar vaga vinculada',recruit.patch('/vagas/'+vid+'/publicar').status_code==200)
+    # Decisão confirmada: publicação sensível exige responsável/administrador.
+    check('recrutador solicita publicacao ao responsavel',recruit.patch('/vagas/'+vid+'/publicar').status_code==403)
+    check('responsavel aprova publicacao da vaga',company.patch('/vagas/'+vid+'/publicar').status_code==200)
     application=candidate.post('/candidaturas',json={'id_vaga':vid});check('candidatura publicada',application.status_code==201);aid=application.json()['ID_Candidaturas']
     check('primeira etapa criada atomicamente',scalar('SELECT COUNT(*) FROM Etapas_Processo WHERE ID_Candidaturas=%s',(aid,))==1)
     check('recrutador administra propria candidatura',recruit.get('/candidaturas/'+aid).status_code==200)

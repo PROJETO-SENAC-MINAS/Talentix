@@ -36,6 +36,11 @@ async def job(id,s):
 async def application(id,s):
     c=await fetch_one('SELECT * FROM Candidaturas WHERE ID_Candidaturas=%s',(id,))
     if not c: fail(404,'Candidatura não encontrada.')
+    if s.get('papel_empresa') == 'entrevistador':
+        assigned = await fetch_one('''SELECT en.ID_Entrevistas FROM Entrevistas en
+            JOIN Recrutadores r ON r.ID_Recrutadores=en.ID_Recrutadores AND r.Ativo=1
+            WHERE en.ID_Candidaturas=%s AND r.ID_Usuarios=%s AND en.ID_Status_Entrevista IN (1,2,3) LIMIT 1''',(id,s['id_usuario']))
+        if not assigned: fail(403,'Somente entrevistas atribuídas a você podem ser avaliadas.')
     await job(c['ID_Vagas'],s)
     return c
 
